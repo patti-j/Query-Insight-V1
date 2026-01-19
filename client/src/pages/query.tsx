@@ -5,25 +5,53 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
-// Default questions shown when no FAQ history exists
-const DEFAULT_QUESTIONS = [
-  { text: "Show jobs that are overdue", icon: "🔴" },
-  { text: "Show jobs on hold with hold reasons", icon: "⏸️" },
-  { text: "List jobs that are not scheduled", icon: "❌" },
-  { text: "What jobs are scheduled for next week?", icon: "📅" },
-  { text: "Show late jobs grouped by plant", icon: "🏭" },
-  { text: "Top 10 jobs by quantity", icon: "📊" },
-  { text: "Jobs with highest lateness days", icon: "⏰" },
-  { text: "List all scheduled jobs", icon: "✅" },
-  { text: "Which resources have work scheduled today?", icon: "⚙️" },
-  { text: "Jobs scheduled to finish this month", icon: "🎯" },
-];
+// Default questions by mode
+const QUESTIONS_BY_MODE: Record<string, { text: string; icon: string }[]> = {
+  planning: [
+    { text: "Show jobs that are overdue", icon: "🔴" },
+    { text: "Show jobs on hold with hold reasons", icon: "⏸️" },
+    { text: "List jobs that are not scheduled", icon: "❌" },
+    { text: "What jobs are scheduled for next week?", icon: "📅" },
+    { text: "Show late jobs grouped by plant", icon: "🏭" },
+    { text: "Top 10 jobs by quantity", icon: "📊" },
+    { text: "Jobs with highest lateness days", icon: "⏰" },
+    { text: "List all scheduled jobs", icon: "✅" },
+    { text: "Show inventory balances", icon: "📦" },
+    { text: "Jobs scheduled to finish this month", icon: "🎯" },
+  ],
+  capacity: [
+    { text: "Show resource demand for next week", icon: "📈" },
+    { text: "Which resources are over capacity?", icon: "🔴" },
+    { text: "List available capacity by resource", icon: "✅" },
+    { text: "Show shift schedules", icon: "📅" },
+    { text: "Compare planned vs actual resource usage", icon: "📊" },
+    { text: "Resources with highest demand", icon: "⚡" },
+    { text: "Capacity utilization by resource", icon: "📉" },
+    { text: "Show resource actuals for today", icon: "📌" },
+    { text: "List all resources and their capacity", icon: "⚙️" },
+    { text: "Shift coverage gaps", icon: "⏰" },
+  ],
+  dispatch: [
+    { text: "Show jobs ready for dispatch", icon: "🚀" },
+    { text: "List operations in progress", icon: "⚙️" },
+    { text: "Jobs with operation attributes", icon: "📋" },
+    { text: "Show operations by resource", icon: "🔧" },
+    { text: "List job operation products", icon: "📦" },
+    { text: "Operations scheduled for today", icon: "📌" },
+    { text: "Show overdue operations", icon: "🔴" },
+    { text: "Jobs by priority for dispatch", icon: "⭐" },
+    { text: "Operations pending completion", icon: "⏳" },
+    { text: "Resources with scheduled work", icon: "🏭" },
+  ],
+};
+
+// Fallback default questions
+const DEFAULT_QUESTIONS = QUESTIONS_BY_MODE.planning;
 
 // Columns to hide from results display (system-generated IDs)
 const HIDDEN_COLUMNS = ['jobid', 'job_id', 'id'];
@@ -122,7 +150,7 @@ export default function QueryPage() {
     
     setFeedbackLoading(true);
     try {
-      await fetch('/api/feedback', {
+      const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,7 +159,11 @@ export default function QueryPage() {
           feedback,
         }),
       });
-      setFeedbackGiven(feedback);
+      if (response.ok) {
+        setFeedbackGiven(feedback);
+      } else {
+        console.error('Failed to submit feedback:', response.statusText);
+      }
     } catch (err) {
       console.error('Failed to submit feedback:', err);
     } finally {
@@ -377,39 +409,43 @@ export default function QueryPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="mode-select">Query Mode</Label>
-                  <Select value={selectedMode} onValueChange={setSelectedMode}>
-                    <SelectTrigger id="mode-select" data-testid="select-mode" className="bg-background/50">
-                      <SelectValue placeholder="Select mode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {semanticCatalog?.modes.map((mode) => (
-                        <SelectItem key={mode.id} value={mode.id} data-testid={`mode-${mode.id}`}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{mode.name}</span>
-                            <span className="text-xs text-muted-foreground">{mode.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2 flex flex-col justify-end">
-                  <div className="flex items-center space-x-2 pb-2">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Query Mode</Label>
+                  <div className="flex items-center space-x-2">
                     <Switch 
                       id="advanced-mode" 
                       checked={advancedMode} 
                       onCheckedChange={setAdvancedMode}
                       data-testid="switch-advanced-mode"
                     />
-                    <Label htmlFor="advanced-mode" className="cursor-pointer">
-                      Advanced: Allow other publish tables
+                    <Label htmlFor="advanced-mode" className="cursor-pointer text-sm text-muted-foreground">
+                      Advanced
                     </Label>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {semanticCatalog?.modes.map((mode) => (
+                    <Button
+                      key={mode.id}
+                      type="button"
+                      variant={selectedMode === mode.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedMode(mode.id)}
+                      data-testid={`mode-${mode.id}`}
+                      className={selectedMode === mode.id 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-background/50 hover:bg-primary/10"}
+                    >
+                      {mode.name}
+                    </Button>
+                  ))}
+                </div>
+                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.description && (
+                  <p className="text-xs text-muted-foreground">
+                    {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}
+                  </p>
+                )}
               </div>
 
               <Textarea
@@ -643,15 +679,75 @@ export default function QueryPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Feedback Section */}
+                <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Was this helpful?</span>
+                    <Button
+                      variant={feedbackGiven === 'up' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => submitFeedback('up')}
+                      disabled={feedbackLoading || feedbackGiven !== null}
+                      data-testid="button-feedback-up"
+                      className={feedbackGiven === 'up' ? "bg-green-500 hover:bg-green-600" : ""}
+                    >
+                      <ThumbsUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={feedbackGiven === 'down' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => submitFeedback('down')}
+                      disabled={feedbackLoading || feedbackGiven !== null}
+                      data-testid="button-feedback-down"
+                      className={feedbackGiven === 'down' ? "bg-red-500 hover:bg-red-600" : ""}
+                    >
+                      <ThumbsDown className="h-4 w-4" />
+                    </Button>
+                    {feedbackGiven && (
+                      <span className="text-sm text-muted-foreground ml-2">Thanks for your feedback!</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Did you mean? Suggestions */}
+                {result.suggestions && result.suggestions.length > 0 && (
+                  <div className="pt-4 border-t border-border/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">Related questions you might ask:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {result.suggestions.map((suggestion, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => executeQuery(suggestion)}
+                          disabled={loading}
+                          data-testid={`button-suggestion-${idx}`}
+                          className="text-xs bg-yellow-500/5 border-yellow-500/30 hover:bg-yellow-500/10"
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         )}
 
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground/80">Quick Questions</h2>
+          <h2 className="text-lg font-semibold text-foreground/80">
+            Quick Questions
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Planning'} mode)
+            </span>
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {faqQuestions.map((q, idx) => (
+            {(QUESTIONS_BY_MODE[selectedMode] || DEFAULT_QUESTIONS).map((q, idx) => (
               <button
                 key={idx}
                 onClick={() => executeQuery(q.text)}
