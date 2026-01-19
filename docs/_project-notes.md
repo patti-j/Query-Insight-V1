@@ -30,6 +30,23 @@
 - All sensitive values managed via Replit Secrets or Azure Key Vault (production).
 - Mock data fallback is UI-only and does not affect production data paths.
 
+### Database Diagnostics
+- **Endpoint**: `GET /api/db/diagnostics`
+- **Purpose**: Validate access to all `publish.DASHt_*` tables in Azure SQL database
+- **Security**: 
+  - Available in development without authentication
+  - In production, requires `DIAGNOSTICS_TOKEN` secret and `X-Diagnostics-Token` header
+- **Usage**:
+  ```bash
+  # Development (no token needed)
+  curl http://localhost:5000/api/db/diagnostics
+  
+  # Production (requires token)
+  curl -H "X-Diagnostics-Token: your_token" https://your-app.com/api/db/diagnostics
+  ```
+- **Response**: JSON with table count, accessibility status, and per-table validation results
+- **Configuration**: Set `DIAGNOSTICS_TOKEN` in Replit Secrets to enable in production (optional)
+
 ### Next Steps
 - Complete repo structure audit.
 - Define runtime architecture (frontend/backend split if any).

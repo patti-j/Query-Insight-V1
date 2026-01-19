@@ -61,6 +61,99 @@ export async function registerRoutes(
     }
   });
 
+  // Database diagnostics endpoint - lists and validates access to publish.DASHt_* tables
+  app.get("/api/db/diagnostics", async (req, res) => {
+    // Security: Only allow in development or with valid DIAGNOSTICS_TOKEN
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const diagnosticsToken = process.env.DIAGNOSTICS_TOKEN;
+    const providedToken = req.headers['x-diagnostics-token'];
+
+    if (!isDevelopment && (!diagnosticsToken || providedToken !== diagnosticsToken)) {
+      return res.status(403).json({
+        error: 'Forbidden: Diagnostics endpoint is only available in development or with valid DIAGNOSTICS_TOKEN header',
+      });
+    }
+
+    log('Running database diagnostics...', 'db-diagnostics');
+
+    try {
+      // Step 1: Query sys.tables to find all publish.DASHt_* tables
+      const tablesQuery = `
+        SELECT t.name
+        FROM sys.tables t
+        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+        WHERE s.name = 'publish' 
+          AND t.name LIKE 'DASHt[_]%' ESCAPE '\\'
+        ORDER BY t.name
+      `;
+
+      const tablesResult = await executeQuery(tablesQuery);
+      const tableNames = tablesResult.recordset.map(row => row.name);
+
+      log(`Found ${tableNames.length} DASHt tables`, 'db-diagnostics');
+
+      // Step 2: Test access to each table
+      const tableResults = await Promise.all(
+        tableNames.map(async (tableName) => {
+          try {
+            // Use SELECT TOP (0) to avoid reading any actual data
+            const testQuery = `SELECT TOP (0) * FROM [publish].[${tableName}]`;
+            await executeQuery(testQuery);
+            
+            return {
+              table: tableName,
+              accessible: true,
+              error: null,
+            };
+          } catch (error: any) {
+            // Log detailed error server-side, but return sanitized message to client
+            log(`Failed to access table ${tableName}: ${error.message}`, 'db-diagnostics');
+            
+            // Sanitize error message - don't expose internal DB details
+            let sanitizedError = 'Access denied';
+            if (error.message?.toLowerCase().includes('invalid object name')) {
+              sanitizedError = 'Table not found';
+            } else if (error.message?.toLowerCase().includes('permission')) {
+              sanitizedError = 'Permission denied';
+            }
+            
+            return {
+              table: tableName,
+              accessible: false,
+              error: sanitizedError,
+            };
+          }
+        })
+      );
+
+      // Step 3: Compile results
+      const accessibleCount = tableResults.filter(r => r.accessible).length;
+      const failedCount = tableResults.filter(r => !r.accessible).length;
+
+      const response = {
+        timestamp: new Date().toISOString(),
+        totalTables: tableNames.length,
+        accessible: accessibleCount,
+        failed: failedCount,
+        tables: tableResults,
+      };
+
+      log(`Diagnostics complete: ${accessibleCount}/${tableNames.length} tables accessible`, 'db-diagnostics');
+
+      res.json(response);
+
+    } catch (error: any) {
+      // Log detailed error server-side only
+      log(`Diagnostics failed: ${error.message}`, 'db-diagnostics');
+      
+      // Return sanitized error to client - don't expose internal DB details
+      res.status(500).json({
+        error: 'Failed to run diagnostics. Check database connectivity and permissions.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
     const { question } = req.body;
