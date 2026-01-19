@@ -422,11 +422,10 @@ export default function QueryPage() {
                   Results
                 </CardTitle>
                 {submittedQuestion && (
-                  <p className="text-sm text-muted-foreground italic mb-2" data-testid="text-submitted-question">
+                  <p className="text-sm text-muted-foreground italic" data-testid="text-submitted-question">
                     "{submittedQuestion}"
                   </p>
                 )}
-                <CardDescription data-testid="text-answer">{result.answer}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -465,9 +464,9 @@ export default function QueryPage() {
                         </Button>
                       )}
                     </div>
-                    <div className="border border-border/50 rounded-xl">
-                      <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
-                        <table className="min-w-full w-max text-sm">
+                    <div className="border border-border/50 rounded-xl overflow-hidden">
+                      <div className="overflow-y-auto max-h-[500px]">
+                        <table className="w-full text-sm table-auto">
                           <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
