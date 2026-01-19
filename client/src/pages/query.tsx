@@ -58,6 +58,14 @@ interface QueryResult {
   isMock: boolean;
 }
 
+const MOCK_DATA = [
+  { job_id: 'J001', job_name: 'Engine Assembly', status: 'In Progress', due_date: '2023-11-15', quantity: 50, plant: 'Plant A' },
+  { job_id: 'J002', job_name: 'Chassis Welding', status: 'Completed', due_date: '2023-11-10', quantity: 20, plant: 'Plant B' },
+  { job_id: 'J003', job_name: 'Paint Shop', status: 'Pending', due_date: '2023-11-20', quantity: 100, plant: 'Plant A' },
+  { job_id: 'J004', job_name: 'Final Inspection', status: 'Scheduled', due_date: '2023-11-25', quantity: 50, plant: 'Plant C' },
+  { job_id: 'J005', job_name: 'Packaging', status: 'On Hold', due_date: '2023-11-30', quantity: 200, plant: 'Plant B' },
+];
+
 export default function QueryPage() {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,28 +76,9 @@ export default function QueryPage() {
 
   // Fetch popular questions on mount and after each successful query
   const fetchPopularQuestions = async () => {
-    try {
-      const response = await fetch('/api/popular-questions');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.questions && data.questions.length > 0) {
-          // Convert popular questions to display format with icons
-          const faq = data.questions.map((q: { question: string; count: number }) => ({
-            text: q.question,
-            icon: getQuestionIcon(q.question),
-          }));
-          // Merge FAQ with defaults: FAQ first, then fill remaining slots with defaults
-          const faqTexts = new Set(faq.map((q: { text: string }) => q.text.toLowerCase()));
-          const remainingDefaults = DEFAULT_QUESTIONS.filter(
-            d => !faqTexts.has(d.text.toLowerCase())
-          );
-          const merged = [...faq, ...remainingDefaults].slice(0, 10);
-          setFaqQuestions(merged);
-        }
-      }
-    } catch (err) {
-      // Fall back to defaults silently
-    }
+    // Mock implementation - in a real app this would fetch from backend
+    // For now we just stick to DEFAULT_QUESTIONS or could shuffle them
+    setFaqQuestions(DEFAULT_QUESTIONS);
   };
 
   useEffect(() => {
@@ -105,19 +94,38 @@ export default function QueryPage() {
     setShowAllRows(false);
 
     try {
-      const response = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
-      });
+      // Mock API call simulation
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
 
-      const data = await response.json();
+      // Simple mock logic to return different results based on keywords
+      let mockRows = [...MOCK_DATA];
+      let answer = "Here are the results based on your query.";
+      let sql = "SELECT * FROM jobs";
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Query failed');
+      const qLower = q.toLowerCase();
+      if (qLower.includes('plant a')) {
+        mockRows = MOCK_DATA.filter(row => row.plant === 'Plant A');
+        answer = "Found 2 jobs for Plant A.";
+        sql = "SELECT * FROM jobs WHERE plant = 'Plant A'";
+      } else if (qLower.includes('completed')) {
+        mockRows = MOCK_DATA.filter(row => row.status === 'Completed');
+        answer = "Found 1 completed job.";
+        sql = "SELECT * FROM jobs WHERE status = 'Completed'";
+      } else if (qLower.includes('hold')) {
+        mockRows = MOCK_DATA.filter(row => row.status === 'On Hold');
+        answer = "Found 1 job on hold.";
+        sql = "SELECT * FROM jobs WHERE status = 'On Hold'";
       }
 
-      setResult(data);
+      const mockResult: QueryResult = {
+        answer,
+        sql,
+        rows: mockRows,
+        rowCount: mockRows.length,
+        isMock: true
+      };
+
+      setResult(mockResult);
       // Clear the query box and refresh FAQ after successful query
       setQuestion('');
       fetchPopularQuestions();
