@@ -332,7 +332,7 @@ export default function QueryPage() {
           </CardContent>
         </Card>
 
-        {showDiagnostics && diagnosticsResult && (
+        {isDevelopment && showDiagnostics && diagnosticsResult && (
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -420,6 +420,11 @@ export default function QueryPage() {
                   <span className="text-green-500">✓</span>
                   Results
                 </CardTitle>
+                {submittedQuestion && (
+                  <p className="text-sm text-muted-foreground italic mb-2" data-testid="text-submitted-question">
+                    "{submittedQuestion}"
+                  </p>
+                )}
                 <CardDescription data-testid="text-answer">{result.answer}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
