@@ -61,6 +61,28 @@ export async function registerRoutes(
     }
   });
 
+  // Get latest publish date from DASHt_Planning
+  app.get("/api/last-update", async (_req, res) => {
+    try {
+      const result = await executeQuery(
+        'SELECT TOP (1) MAX(PublishDate) as lastUpdate FROM [publish].[DASHt_Planning]'
+      );
+      
+      const lastUpdate = result.recordset[0]?.lastUpdate || null;
+      
+      res.json({
+        ok: true,
+        lastUpdate,
+      });
+    } catch (error: any) {
+      log(`Last update fetch failed: ${error.message}`, 'last-update');
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch last update date',
+      });
+    }
+  });
+
   // Database diagnostics endpoint - lists and validates access to publish.DASHt_* tables
   app.get("/api/db/diagnostics", async (req, res) => {
     // Security: Only allow in development or with valid DIAGNOSTICS_TOKEN
