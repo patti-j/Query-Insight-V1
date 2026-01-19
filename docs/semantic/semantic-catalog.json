@@ -1,0 +1,50 @@
+{
+  "modes": [
+    {
+      "id": "planning",
+      "name": "Planning",
+      "description": "Manufacturing planning and scheduling data including job operations, materials, resources, and inventory",
+      "tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_Materials",
+        "publish.DASHt_Resources",
+        "publish.DASHt_Inventories",
+        "publish.DASHt_NetInventoryBalance",
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_PurchaseOrders",
+        "publish.DASHt_TranLog"
+      ],
+      "default": true
+    },
+    {
+      "id": "capacity",
+      "name": "Capacity",
+      "description": "Resource capacity planning including demand, capacity, actuals, and shift schedules",
+      "tables": [
+        "publish.DASHt_CapacityPlanning_ResourceDemand",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_CapacityPlanning_ShiftsCombined",
+        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
+        "publish.DASHt_Resources"
+      ],
+      "default": false
+    },
+    {
+      "id": "dispatch",
+      "name": "Dispatch",
+      "description": "Production dispatch and job operation execution data",
+      "tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_Resources"
+      ],
+      "default": false
+    }
+  ],
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-19"
+}

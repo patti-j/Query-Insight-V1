@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 // Default questions shown when no FAQ history exists
 const DEFAULT_QUESTIONS = [
@@ -70,6 +73,20 @@ interface DiagnosticsResult {
   }>;
 }
 
+interface SemanticMode {
+  id: string;
+  name: string;
+  description: string;
+  tables: string[];
+  default: boolean;
+}
+
+interface SemanticCatalog {
+  modes: SemanticMode[];
+  version: string;
+  lastUpdated: string;
+}
+
 const MOCK_DATA = [
   { job_id: 'J001', job_name: 'Engine Assembly', status: 'In Progress', due_date: '2023-11-15', quantity: 50, plant: 'Plant A' },
   { job_id: 'J002', job_name: 'Chassis Welding', status: 'Completed', due_date: '2023-11-10', quantity: 20, plant: 'Plant B' },
@@ -91,6 +108,9 @@ export default function QueryPage() {
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
+  const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
+  const [selectedMode, setSelectedMode] = useState('planning');
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   // Fetch popular questions on mount and after each successful query
   const fetchPopularQuestions = async () => {
@@ -128,6 +148,19 @@ export default function QueryPage() {
     fetch('/api/db/diagnostics', { method: 'HEAD' })
       .then(res => setIsDevelopment(res.status !== 403))
       .catch(() => setIsDevelopment(false));
+    
+    // Fetch semantic catalog
+    fetch('/api/semantic-catalog')
+      .then(res => res.json())
+      .then(data => {
+        setSemanticCatalog(data);
+        // Set default mode if specified
+        const defaultMode = data.modes.find((m: SemanticMode) => m.default);
+        if (defaultMode) {
+          setSelectedMode(defaultMode.id);
+        }
+      })
+      .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
 
   const executeQuery = async (q: string) => {
@@ -143,7 +176,11 @@ export default function QueryPage() {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ 
+          question: q,
+          mode: selectedMode,
+          advancedMode 
+        }),
       });
 
       // Try to parse JSON, if it fails (HTML response), throw error to trigger fallback
@@ -312,6 +349,41 @@ export default function QueryPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="mode-select">Query Mode</Label>
+                  <Select value={selectedMode} onValueChange={setSelectedMode}>
+                    <SelectTrigger id="mode-select" data-testid="select-mode" className="bg-background/50">
+                      <SelectValue placeholder="Select mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {semanticCatalog?.modes.map((mode) => (
+                        <SelectItem key={mode.id} value={mode.id} data-testid={`mode-${mode.id}`}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{mode.name}</span>
+                            <span className="text-xs text-muted-foreground">{mode.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2 flex flex-col justify-end">
+                  <div className="flex items-center space-x-2 pb-2">
+                    <Switch 
+                      id="advanced-mode" 
+                      checked={advancedMode} 
+                      onCheckedChange={setAdvancedMode}
+                      data-testid="switch-advanced-mode"
+                    />
+                    <Label htmlFor="advanced-mode" className="cursor-pointer">
+                      Advanced: Allow other publish tables
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
               <Textarea
                 placeholder="What would you like to know about your manufacturing data?"
                 value={question}

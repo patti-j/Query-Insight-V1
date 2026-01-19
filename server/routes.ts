@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
-import { validateAndModifySql, runValidatorSelfCheck } from "./sql-validator";
+import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
 import { generateSqlFromQuestion } from "./openai-client";
 import { log } from "./index";
 import {
@@ -13,6 +13,8 @@ import {
   trackQueryForFAQ,
   getPopularQuestions,
 } from "./query-logger";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -38,6 +40,21 @@ export async function registerRoutes(
   app.get("/api/popular-questions", (_req, res) => {
     const questions = getPopularQuestions(10);
     res.json({ questions });
+  });
+
+  // Get semantic catalog
+  app.get("/api/semantic-catalog", (_req, res) => {
+    try {
+      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
+      const catalogContent = readFileSync(catalogPath, 'utf-8');
+      const catalog = JSON.parse(catalogContent);
+      res.json(catalog);
+    } catch (error: any) {
+      log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
+      res.status(500).json({
+        error: 'Failed to load semantic catalog',
+      });
+    }
   });
 
   // Database connectivity check
@@ -178,7 +195,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question } = req.body;
+    const { question, mode = 'planning', advancedMode = false } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -187,23 +204,43 @@ export async function registerRoutes(
       });
     }
 
+    // Load semantic catalog to get allowed tables for the mode
+    let allowedTables: string[] = [];
+    try {
+      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
+      const catalogContent = readFileSync(catalogPath, 'utf-8');
+      const catalog = JSON.parse(catalogContent);
+      
+      const selectedMode = catalog.modes.find((m: any) => m.id === mode);
+      if (selectedMode) {
+        allowedTables = selectedMode.tables;
+      }
+    } catch (error: any) {
+      log(`Failed to load semantic catalog: ${error.message}`, 'ask');
+      // Continue with empty allowedTables - will fall back to any DASHt_* table
+    }
+
     // Create query log context
     const logContext = createQueryLogContext(req, question);
-    log(`Processing question: ${question}`, 'ask');
+    log(`Processing question: ${question} (mode: ${mode}, advancedMode: ${advancedMode})`, 'ask');
 
     let generatedSql: string | undefined;
     let llmStartTime: number | undefined;
     let llmMs: number | undefined;
 
     try {
-      // Generate SQL from natural language
+      // Generate SQL from natural language with mode context
       llmStartTime = Date.now();
-      generatedSql = await generateSqlFromQuestion(question);
+      generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables });
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
 
-      // Validate and modify SQL if needed
-      const validation = validateAndModifySql(generatedSql);
+      // Validate and modify SQL if needed, passing mode-specific options
+      const validationOptions: ValidationOptions = {
+        allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
+        advancedMode,
+      };
+      const validation = validateAndModifySql(generatedSql, validationOptions);
       
       if (!validation.valid) {
         log(`SQL validation failed: ${validation.error}`, 'ask');
@@ -257,7 +294,11 @@ export async function registerRoutes(
       // Determine error stage and log appropriately
       if (generatedSql) {
         // Error during SQL execution (use validated SQL if available)
-        const validation = validateAndModifySql(generatedSql);
+        const validationOptions: ValidationOptions = {
+          allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
+          advancedMode,
+        };
+        const validation = validateAndModifySql(generatedSql, validationOptions);
         const failedSql = validation.modifiedSql || generatedSql;
         logExecutionFailure(
           logContext,

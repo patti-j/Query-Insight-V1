@@ -25,9 +25,10 @@ Preferred communication style: Simple, everyday language.
 - **Key Endpoints**:
   - `GET /api/health` - Health check
   - `GET /api/db-check` - Database connectivity verification
-  - `POST /api/query` - Natural language query processing
+  - `POST /api/ask` - Natural language query processing (accepts `mode` and `advancedMode` parameters)
   - `GET /api/popular-questions` - FAQ suggestions
   - `GET /api/validator-check` - SQL validator self-test
+  - `GET /api/semantic-catalog` - Returns semantic mode catalog with table allowlists
 
 ### Data Flow
 1. User submits natural language question
@@ -44,11 +45,17 @@ The `sql-validator.ts` enforces strict security:
 - Only `[publish].[DASHt_*]` tables accessible
 - Automatic TOP(100) enforcement
 - Single statement only (no semicolons mid-query)
+- **Semantic Mode Filtering**: Optionally restricts queries to mode-specific table allowlists (Planning, Capacity, or Dispatch)
+- **Advanced Mode**: When enabled, allows any `publish.DASHt_*` table while maintaining all other security rules
 
 ### Database Schema
 - **Primary Table**: `[publish].[DASHt_Planning]` - Manufacturing planning data
 - **Additional Tables**: Various `DASHt_*` tables for capacity planning, inventories, materials, resources, sales orders
 - Schema documentation stored in `schemas/publish/` as Markdown files
+- **Semantic Catalog**: `docs/semantic/semantic-catalog.json` defines three query modes:
+  - **Planning Mode** (default): Planning, job operations, materials, resources, inventory, sales/purchase orders, transaction logs
+  - **Capacity Mode**: Resource demand, capacity, actuals, shift schedules
+  - **Dispatch Mode**: Planning, job operations, job attributes, resources
 
 ### Authentication
 - Currently no user authentication implemented
