@@ -3,11 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
 // Default questions shown when no FAQ history exists
 const DEFAULT_QUESTIONS = [
@@ -527,16 +529,59 @@ export default function QueryPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowAllRows(!showAllRows)}
-                        disabled={result.rows.length <= 10}
-                        className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
-                        data-testid="button-toggle-rows"
-                      >
-                        {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              data-testid="button-export"
+                            >
+                              <Download className="h-4 w-4" />
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                try {
+                                  const exportData = result.rows.map(filterRowColumns);
+                                  exportToCSV(exportData, `query-results-${Date.now()}.csv`);
+                                } catch (err: any) {
+                                  setError(`Export failed: ${err.message}`);
+                                }
+                              }}
+                              data-testid="menu-export-csv"
+                            >
+                              Export as CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                try {
+                                  const exportData = result.rows.map(filterRowColumns);
+                                  exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
+                                } catch (err: any) {
+                                  setError(`Export failed: ${err.message}`);
+                                }
+                              }}
+                              data-testid="menu-export-excel"
+                            >
+                              Export as Excel
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowAllRows(!showAllRows)}
+                          disabled={result.rows.length <= 10}
+                          className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
+                          data-testid="button-toggle-rows"
+                        >
+                          {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
+                        </Button>
+                      </div>
                     </div>
                     <div className="border border-border/50 rounded-xl overflow-hidden">
                       <div className="overflow-y-auto max-h-[500px]">
