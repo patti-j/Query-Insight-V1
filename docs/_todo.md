@@ -7,6 +7,9 @@
 
 ## In progress
 - [ ] Connect tooling and establish GitHub-first workflow
+- [ ] Verify Secrets configuration for live SQL access
 
 ## Done
 - [x] Confirm correct repository (`patti-j/Query-Insight-V1`)
+- [x] Restore live SQL data access support
+- [x] Document required environment variables

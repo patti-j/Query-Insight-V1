@@ -76,9 +76,32 @@ export default function QueryPage() {
 
   // Fetch popular questions on mount and after each successful query
   const fetchPopularQuestions = async () => {
-    // Mock implementation - in a real app this would fetch from backend
-    // For now we just stick to DEFAULT_QUESTIONS or could shuffle them
-    setFaqQuestions(DEFAULT_QUESTIONS);
+    try {
+      const response = await fetch('/api/popular-questions');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.questions && data.questions.length > 0) {
+          // Convert popular questions to display format with icons
+          const faq = data.questions.map((q: { question: string; count: number }) => ({
+            text: q.question,
+            icon: getQuestionIcon(q.question),
+          }));
+          // Merge FAQ with defaults: FAQ first, then fill remaining slots with defaults
+          const faqTexts = new Set(faq.map((q: { text: string }) => q.text.toLowerCase()));
+          const remainingDefaults = DEFAULT_QUESTIONS.filter(
+            d => !faqTexts.has(d.text.toLowerCase())
+          );
+          const merged = [...faq, ...remainingDefaults].slice(0, 10);
+          setFaqQuestions(merged);
+        }
+      } else {
+        // Fall back to defaults silently if API fails
+        setFaqQuestions(DEFAULT_QUESTIONS);
+      }
+    } catch (err) {
+      // Fall back to defaults silently
+      setFaqQuestions(DEFAULT_QUESTIONS);
+    }
   };
 
   useEffect(() => {
@@ -94,27 +117,56 @@ export default function QueryPage() {
     setShowAllRows(false);
 
     try {
-      // Mock API call simulation
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q }),
+      });
 
+      // Try to parse JSON, if it fails (HTML response), throw error to trigger fallback
+      let data;
+      try {
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+           throw new Error(`Server response was not JSON: ${text.substring(0, 100)}...`);
+        }
+      } catch (e: any) {
+        throw new Error(e.message || 'Failed to parse server response');
+      }
+
+      if (!response.ok) {
+        // If server returns explicit error, throw it
+        throw new Error(data.error || 'Query failed');
+      }
+
+      setResult(data);
+      // Clear the query box and refresh FAQ after successful query
+      setQuestion('');
+      fetchPopularQuestions();
+    } catch (err: any) {
+      console.error("API Query Failed:", err);
+      // Fallback to mock data if API fails (e.g. secrets not set)
+      
       // Simple mock logic to return different results based on keywords
       let mockRows = [...MOCK_DATA];
-      let answer = "Here are the results based on your query.";
-      let sql = "SELECT * FROM jobs";
+      let answer = "Showing sample data (Backend connection failed or secrets missing).";
+      let sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs";
 
       const qLower = q.toLowerCase();
       if (qLower.includes('plant a')) {
         mockRows = MOCK_DATA.filter(row => row.plant === 'Plant A');
-        answer = "Found 2 jobs for Plant A.";
-        sql = "SELECT * FROM jobs WHERE plant = 'Plant A'";
+        answer = "Found 2 jobs for Plant A (Mock Data).";
+        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE plant = 'Plant A'";
       } else if (qLower.includes('completed')) {
         mockRows = MOCK_DATA.filter(row => row.status === 'Completed');
-        answer = "Found 1 completed job.";
-        sql = "SELECT * FROM jobs WHERE status = 'Completed'";
+        answer = "Found 1 completed job (Mock Data).";
+        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'Completed'";
       } else if (qLower.includes('hold')) {
         mockRows = MOCK_DATA.filter(row => row.status === 'On Hold');
-        answer = "Found 1 job on hold.";
-        sql = "SELECT * FROM jobs WHERE status = 'On Hold'";
+        answer = "Found 1 job on hold (Mock Data).";
+        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'On Hold'";
       }
 
       const mockResult: QueryResult = {
@@ -126,11 +178,11 @@ export default function QueryPage() {
       };
 
       setResult(mockResult);
-      // Clear the query box and refresh FAQ after successful query
+      // If it was a real error (not just missing backend), maybe show a toast or small indicator?
+      // For now, the "Mock Mode" indicator in result is enough.
+      setError(`Backend Error: ${err.message}. Showing mock data.`);
+      
       setQuestion('');
-      fetchPopularQuestions();
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -207,7 +259,7 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                Error
+                System Notification
               </CardTitle>
             </CardHeader>
             <CardContent>
