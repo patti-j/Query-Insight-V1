@@ -247,7 +247,7 @@ export default function QueryPage() {
                     <div className="border border-border/50 rounded-xl overflow-hidden">
                       <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                         <table className="w-full text-sm">
-                          <thead className="bg-muted/50 sticky top-0">
+                          <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
                                 <th key={key} className="px-4 py-3 text-left font-medium text-foreground/70">
