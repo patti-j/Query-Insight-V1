@@ -1,7 +1,15 @@
 import OpenAI from 'openai';
 
+// Gracefully handle missing OpenAI credentials
+const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+
+if (!apiKey) {
+  console.warn('⚠️  WARNING: OpenAI API key not found. AI query generation will not work.');
+  console.warn('   Set AI_INTEGRATIONS_OPENAI_API_KEY or OPENAI_API_KEY in Replit Secrets.');
+}
+
 export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  apiKey: apiKey || 'dummy-key-for-graceful-startup',
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
@@ -125,8 +133,12 @@ Constraints:
 `;
 
 export async function generateSqlFromQuestion(question: string): Promise<string> {
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
+  }
+
   const response = await openai.chat.completions.create({
-    model: 'gpt-5.1',
+    model: 'gpt-4o-mini',
     messages: [
       {
         role: 'system',

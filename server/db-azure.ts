@@ -20,9 +20,23 @@ export const config: sql.config = {
   },
 };
 
+// Check if database credentials are configured
+const hasCredentials = Boolean(
+  config.server && config.database && config.user && config.password
+);
+
+if (!hasCredentials) {
+  console.warn('⚠️  WARNING: Database credentials not found. Database queries will fail.');
+  console.warn('   Set SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD in Replit Secrets.');
+}
+
 let pool: sql.ConnectionPool | null = null;
 
 export async function getPool(): Promise<sql.ConnectionPool> {
+  if (!hasCredentials) {
+    throw new Error('Database credentials not configured. Please set SQL_SERVER, SQL_DATABASE, SQL_USER, and SQL_PASSWORD in Replit Secrets.');
+  }
+
   if (pool && pool.connected) {
     return pool;
   }
