@@ -431,12 +431,23 @@ export default function QueryPage() {
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">SQL Query</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSql(!showSql)}
+                      className="gap-2 px-2 h-7"
+                      data-testid="button-toggle-sql"
+                    >
+                      {showSql ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 pointer-events-none">SQL Query</Badge>
+                    </Button>
                     <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">{result.rowCount} rows</Badge>
                   </div>
-                  <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
-                    {result.sql}
-                  </pre>
+                  {showSql && (
+                    <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
+                      {result.sql}
+                    </pre>
+                  )}
                 </div>
 
                 {result.rows.length > 0 && (
@@ -454,9 +465,9 @@ export default function QueryPage() {
                         </Button>
                       )}
                     </div>
-                    <div className="border border-border/50 rounded-xl overflow-hidden">
-                      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                        <table className="w-full min-w-max text-sm">
+                    <div className="border border-border/50 rounded-xl">
+                      <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+                        <table className="min-w-full w-max text-sm">
                           <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
