@@ -114,6 +114,49 @@ interface GenerateOptions {
   allowedTables?: string[];
 }
 
+interface GenerateResult {
+  sql: string;
+  suggestions?: string[];
+}
+
+const SUGGESTION_PROMPT = `
+You are a query suggestion assistant for a manufacturing database. Given a user's natural language question, generate 2-3 alternative phrasings or related questions that might help clarify or expand their query.
+
+Rules:
+- Suggest variations that are more specific or clearer
+- Suggest related queries they might also be interested in
+- Keep suggestions concise (under 15 words each)
+- Return ONLY a JSON array of strings, no other text
+- If the question is already very clear, return fewer suggestions
+
+Example input: "show jobs"
+Example output: ["Show all overdue jobs", "Show jobs by plant", "Show jobs scheduled for today"]
+`;
+
+export async function generateSuggestions(question: string): Promise<string[]> {
+  if (!apiKey) {
+    return [];
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: SUGGESTION_PROMPT },
+        { role: 'user', content: question }
+      ],
+      temperature: 0.7,
+      max_completion_tokens: 200,
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() || '[]';
+    const suggestions = JSON.parse(content);
+    return Array.isArray(suggestions) ? suggestions.slice(0, 3) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
 export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<string> {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');

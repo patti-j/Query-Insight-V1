@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -61,6 +61,7 @@ interface QueryResult {
   rows: any[];
   rowCount: number;
   isMock: boolean;
+  suggestions?: string[];
 }
 
 interface DiagnosticsResult {
@@ -113,6 +114,30 @@ export default function QueryPage() {
   const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
   const [selectedMode, setSelectedMode] = useState('planning');
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  const submitFeedback = async (feedback: 'up' | 'down') => {
+    if (!result || feedbackGiven) return;
+    
+    setFeedbackLoading(true);
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: submittedQuestion,
+          sql: result.sql,
+          feedback,
+        }),
+      });
+      setFeedbackGiven(feedback);
+    } catch (err) {
+      console.error('Failed to submit feedback:', err);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   // Fetch popular questions on mount and after each successful query
   const fetchPopularQuestions = async () => {
@@ -171,6 +196,7 @@ export default function QueryPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setFeedbackGiven(null);
     setShowAllRows(false);
     setSubmittedQuestion(q.trim());
 

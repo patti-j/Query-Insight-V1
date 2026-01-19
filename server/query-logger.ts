@@ -4,6 +4,54 @@ import type { Request } from 'express';
 // In-memory store for tracking query frequency (for FAQ feature)
 const queryFrequency: Map<string, { count: number; lastUsed: Date; successful: boolean }> = new Map();
 
+// In-memory store for feedback (thumbs up/down)
+interface FeedbackEntry {
+  question: string;
+  sql: string;
+  feedback: 'up' | 'down';
+  timestamp: Date;
+  comment?: string;
+}
+const feedbackStore: FeedbackEntry[] = [];
+
+/**
+ * Store feedback for a query result
+ */
+export function storeFeedback(
+  question: string,
+  sql: string,
+  feedback: 'up' | 'down',
+  comment?: string
+): void {
+  feedbackStore.push({
+    question,
+    sql,
+    feedback,
+    timestamp: new Date(),
+    comment,
+  });
+}
+
+/**
+ * Get recent feedback entries
+ */
+export function getRecentFeedback(limit: number = 50): FeedbackEntry[] {
+  return feedbackStore.slice(-limit).reverse();
+}
+
+/**
+ * Get feedback statistics
+ */
+export function getFeedbackStats(): { total: number; positive: number; negative: number } {
+  const positive = feedbackStore.filter(f => f.feedback === 'up').length;
+  const negative = feedbackStore.filter(f => f.feedback === 'down').length;
+  return {
+    total: feedbackStore.length,
+    positive,
+    negative,
+  };
+}
+
 // Normalize question for comparison (lowercase, trim, remove extra spaces)
 function normalizeQuestion(question: string): string {
   return question.toLowerCase().trim().replace(/\s+/g, ' ');

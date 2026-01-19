@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
 import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
-import { generateSqlFromQuestion } from "./openai-client";
+import { generateSqlFromQuestion, generateSuggestions } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -12,6 +12,8 @@ import {
   logGenerationFailure,
   trackQueryForFAQ,
   getPopularQuestions,
+  storeFeedback,
+  getFeedbackStats,
 } from "./query-logger";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -40,6 +42,32 @@ export async function registerRoutes(
   app.get("/api/popular-questions", (_req, res) => {
     const questions = getPopularQuestions(10);
     res.json({ questions });
+  });
+
+  // Submit feedback for a query result
+  app.post("/api/feedback", (req, res) => {
+    const { question, sql, feedback, comment } = req.body;
+
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+    if (!sql || typeof sql !== 'string') {
+      return res.status(400).json({ error: 'SQL is required' });
+    }
+    if (!feedback || (feedback !== 'up' && feedback !== 'down')) {
+      return res.status(400).json({ error: 'Feedback must be "up" or "down"' });
+    }
+
+    storeFeedback(question, sql, feedback, comment);
+    log(`Feedback received: ${feedback} for question: ${question.substring(0, 50)}...`, 'feedback');
+
+    res.json({ success: true });
+  });
+
+  // Get feedback statistics
+  app.get("/api/feedback/stats", (_req, res) => {
+    const stats = getFeedbackStats();
+    res.json(stats);
   });
 
   // Get semantic catalog
@@ -280,12 +308,16 @@ export async function registerRoutes(
       // Track for FAQ popularity
       trackQueryForFAQ(question, true);
 
+      // Generate "did you mean?" suggestions asynchronously
+      const suggestions = await generateSuggestions(question);
+
       res.json({
         answer: `Query executed successfully. Retrieved ${result.recordset.length} row(s).`,
         sql: finalSql,
         rows: result.recordset,
         rowCount: result.recordset.length,
         isMock: false,
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
       });
 
     } catch (error: any) {
