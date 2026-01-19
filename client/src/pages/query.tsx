@@ -136,6 +136,7 @@ export default function QueryPage() {
     setError(null);
     setResult(null);
     setShowAllRows(false);
+    setSubmittedQuestion(q.trim());
 
     try {
       const response = await fetch('/api/ask', {
