@@ -86,6 +86,7 @@ export default function QueryPage() {
   const [error, setError] = useState<string | null>(null);
   const [faqQuestions, setFaqQuestions] = useState<{ text: string; icon: string }[]>(DEFAULT_QUESTIONS);
   const [showAllRows, setShowAllRows] = useState(false);
+  const [showSql, setShowSql] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
