@@ -422,9 +422,11 @@ export default function QueryPage() {
                   Results
                 </CardTitle>
                 {submittedQuestion && (
-                  <p className="text-sm text-muted-foreground italic" data-testid="text-submitted-question">
-                    "{submittedQuestion}"
-                  </p>
+                  <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
+                    <p className="text-base font-medium text-foreground">
+                      "{submittedQuestion}"
+                    </p>
+                  </div>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
@@ -453,16 +455,16 @@ export default function QueryPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
-                      {result.rows.length > 10 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAllRows(!showAllRows)}
-                          data-testid="button-toggle-rows"
-                        >
-                          {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAllRows(!showAllRows)}
+                        disabled={result.rows.length <= 10}
+                        className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
+                        data-testid="button-toggle-rows"
+                      >
+                        {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
+                      </Button>
                     </div>
                     <div className="border border-border/50 rounded-xl overflow-hidden">
                       <div className="overflow-y-auto max-h-[500px]">
