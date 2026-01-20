@@ -82,6 +82,17 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 
 ## Recent Changes
 
+**2026-01-20: Schema Introspection to Eliminate Column Name Hallucination**
+- Created schema introspection utility (`server/schema-introspection.ts`) that queries `INFORMATION_SCHEMA.COLUMNS` with 10-minute in-memory cache
+- Added GET `/api/schema/:mode` endpoint exposing discovered table→columns map for each semantic mode
+- Updated OpenAI prompt to include exact column lists from live schema cache with hard instruction not to invent columns
+- Improved error handling: detects "Invalid column name" errors, logs schema mismatches server-side (🔴 SCHEMA MISMATCH), returns helpful user messages
+- OpenAI now generates SQL using actual Azure SQL column names (e.g., `DemandHours`, `NormalOnlineHours`) instead of hallucinated names
+- Capacity mode queries now execute successfully with JOINs and correct column references
+- Schema metadata prefetched at startup and refreshed every 10 minutes automatically
+- New files: `server/schema-introspection.ts`
+- Modified files: `server/routes.ts`, `server/openai-client.ts`
+
 **2026-01-20: JOIN Support for Capacity Analysis**
 - Updated SQL validator to allow safe INNER/LEFT/RIGHT JOINs with allowlist table validation
 - All table references in FROM and JOIN clauses now validated against mode allowlist

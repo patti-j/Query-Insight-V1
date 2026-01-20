@@ -16,6 +16,7 @@ import {
   getFeedbackStats,
 } from "./query-logger";
 import { getValidatedQuickQuestions } from "./quick-questions";
+import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-introspection";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -102,6 +103,49 @@ export async function registerRoutes(
       res.status(500).json({
         error: 'Failed to load quick questions',
         questions: [] // Return empty array on error
+      });
+    }
+  });
+
+  // Get schema for a mode (table->columns mapping)
+  app.get("/api/schema/:mode", async (req, res) => {
+    try {
+      const mode = req.params.mode as string;
+      
+      if (!['planning', 'capacity', 'dispatch', 'advanced'].includes(mode)) {
+        return res.status(400).json({ error: 'Invalid mode. Must be planning, capacity, dispatch, or advanced.' });
+      }
+
+      // Load semantic catalog to get allowed tables for this mode
+      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
+      const catalogContent = readFileSync(catalogPath, 'utf-8');
+      const catalog = JSON.parse(catalogContent);
+      
+      const modeConfig = catalog.modes.find((m: any) => m.id === mode);
+      if (!modeConfig) {
+        return res.status(404).json({ error: `Mode '${mode}' not found in semantic catalog` });
+      }
+
+      const allowedTables = modeConfig.tables as string[];
+      const schemas = await getSchemasForMode(mode, allowedTables);
+      
+      // Convert Map to plain object for JSON serialization
+      const schemasObj: Record<string, TableSchema> = {};
+      for (const [tableName, schema] of Array.from(schemas)) {
+        schemasObj[tableName] = schema;
+      }
+      
+      res.json({ 
+        mode, 
+        tables: schemasObj,
+        tableCount: schemas.size,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      log(`Failed to get schema for mode ${req.params.mode}: ${error.message}`, 'schema');
+      res.status(500).json({
+        error: 'Failed to load schema',
+        tables: {}
       });
     }
   });
@@ -353,6 +397,26 @@ export async function registerRoutes(
         };
         const validation = validateAndModifySql(generatedSql, validationOptions);
         const failedSql = validation.modifiedSql || generatedSql;
+        
+        // Detect invalid column name errors (schema mismatch)
+        const invalidColumnMatch = error.message?.match(/Invalid column name '([^']+)'/i);
+        if (invalidColumnMatch) {
+          const invalidColumn = invalidColumnMatch[1];
+          log(`🔴 SCHEMA MISMATCH: OpenAI generated SQL with invalid column '${invalidColumn}'`, 'ask');
+          log(`Generated SQL with invalid column: ${failedSql}`, 'ask');
+          log(`Question: ${question}`, 'ask');
+          log(`Mode: ${mode}`, 'ask');
+          
+          // Return helpful error message to user
+          return res.status(500).json({
+            error: `Schema mismatch: Column '${invalidColumn}' does not exist in the database. This is an AI generation error.`,
+            sql: failedSql,
+            isMock: false,
+            schemaError: true,
+            invalidColumn,
+          });
+        }
+        
         logExecutionFailure(
           logContext,
           failedSql,

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { getSchemasForMode, formatSchemaForPrompt } from './schema-introspection';
 
 // Gracefully handle missing OpenAI credentials
 const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -166,11 +167,38 @@ export async function generateSqlFromQuestion(question: string, options: Generat
 
   const { mode = 'planning', allowedTables = [] } = options;
 
-  // Build mode-specific context
-  let modeContext = '';
-  if (allowedTables.length > 0) {
+  // Fetch actual schema from database
+  let schemaContext = '';
+  try {
+    if (allowedTables.length > 0) {
+      const schemas = await getSchemasForMode(mode, allowedTables);
+      const schemaFormatted = formatSchemaForPrompt(schemas);
+      
+      schemaContext = `\n\nMODE: ${mode.toUpperCase()}
+DATABASE: Microsoft SQL Server (Azure SQL Database) - T-SQL dialect
+
+CRITICAL INSTRUCTIONS:
+- You are writing SQL Server (T-SQL) queries
+- Use SELECT TOP (N) for row limiting - NEVER use LIMIT, OFFSET, or FETCH
+- Use square brackets for identifiers: [schema].[table]
+- All queries MUST be SELECT only (no INSERT, UPDATE, DELETE, DROP, etc.)
+- INNER JOIN, LEFT JOIN, and RIGHT JOIN are allowed (CROSS JOIN is forbidden)
+
+ALLOWED TABLES AND THEIR EXACT COLUMNS:
+${schemaFormatted}
+
+CRITICAL COLUMN RULES:
+- You MUST use ONLY the columns listed above for each table
+- DO NOT invent or hallucinate column names
+- If a concept the user asks for doesn't map to an existing column, use the closest available columns or ask for clarification
+- If you're unsure about a column name, DO NOT GUESS - use what's available
+
+Example: If you need "demand quantity" but only see "DemandHours", use DemandHours (not DemandQty or DemandQuantity)`;
+    }
+  } catch (error) {
+    // Fall back to basic mode context if schema fetch fails
     const tableList = allowedTables.join(', ');
-    modeContext = `\n\nMODE: ${mode.toUpperCase()}\nALLOWED TABLES for this mode:\n${tableList}\n\nYou MUST use only these tables for this query. Do not use any other tables.`;
+    schemaContext = `\n\nMODE: ${mode.toUpperCase()}\nALLOWED TABLES for this mode:\n${tableList}\n\nYou MUST use only these tables for this query. Do not use any other tables.`;
   }
 
   const response = await openai.chat.completions.create({
@@ -178,7 +206,7 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     messages: [
       {
         role: 'system',
-        content: SCHEMA_CONTEXT + modeContext + '\n\nGenerate only the SQL query, no explanation. Do not include markdown formatting or code blocks.'
+        content: SCHEMA_CONTEXT + schemaContext + '\n\nGenerate only the SQL query, no explanation. Do not include markdown formatting or code blocks.'
       },
       {
         role: 'user',
