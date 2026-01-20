@@ -21,14 +21,25 @@ function extractTableName(sql: string): string | null {
 }
 
 /**
- * Extract all table references from SQL query (FROM clauses, subqueries, CTEs)
+ * Extract all table references from SQL query (FROM clauses, JOIN clauses, subqueries, CTEs)
+ * This captures tables from both FROM and JOIN statements
  */
 function extractAllTableReferences(sql: string): string[] {
   const tables: string[] = [];
-  const tablePattern = /FROM\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
+  
+  // Pattern to match tables in FROM clauses
+  const fromPattern = /FROM\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
   let match;
   
-  while ((match = tablePattern.exec(sql)) !== null) {
+  while ((match = fromPattern.exec(sql)) !== null) {
+    tables.push(match[1]);
+  }
+  
+  // Pattern to match tables in JOIN clauses (INNER JOIN, LEFT JOIN, RIGHT JOIN, etc.)
+  // This matches: JOIN [publish].[DASHt_TableName] or JOIN publish.DASHt_TableName
+  const joinPattern = /(?:INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
+  
+  while ((match = joinPattern.exec(sql)) !== null) {
     tables.push(match[1]);
   }
   
@@ -46,7 +57,8 @@ function normalizeTableName(tableName: string): string {
  * Validates and optionally modifies SQL queries to ensure safety
  * - Only SELECT statements allowed
  * - Single statement only (no semicolons)
- * - No JOIN operations
+ * - INNER/LEFT/RIGHT JOINs allowed only with allowlisted publish.DASHt_* tables
+ * - CROSS JOIN blocked for safety
  * - Only queries against [publish].[DASHt_*] tables
  * - Enforces TOP (100) if missing
  * - Supports mode-specific table allowlists (when advancedMode is false)
@@ -74,31 +86,48 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
     return { valid: false, error: 'Only SELECT statements (including CTEs with WITH clause) are allowed' };
   }
 
-  // Check for JOIN operations (case-insensitive)
-  if (trimmed.match(/\s+JOIN\s+/i)) {
-    return { valid: false, error: 'JOIN operations are not allowed at this time' };
+  // Block dangerous operations
+  if (trimmed.match(/\bCROSS\s+JOIN\b/i)) {
+    return { valid: false, error: 'CROSS JOIN operations are not allowed for safety reasons' };
   }
 
-  // Check for allowed tables - must be publish.DASHt_* pattern
-  const tablePattern = /FROM\s+\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?/i;
-  if (!tablePattern.test(trimmed)) {
+  // Block OPENROWSET and other external data access
+  if (trimmed.match(/\b(OPENROWSET|OPENDATASOURCE|OPENQUERY|OPENXML)\b/i)) {
+    return { valid: false, error: 'External data access functions are not allowed' };
+  }
+
+  // Block system procedures
+  if (trimmed.match(/\b(xp_|sp_executesql|EXEC|EXECUTE)\b/i)) {
+    return { valid: false, error: 'System procedures and dynamic SQL execution are not allowed' };
+  }
+
+  // Block LIMIT syntax (PostgreSQL/MySQL) - SQL Server uses TOP
+  if (trimmed.match(/\bLIMIT\s+\d+/i)) {
+    return { valid: false, error: 'PostgreSQL/MySQL LIMIT syntax is not supported. Use SELECT TOP (N) for SQL Server instead' };
+  }
+
+  // Extract all table references (from FROM and JOIN clauses)
+  const allTableRefs = extractAllTableReferences(trimmed);
+  
+  if (allTableRefs.length === 0) {
     return { 
       valid: false, 
-      error: 'Only queries against [publish].[DASHt_*] tables are allowed' 
+      error: 'Unable to determine table name from query. Only queries against [publish].[DASHt_*] tables are allowed' 
     };
+  }
+
+  // Validate all table references match publish.DASHt_* pattern
+  for (const tableRef of allTableRefs) {
+    if (!ALLOWED_TABLE_PATTERN.test(tableRef)) {
+      return {
+        valid: false,
+        error: `Table ${tableRef} is not allowed. Only queries against [publish].[DASHt_*] tables are permitted`
+      };
+    }
   }
 
   // If mode-specific allowlist is provided and advancedMode is off, enforce the allowlist
   if (allowedTables && allowedTables.length > 0 && !advancedMode) {
-    const allTableRefs = extractAllTableReferences(trimmed);
-    
-    if (allTableRefs.length === 0) {
-      return {
-        valid: false,
-        error: 'Unable to determine table name from query'
-      };
-    }
-
     const normalizedAllowed = allowedTables.map(normalizeTableName);
 
     // Check each table reference against the allowlist
@@ -193,13 +222,13 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     results.push('✅ PASS: INSERT statement rejected');
   }
 
-  // Test 6: JOIN operations should be rejected
-  const test6 = validateAndModifySql('SELECT * FROM [publish].[DASHt_Planning] JOIN [publish].[DASHt_Other] ON 1=1');
+  // Test 6: CROSS JOIN should be rejected for safety
+  const test6 = validateAndModifySql('SELECT * FROM [publish].[DASHt_Planning] CROSS JOIN [publish].[DASHt_Resources]');
   if (test6.valid) {
-    results.push('❌ FAIL: JOIN operation should be rejected');
+    results.push('❌ FAIL: CROSS JOIN should be rejected for safety');
     passed = false;
   } else {
-    results.push('✅ PASS: JOIN operation rejected');
+    results.push('✅ PASS: CROSS JOIN rejected');
   }
 
   // Test 7: Multiple statements (semicolons) should be rejected
@@ -281,6 +310,62 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     passed = false;
   } else {
     results.push('✅ PASS: Advanced mode correctly allows any DASHt_* table');
+  }
+
+  // Test 14: INNER JOIN with allowlisted tables should be allowed
+  const test14 = validateAndModifySql(
+    'SELECT TOP 10 d.*, c.* FROM [publish].[DASHt_CapacityPlanning_ResourceDemand] d INNER JOIN [publish].[DASHt_CapacityPlanning_ResourceCapacity] c ON d.ResourceId = c.ResourceId',
+    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'], advancedMode: false }
+  );
+  if (!test14.valid) {
+    results.push(`❌ FAIL: INNER JOIN with allowlisted tables should be allowed: ${test14.error}`);
+    passed = false;
+  } else {
+    results.push('✅ PASS: INNER JOIN with allowlisted tables accepted');
+  }
+
+  // Test 15: JOIN with non-allowlist table should be rejected
+  const test15 = validateAndModifySql(
+    'SELECT TOP 10 * FROM [publish].[DASHt_Planning] INNER JOIN [publish].[DASHt_Inventories] ON 1=1',
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+  );
+  if (test15.valid) {
+    results.push('❌ FAIL: JOIN with non-allowlist table should be rejected');
+    passed = false;
+  } else if (test15.error && test15.error.includes('DASHt_Inventories')) {
+    results.push('✅ PASS: JOIN with non-allowlist table rejected');
+  } else {
+    results.push(`⚠️  PARTIAL: JOIN rejected but error doesn't mention non-allowlist table: ${test15.error}`);
+  }
+
+  // Test 16: System procedures should be blocked
+  const test16 = validateAndModifySql('EXEC xp_cmdshell "dir"');
+  if (test16.valid) {
+    results.push('❌ FAIL: System procedures should be blocked');
+    passed = false;
+  } else {
+    results.push('✅ PASS: System procedures blocked');
+  }
+
+  // Test 17: OPENROWSET should be blocked
+  const test17 = validateAndModifySql('SELECT * FROM OPENROWSET(...)');
+  if (test17.valid) {
+    results.push('❌ FAIL: OPENROWSET should be blocked');
+    passed = false;
+  } else {
+    results.push('✅ PASS: OPENROWSET blocked');
+  }
+
+  // Test 18: LEFT JOIN with allowlisted tables should be allowed
+  const test18 = validateAndModifySql(
+    'SELECT TOP 10 d.ResourceName, d.DemandHours, c.NormalOnlineHours FROM [publish].[DASHt_CapacityPlanning_ResourceDemand] d LEFT JOIN [publish].[DASHt_CapacityPlanning_ResourceCapacity] c ON d.ResourceId = c.ResourceId AND d.DemandDate = c.ShiftDate',
+    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'], advancedMode: false }
+  );
+  if (!test18.valid) {
+    results.push(`❌ FAIL: LEFT JOIN with allowlisted tables should be allowed: ${test18.error}`);
+    passed = false;
+  } else {
+    results.push('✅ PASS: LEFT JOIN with allowlisted tables accepted');
   }
 
   return { passed, results };

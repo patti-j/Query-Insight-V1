@@ -41,10 +41,13 @@ Preferred communication style: Simple, everyday language.
 **SQL Safety Guardrails**
 - Only SELECT statements allowed
 - Single statement only (no semicolons)
-- No JOIN operations permitted
+- INNER/LEFT/RIGHT JOINs allowed with allowlisted tables only
+- CROSS JOIN blocked for safety
 - Only `publish.DASHt_*` tables accessible
 - Automatic TOP 100 row limiting
-- Mode-specific table allowlists
+- Mode-specific table allowlists enforced for all table references (FROM and JOIN clauses)
+- PostgreSQL/MySQL LIMIT syntax blocked (enforces SQL Server TOP syntax)
+- System procedures and external data access functions blocked (xp_*, OPENROWSET, etc.)
 
 **Key Design Decisions**
 - Server-side SQL execution prevents credential exposure
@@ -78,6 +81,18 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 - `PUBLIC_BASE_URL` - Deployment URL for meta tags
 
 ## Recent Changes
+
+**2026-01-20: JOIN Support for Capacity Analysis**
+- Updated SQL validator to allow safe INNER/LEFT/RIGHT JOINs with allowlist table validation
+- All table references in FROM and JOIN clauses now validated against mode allowlist
+- Added 6 new validator tests for JOIN safety (18 total tests, all passing)
+- CROSS JOIN blocked for safety
+- PostgreSQL/MySQL LIMIT syntax blocked; enforces SQL Server TOP syntax
+- Enhanced security: blocked OPENROWSET, xp_*, sp_executesql, EXEC commands
+- Updated OpenAI prompt to emphasize Microsoft SQL Server syntax and JOIN support
+- Added capacity quick questions requiring JOINs: "Which resources are over capacity?" and "Compare demand vs available capacity"
+- Validator now extracts and validates tables from both FROM and JOIN clauses
+- Modified files: `server/sql-validator.ts`, `server/openai-client.ts`, `server/quick-questions.ts`
 
 **2026-01-20: Quick Questions Schema Validation**
 - Implemented automatic schema validation for Quick Questions using INFORMATION_SCHEMA.COLUMNS

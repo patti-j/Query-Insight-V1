@@ -97,8 +97,10 @@ ORDER BY JobOverdueDays DESC, Priority ASC, JobNeedDateTime ASC
 
 Global Constraints:
 - Only generate SELECT statements
-- No JOIN operations allowed
-- Always include TOP (100) or less
+- INNER JOIN, LEFT JOIN, and RIGHT JOIN are allowed when combining allowlisted tables (e.g., joining demand with capacity tables)
+- NEVER use CROSS JOIN (not allowed for safety)
+- CRITICAL: This is Microsoft SQL Server / Azure SQL Database - use SELECT TOP (N) syntax, NEVER use LIMIT, OFFSET, or FETCH NEXT
+- Always include TOP (100) or less in your final SELECT
 - Use only tables from the allowed list provided in the MODE context (see below)
 - When user says "next" jobs, it means sorted by date (ORDER BY), NOT filtered to future dates. Do NOT add GETDATE() filters unless user explicitly asks for "future" or "upcoming" jobs
 - Default to showing ALL matching jobs sorted appropriately, not just future-dated ones

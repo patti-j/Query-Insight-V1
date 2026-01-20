@@ -114,6 +114,16 @@ export const ALL_QUICK_QUESTIONS: QuickQuestion[] = [
     ]
   },
   {
+    id: 'capacity-over-capacity',
+    text: 'Which resources are over capacity?',
+    icon: '🔴',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['ResourceName', 'DemandDate', 'DemandHours', 'ResourceId'] },
+      { table: 'publish.DASHt_CapacityPlanning_ResourceCapacity', columns: ['ResourceName', 'ShiftDate', 'NormalOnlineHours', 'ResourceId'] }
+    ]
+  },
+  {
     id: 'capacity-intervals',
     text: 'Show shift intervals by resource',
     icon: '📅',
@@ -123,28 +133,19 @@ export const ALL_QUICK_QUESTIONS: QuickQuestion[] = [
     ]
   },
   {
-    id: 'capacity-demand-summary',
-    text: 'Resource demand summary by plant',
-    icon: '🏭',
-    mode: 'capacity',
-    requiredSchema: [
-      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['PlantName', 'ResourceName', 'DemandHours'] }
-    ]
-  },
-  {
-    id: 'capacity-utilization',
-    text: 'Capacity utilization by resource type',
+    id: 'capacity-demand-vs-capacity',
+    text: 'Compare demand vs available capacity',
     icon: '📊',
     mode: 'capacity',
     requiredSchema: [
-      { table: 'publish.DASHt_CapacityPlanning_ResourceCapacity', columns: ['ResourceName', 'ResourceType', 'NormalOnlineHours', 'ShiftDate'] },
-      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['ResourceName', 'DemandHours', 'DemandDate'] }
+      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['ResourceName', 'DemandDate', 'DemandHours', 'ResourceId'] },
+      { table: 'publish.DASHt_CapacityPlanning_ResourceCapacity', columns: ['ResourceName', 'ShiftDate', 'NormalOnlineHours', 'ResourceId'] }
     ]
   },
   {
     id: 'capacity-bottleneck',
     text: 'Show bottleneck resources',
-    icon: '🔴',
+    icon: '⚡',
     mode: 'capacity',
     requiredSchema: [
       { table: 'publish.DASHt_Resources', columns: ['ResourceName', 'Bottleneck', 'ResourceType', 'PlantName'] }
