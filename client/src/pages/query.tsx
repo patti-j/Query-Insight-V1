@@ -72,6 +72,15 @@ function filterRowColumns(row: Record<string, any>): Record<string, any> {
   );
 }
 
+// Format table name by stripping publish.DASHt_ prefix
+function formatTableName(fullTableName: string): string {
+  // Remove 'publish.' prefix if present
+  let tableName = fullTableName.replace(/^publish\./i, '');
+  // Remove 'DASHt_' prefix if present
+  tableName = tableName.replace(/^DASHt_/i, '');
+  return tableName;
+}
+
 // Icons for FAQ questions (assigned based on content keywords)
 function getQuestionIcon(question: string): string {
   const q = question.toLowerCase();
@@ -496,6 +505,34 @@ export default function QueryPage() {
                     {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}
                   </p>
                 )}
+                
+                {/* Display scoped tables for selected report */}
+                {(() => {
+                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+                  if (!selectedReport) return null;
+                  
+                  if (selectedReport.schemaImplemented === false || selectedReport.tables.length === 0) {
+                    return (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="tables-display">
+                        <Database className="h-3 w-3" />
+                        <span className="font-medium">Tables:</span>
+                        <span className="italic">Coming soon</span>
+                      </div>
+                    );
+                  }
+                  
+                  const formattedTables = selectedReport.tables.map(formatTableName);
+                  
+                  return (
+                    <div className="flex items-start gap-2 text-xs" data-testid="tables-display">
+                      <Database className="h-3 w-3 mt-0.5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <span className="font-medium text-muted-foreground">Tables:</span>{' '}
+                        <span className="text-foreground/80">{formattedTables.join(', ')}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <Textarea
