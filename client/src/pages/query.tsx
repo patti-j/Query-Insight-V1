@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3 } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
+
+const APP_VERSION = '1.1.0'; // Incremented for table scroll fix
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -775,6 +777,12 @@ export default function QueryPage() {
             ))}
           </div>
         </div>
+
+        <footer className="mt-12 pb-6 text-center">
+          <p className="text-xs text-muted-foreground">
+            Query Insight v{APP_VERSION}
+          </p>
+        </footer>
       </div>
     </div>
   );
