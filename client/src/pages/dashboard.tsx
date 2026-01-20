@@ -104,7 +104,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{summary.totalQueries}</div>
-              <p className="text-xs text-muted-foreground">Last 60 minutes</p>
+              <p className="text-xs text-muted-foreground">Last 24 hours</p>
             </CardContent>
           </Card>
 
