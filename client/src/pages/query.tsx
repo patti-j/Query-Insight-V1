@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 
@@ -114,6 +115,7 @@ interface SemanticMode {
   description: string;
   tables: string[];
   default: boolean;
+  schemaImplemented?: boolean;
 }
 
 interface SemanticCatalog {
@@ -144,7 +146,7 @@ export default function QueryPage() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
   const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
-  const [selectedMode, setSelectedMode] = useState('planning');
+  const [selectedMode, setSelectedMode] = useState('production-planning');
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -229,6 +231,13 @@ export default function QueryPage() {
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
+
+    // Check if selected report has schema implemented
+    const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+    if (selectedReport && selectedReport.schemaImplemented === false) {
+      setError(`The "${selectedReport.name}" report schema is coming soon. Please select a different report.`);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -444,7 +453,7 @@ export default function QueryPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Query Mode</Label>
+                  <Label htmlFor="report-selector">Power BI report</Label>
                   <div className="flex items-center space-x-2">
                     <Switch 
                       id="advanced-mode" 
@@ -457,23 +466,31 @@ export default function QueryPage() {
                     </Label>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {semanticCatalog?.modes.map((mode) => (
-                    <Button
-                      key={mode.id}
-                      type="button"
-                      variant={selectedMode === mode.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedMode(mode.id)}
-                      data-testid={`mode-${mode.id}`}
-                      className={selectedMode === mode.id 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-background/50 hover:bg-primary/10"}
-                    >
-                      {mode.name}
-                    </Button>
-                  ))}
-                </div>
+                <Select
+                  value={selectedMode}
+                  onValueChange={setSelectedMode}
+                >
+                  <SelectTrigger id="report-selector" className="w-full" data-testid="select-report">
+                    <SelectValue placeholder="Select a report" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semanticCatalog?.modes.map((mode) => (
+                      <SelectItem 
+                        key={mode.id} 
+                        value={mode.id}
+                        disabled={mode.schemaImplemented === false}
+                        data-testid={`report-${mode.id}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{mode.name}</span>
+                          {mode.schemaImplemented === false && (
+                            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {semanticCatalog?.modes.find(m => m.id === selectedMode)?.description && (
                   <p className="text-xs text-muted-foreground">
                     {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}

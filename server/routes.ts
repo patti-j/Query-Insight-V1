@@ -96,19 +96,14 @@ export async function registerRoutes(
     }
   });
 
-  // Get validated quick questions for a mode
-  app.get("/api/quick-questions/:mode", async (req, res) => {
+  // Get validated quick questions for a report/mode
+  app.get("/api/quick-questions/:reportId", async (req, res) => {
     try {
-      const mode = req.params.mode as 'planning' | 'capacity' | 'dispatch';
-      
-      if (!['planning', 'capacity', 'dispatch'].includes(mode)) {
-        return res.status(400).json({ error: 'Invalid mode. Must be planning, capacity, or dispatch.' });
-      }
-
-      const questions = await getValidatedQuickQuestions(mode);
-      res.json({ questions, mode });
+      const reportId = req.params.reportId;
+      const questions = await getValidatedQuickQuestions(reportId);
+      res.json({ questions, reportId });
     } catch (error: any) {
-      log(`Failed to get quick questions for mode ${req.params.mode}: ${error.message}`, 'quick-questions');
+      log(`Failed to get quick questions for report ${req.params.reportId}: ${error.message}`, 'quick-questions');
       res.status(500).json({
         error: 'Failed to load quick questions',
         questions: [] // Return empty array on error

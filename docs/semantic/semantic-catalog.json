@@ -1,8 +1,23 @@
 {
   "modes": [
     {
-      "id": "planning",
-      "name": "Planning",
+      "id": "capacity-plan",
+      "name": "Capacity Plan",
+      "description": "Resource capacity planning including demand, capacity, actuals, and shift schedules",
+      "tables": [
+        "publish.DASHt_CapacityPlanning_ResourceDemand",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_CapacityPlanning_ShiftsCombined",
+        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
+        "publish.DASHt_Resources"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "production-planning",
+      "name": "Production & Planning",
       "description": "Manufacturing planning and scheduling data including job operations, materials, resources, and inventory",
       "tables": [
         "publish.DASHt_Planning",
@@ -16,25 +31,12 @@
         "publish.DASHt_PurchaseOrders",
         "publish.DASHt_TranLog"
       ],
-      "default": true
+      "default": true,
+      "schemaImplemented": true
     },
     {
-      "id": "capacity",
-      "name": "Capacity",
-      "description": "Resource capacity planning including demand, capacity, actuals, and shift schedules",
-      "tables": [
-        "publish.DASHt_CapacityPlanning_ResourceDemand",
-        "publish.DASHt_CapacityPlanning_ResourceCapacity",
-        "publish.DASHt_CapacityPlanning_ResourceActual",
-        "publish.DASHt_CapacityPlanning_ShiftsCombined",
-        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
-        "publish.DASHt_Resources"
-      ],
-      "default": false
-    },
-    {
-      "id": "dispatch",
-      "name": "Dispatch",
+      "id": "dispatch-list",
+      "name": "Dispatch List",
       "description": "Production dispatch and job operation execution data",
       "tables": [
         "publish.DASHt_Planning",
@@ -42,9 +44,126 @@
         "publish.DASHt_JobOperationAttributes",
         "publish.DASHt_Resources"
       ],
-      "default": false
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "description": "Financial reporting and analysis (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "customer-analysis",
+      "name": "Customer Analysis",
+      "description": "Customer-focused analytics and insights (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "inventories",
+      "name": "Inventories",
+      "description": "Inventory management and material balances",
+      "tables": [
+        "publish.DASHt_Inventories",
+        "publish.DASHt_NetInventoryBalance",
+        "publish.DASHt_Materials",
+        "publish.DASHt_Planning"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "sales-orders",
+      "name": "Sales Orders",
+      "description": "Sales order tracking and fulfillment",
+      "tables": [
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_Planning",
+        "publish.DASHt_Materials"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "schedule-conformance",
+      "name": "Schedule Conformance",
+      "description": "Schedule adherence and conformance metrics",
+      "tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_Resources"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "audit-log",
+      "name": "AuditLog",
+      "description": "System audit trail and transaction history",
+      "tables": [
+        "publish.DASHt_TranLog"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "new-dispatch-list",
+      "name": "New Dispatch List report",
+      "description": "Enhanced dispatch view with additional operation details",
+      "tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_Resources"
+      ],
+      "default": false,
+      "schemaImplemented": true
+    },
+    {
+      "id": "custom-kpis",
+      "name": "Custom KPIs",
+      "description": "Custom key performance indicators (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "plant-comparison",
+      "name": "Plant Comparison",
+      "description": "Multi-plant comparison and benchmarking (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "cp1",
+      "name": "CP1",
+      "description": "Custom report CP1 (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "cp2",
+      "name": "CP2",
+      "description": "Custom report CP2 (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
+    },
+    {
+      "id": "analytics-db-explorer",
+      "name": "Analytics DB Explorer",
+      "description": "Explore all available data tables and relationships (schema coming soon)",
+      "tables": [],
+      "default": false,
+      "schemaImplemented": false
     }
   ],
-  "version": "1.0.0",
-  "lastUpdated": "2026-01-19"
+  "version": "2.0.0",
+  "lastUpdated": "2026-01-20"
 }
