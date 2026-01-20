@@ -657,9 +657,9 @@ export default function QueryPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="border border-border/50 rounded-xl overflow-hidden">
-                      <div className="overflow-y-auto max-h-[500px]">
-                        <table className="w-full text-sm table-auto">
+                    <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
+                      <div className="max-h-[420px] overflow-auto">
+                        <table className="min-w-[900px] w-full text-sm table-auto">
                           <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
