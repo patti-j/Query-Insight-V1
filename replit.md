@@ -82,6 +82,21 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 
 ## Recent Changes
 
+**2026-01-20: Analytics Dashboard for Query Performance Monitoring**
+- **Dashboard Page**: New `/dashboard` route showing comprehensive query analytics
+- **Real-time Metrics**: Auto-refreshes every 10 seconds to show current system health
+- **Summary Cards**: Total queries, success rate, average latency, failed queries
+- **Performance Breakdown**: Visual breakdown of LLM generation vs SQL execution time
+- **Error Analytics**: Error breakdown by stage (validation, generation, execution)
+- **Recent Activity**: Last 20 queries with status, latency, row count, and error details
+- **Top Errors**: Most common error messages by frequency with timestamps
+- **Performance Timeline**: Last 50 successful queries with visual latency breakdown
+- **Backend Analytics**: `/api/analytics` endpoint with configurable time range (default 60 minutes)
+- **In-Memory Storage**: Query logs stored with MAX_LOG_ENTRIES limit (1000 entries)
+- **Navigation**: Dashboard link added to query page header with BarChart3 icon
+- New files: `client/src/pages/dashboard.tsx`
+- Modified files: `server/query-logger.ts`, `server/routes.ts`, `client/src/App.tsx`, `client/src/pages/query.tsx`
+
 **2026-01-20: Comprehensive Schema Grounding with Column Validation**
 - **Schema Prefetch on Startup**: All mode schemas now prefetched during server initialization (blocking) before accepting requests
 - **Column Normalizer with Fuzzy Matching**: Added Levenshtein distance matching to map similar column names (e.g., "EndDateTime" → "EndDate")

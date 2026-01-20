@@ -79,10 +79,13 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <a className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <button 
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors bg-transparent border-0 cursor-pointer"
+                data-testid="button-back-to-query"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Back to Query
-              </a>
+              </button>
             </Link>
             <div className="flex-1">
               <h1 className="text-2xl font-bold">Query Analytics Dashboard</h1>

@@ -377,18 +377,16 @@ export default function QueryPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard">
-              <a>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  data-testid="button-dashboard"
-                  title="View analytics dashboard"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  Dashboard
-                </Button>
-              </a>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                data-testid="button-dashboard"
+                title="View analytics dashboard"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Dashboard
+              </Button>
             </Link>
             {isDevelopment && (
               <Button
