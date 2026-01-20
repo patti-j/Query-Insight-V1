@@ -332,6 +332,8 @@ export async function registerRoutes(
 
     try {
       // Generate SQL from natural language with mode context
+      // Mode-specific schema cache handles table filtering automatically
+      // Pass allowedTables as fallback in case schema fetch fails
       llmStartTime = Date.now();
       generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables });
       llmMs = Date.now() - llmStartTime;

@@ -82,6 +82,34 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 
 ## Recent Changes
 
+**2026-01-20: Mode-Specific Schema Optimization for LLM Performance**
+- **Objective**: Reduce LLM prompt size and generation latency by trimming schema context per semantic mode
+- **Implementation**: Created `server/mode-schema-cache.ts` for mode-specific schema caching
+  - Planning mode: 10 tables with relevant columns only
+  - Capacity mode: 6 tables with relevant columns only
+  - Dispatch mode: 4 tables with relevant columns only
+- **Prompt Reduction**: Replaced 113-line static SCHEMA_CONTEXT with 30-line CORE_SYSTEM_PROMPT
+- **Dynamic Schema**: Only mode-relevant tables/columns injected into LLM prompt (was sending all 15 tables, 459 columns)
+- **Cache Strategy**: Separate 10-minute TTL cache per mode with prefetch on startup
+- **Server-Side Validation**: Still uses full authoritative schema for SQL validation (security maintained)
+- **Model Upgrade**: Changed from gpt-4o-mini to gpt-4o for generateSqlFromQuestion
+- **Monitoring**: Added console logging for schema stats and timing (table count, column count, fetch time, LLM time)
+- **Expected Impact**: Reduced prompt size should significantly decrease ~5 second LLM generation time
+- New files: `server/mode-schema-cache.ts`
+- Modified files: `server/openai-client.ts`, `server/index.ts`, `server/routes.ts`
+
+**2026-01-20: Human-Readable Date Formatting**
+- **Objective**: Display date/time values in friendly local format instead of raw ISO strings
+- **Auto-Detection**: Analyzes column names (date, time, datetime, timestamp, start, end, due, schedule) and values
+- **Format Logic**: 
+  - Date+Time: `MMM d, yyyy h:mm a` (e.g., "Jan 20, 2026 3:45 PM")
+  - Date-Only: `MMM d, yyyy` (e.g., "Jan 20, 2026") when time is midnight
+- **Smart Formatting**: Automatically detects if time component should be shown based on value
+- **Export Preservation**: CSV/Excel exports continue using raw values for compatibility
+- **Scope**: Applied consistently across all result tables, expanded views, and modes
+- New files: `client/src/lib/date-formatter.ts`
+- Modified files: `client/src/pages/query.tsx` (v1.2.0)
+
 **2026-01-20: Table Scrollbar Fix for Production Consistency**
 - **Fixed Issue**: Table in Results/Data Preview card now shows internal scrollbars in both dev and production
 - **Root Cause**: Missing horizontal scroll container and non-optimal scroll structure

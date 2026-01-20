@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 
-const APP_VERSION = '1.1.0'; // Incremented for table scroll fix
+const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
 // Default questions by mode
 const QUESTIONS_BY_MODE: Record<string, { text: string; icon: string }[]> = {
