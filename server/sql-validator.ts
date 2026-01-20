@@ -1,7 +1,12 @@
-interface ValidationResult {
+export interface ValidationResult {
   valid: boolean;
   error?: string;
   modifiedSql?: string;
+}
+
+export interface ValidationOptions {
+  allowedTables?: string[];
+  advancedMode?: boolean;
 }
 
 const ALLOWED_TABLE_PATTERN = /\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?/i;
@@ -16,14 +21,38 @@ function extractTableName(sql: string): string | null {
 }
 
 /**
+ * Extract all table references from SQL query (FROM clauses, subqueries, CTEs)
+ */
+function extractAllTableReferences(sql: string): string[] {
+  const tables: string[] = [];
+  const tablePattern = /FROM\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
+  let match;
+  
+  while ((match = tablePattern.exec(sql)) !== null) {
+    tables.push(match[1]);
+  }
+  
+  return tables;
+}
+
+/**
+ * Normalize table name by removing brackets and converting to lowercase for comparison
+ */
+function normalizeTableName(tableName: string): string {
+  return tableName.replace(/\[|\]/g, '').toLowerCase();
+}
+
+/**
  * Validates and optionally modifies SQL queries to ensure safety
  * - Only SELECT statements allowed
  * - Single statement only (no semicolons)
  * - No JOIN operations
  * - Only queries against [publish].[DASHt_*] tables
  * - Enforces TOP (100) if missing
+ * - Supports mode-specific table allowlists (when advancedMode is false)
  */
-export function validateAndModifySql(sql: string): ValidationResult {
+export function validateAndModifySql(sql: string, options: ValidationOptions = {}): ValidationResult {
+  const { allowedTables, advancedMode = false } = options;
   // Strip trailing semicolon if present (AI often adds these)
   let trimmed = sql.trim();
   if (trimmed.endsWith(';')) {
@@ -57,6 +86,33 @@ export function validateAndModifySql(sql: string): ValidationResult {
       valid: false, 
       error: 'Only queries against [publish].[DASHt_*] tables are allowed' 
     };
+  }
+
+  // If mode-specific allowlist is provided and advancedMode is off, enforce the allowlist
+  if (allowedTables && allowedTables.length > 0 && !advancedMode) {
+    const allTableRefs = extractAllTableReferences(trimmed);
+    
+    if (allTableRefs.length === 0) {
+      return {
+        valid: false,
+        error: 'Unable to determine table name from query'
+      };
+    }
+
+    const normalizedAllowed = allowedTables.map(normalizeTableName);
+
+    // Check each table reference against the allowlist
+    for (const tableRef of allTableRefs) {
+      const normalizedRef = normalizeTableName(tableRef);
+      
+      if (!normalizedAllowed.includes(normalizedRef)) {
+        const allowedList = allowedTables.join(', ');
+        return {
+          valid: false,
+          error: `Table ${tableRef} is not in the allowed list for this mode. Allowed tables: ${allowedList}. Enable 'Advanced mode' to query other publish.DASHt_* tables.`
+        };
+      }
+    }
   }
 
   // Check for TOP clause (don't modify CTEs, they have TOP in the final SELECT)
@@ -187,6 +243,44 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     passed = false;
   } else {
     results.push('✅ PASS: CTE query accepted');
+  }
+
+  // Test 11: Mode allowlist enforcement with multiple table references
+  const test11 = validateAndModifySql(
+    'SELECT * FROM [publish].[DASHt_Materials] UNION SELECT * FROM [publish].[DASHt_Resources]',
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+  );
+  if (test11.valid) {
+    results.push('❌ FAIL: Query with disallowed table (DASHt_Materials) should be rejected in mode allowlist');
+    passed = false;
+  } else if (test11.error && test11.error.includes('DASHt_Materials')) {
+    results.push('✅ PASS: Mode allowlist correctly rejects disallowed table in UNION');
+  } else {
+    results.push(`⚠️  PARTIAL: Query rejected but error doesn't mention DASHt_Materials: ${test11.error}`);
+  }
+
+  // Test 12: Mode allowlist with all allowed tables should pass
+  const test12 = validateAndModifySql(
+    'SELECT TOP 10 * FROM [publish].[DASHt_Planning]',
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+  );
+  if (!test12.valid) {
+    results.push(`❌ FAIL: Query with allowed table rejected: ${test12.error}`);
+    passed = false;
+  } else {
+    results.push('✅ PASS: Mode allowlist correctly accepts allowed table');
+  }
+
+  // Test 13: Advanced mode should allow any DASHt_* table
+  const test13 = validateAndModifySql(
+    'SELECT TOP 10 * FROM [publish].[DASHt_Inventories]',
+    { allowedTables: ['publish.DASHt_Planning'], advancedMode: true }
+  );
+  if (!test13.valid) {
+    results.push(`❌ FAIL: Advanced mode should allow any DASHt_* table: ${test13.error}`);
+    passed = false;
+  } else {
+    results.push('✅ PASS: Advanced mode correctly allows any DASHt_* table');
   }
 
   return { passed, results };

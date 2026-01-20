@@ -14,11 +14,14 @@ export const openai = new OpenAI({
 });
 
 const SCHEMA_CONTEXT = `
-You are a SQL query generator for a manufacturing planning database.
+You are a SQL query generator for a manufacturing database with multiple table schemas.
 
-TABLE: [publish].[DASHt_Planning]
+AVAILABLE SCHEMAS:
+- Planning tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_Materials, DASHt_Resources, DASHt_Inventories, etc.
+- Capacity Planning tables: DASHt_CapacityPlanning_ResourceDemand, DASHt_CapacityPlanning_ResourceCapacity, DASHt_CapacityPlanning_ResourceActual, etc.
+- All tables are in the [publish] schema with prefix DASHt_
 
-Key Business Rules:
+Key Business Rules (Planning Tables):
 - JobNeedDateTime is the primary due date field
 - JobOnHold values: 'OnHold' | 'Released'
 - JobScheduledStatus values: 'Scheduled' | 'Finished' | 'FailedToSchedule' | 'Template'
@@ -26,7 +29,7 @@ Key Business Rules:
 - Always use TOP (100) or less to limit results
 - For job-level results, use ROW_NUMBER() to deduplicate by JobId when needed
 
-Common Columns:
+Common Columns (DASHt_Planning):
 - JobNeedDateTime: Due date/need date
 - JobOnHold: Hold status
 - JobScheduledStatus: Scheduling status
@@ -57,9 +60,7 @@ IMPORTANT COLUMN CORRECTIONS:
 - SchedStartDate and SchedEndDate do NOT exist. Use JobScheduledStartDateTime/JobScheduledEndDateTime for job-level or BlockScheduledStart/BlockScheduledEnd for block-level.
 - QtyScheduled, QtyRequired, QtyComplete, QtyRemaining do NOT exist. Use JobQty (job-level), MORequiredQty (MO-level), OPRequiredFinishQty/ActivityRequiredFinishQty (operation/activity-level), or ActivityReportedGoodQty (reported good).
 
-Example Queries:
-
-1. Most overdue jobs (job-level, deduplicated):
+Example Query (Planning Mode):
 WITH ranked AS (
   SELECT
     JobName,
@@ -94,35 +95,11 @@ FROM ranked
 WHERE rn = 1
 ORDER BY JobOverdueDays DESC, Priority ASC, JobNeedDateTime ASC
 
-2. Late jobs by plant:
-SELECT TOP (50) BlockPlant, JobName, JobId, JobNeedDateTime, JobScheduledStatus
-FROM [publish].[DASHt_Planning]
-WHERE JobNeedDateTime < GETDATE() AND JobScheduledStatus IN ('Scheduled', 'FailedToSchedule')
-ORDER BY BlockPlant, JobNeedDateTime
-
-3. Jobs on hold:
-SELECT TOP (50) JobName, JobId, JobOnHold, JobNeedDateTime, BlockPlant
-FROM [publish].[DASHt_Planning]
-WHERE JobOnHold = 'OnHold'
-ORDER BY JobNeedDateTime
-
-4. Failed to schedule jobs:
-SELECT TOP (50) JobName, JobId, JobNeedDateTime, BlockPlant
-FROM [publish].[DASHt_Planning]
-WHERE JobScheduledStatus = 'FailedToSchedule'
-ORDER BY JobNeedDateTime
-
-5. Upcoming scheduled work:
-SELECT TOP (50) JobName, JobId, JobScheduledStartDateTime, JobScheduledEndDateTime, JobNeedDateTime, BlockPlant
-FROM [publish].[DASHt_Planning]
-WHERE JobScheduledStatus = 'Scheduled' AND JobScheduledStartDateTime >= GETDATE()
-ORDER BY JobScheduledStartDateTime
-
-Constraints:
+Global Constraints:
 - Only generate SELECT statements
 - No JOIN operations allowed
 - Always include TOP (100) or less
-- Only query FROM [publish].[DASHt_Planning]
+- Use only tables from the allowed list provided in the MODE context (see below)
 - When user says "next" jobs, it means sorted by date (ORDER BY), NOT filtered to future dates. Do NOT add GETDATE() filters unless user explicitly asks for "future" or "upcoming" jobs
 - Default to showing ALL matching jobs sorted appropriately, not just future-dated ones
 - NEVER use PlantCode (it does not exist) - use BlockPlant or PlantId instead
@@ -132,9 +109,66 @@ Constraints:
 - NEVER use PartNumber (it does not exist) - use JobProduct, MOProduct, or JobProductDescription instead
 `;
 
-export async function generateSqlFromQuestion(question: string): Promise<string> {
+interface GenerateOptions {
+  mode?: string;
+  allowedTables?: string[];
+}
+
+interface GenerateResult {
+  sql: string;
+  suggestions?: string[];
+}
+
+const SUGGESTION_PROMPT = `
+You are a query suggestion assistant for a manufacturing database. Given a user's natural language question, generate 2-3 alternative phrasings or related questions that might help clarify or expand their query.
+
+Rules:
+- Suggest variations that are more specific or clearer
+- Suggest related queries they might also be interested in
+- Keep suggestions concise (under 15 words each)
+- Return ONLY a JSON array of strings, no other text
+- If the question is already very clear, return fewer suggestions
+
+Example input: "show jobs"
+Example output: ["Show all overdue jobs", "Show jobs by plant", "Show jobs scheduled for today"]
+`;
+
+export async function generateSuggestions(question: string): Promise<string[]> {
+  if (!apiKey) {
+    return [];
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: SUGGESTION_PROMPT },
+        { role: 'user', content: question }
+      ],
+      temperature: 0.7,
+      max_completion_tokens: 200,
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() || '[]';
+    const suggestions = JSON.parse(content);
+    return Array.isArray(suggestions) ? suggestions.slice(0, 3) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<string> {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
+  }
+
+  const { mode = 'planning', allowedTables = [] } = options;
+
+  // Build mode-specific context
+  let modeContext = '';
+  if (allowedTables.length > 0) {
+    const tableList = allowedTables.join(', ');
+    modeContext = `\n\nMODE: ${mode.toUpperCase()}\nALLOWED TABLES for this mode:\n${tableList}\n\nYou MUST use only these tables for this query. Do not use any other tables.`;
   }
 
   const response = await openai.chat.completions.create({
@@ -142,7 +176,7 @@ export async function generateSqlFromQuestion(question: string): Promise<string>
     messages: [
       {
         role: 'system',
-        content: SCHEMA_CONTEXT + '\n\nGenerate only the SQL query, no explanation. Do not include markdown formatting or code blocks.'
+        content: SCHEMA_CONTEXT + modeContext + '\n\nGenerate only the SQL query, no explanation. Do not include markdown formatting or code blocks.'
       },
       {
         role: 'user',

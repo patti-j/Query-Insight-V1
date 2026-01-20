@@ -3,22 +3,55 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, Database, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 
-// Default questions shown when no FAQ history exists
-const DEFAULT_QUESTIONS = [
-  { text: "Show jobs that are overdue", icon: "🔴" },
-  { text: "Show jobs on hold with hold reasons", icon: "⏸️" },
-  { text: "List jobs that are not scheduled", icon: "❌" },
-  { text: "What jobs are scheduled for next week?", icon: "📅" },
-  { text: "Show late jobs grouped by plant", icon: "🏭" },
-  { text: "Top 10 jobs by quantity", icon: "📊" },
-  { text: "Jobs with highest lateness days", icon: "⏰" },
-  { text: "List all scheduled jobs", icon: "✅" },
-  { text: "Which resources have work scheduled today?", icon: "⚙️" },
-  { text: "Jobs scheduled to finish this month", icon: "🎯" },
-];
+// Default questions by mode
+const QUESTIONS_BY_MODE: Record<string, { text: string; icon: string }[]> = {
+  planning: [
+    { text: "Show jobs that are overdue", icon: "🔴" },
+    { text: "Show jobs on hold with hold reasons", icon: "⏸️" },
+    { text: "List jobs that are not scheduled", icon: "❌" },
+    { text: "What jobs are scheduled for next week?", icon: "📅" },
+    { text: "Show late jobs grouped by plant", icon: "🏭" },
+    { text: "Top 10 jobs by quantity", icon: "📊" },
+    { text: "Jobs with highest lateness days", icon: "⏰" },
+    { text: "List all scheduled jobs", icon: "✅" },
+    { text: "Show inventory balances", icon: "📦" },
+    { text: "Jobs scheduled to finish this month", icon: "🎯" },
+  ],
+  capacity: [
+    { text: "Show resource demand for next week", icon: "📈" },
+    { text: "Which resources are over capacity?", icon: "🔴" },
+    { text: "List available capacity by resource", icon: "✅" },
+    { text: "Show shift schedules", icon: "📅" },
+    { text: "Compare planned vs actual resource usage", icon: "📊" },
+    { text: "Resources with highest demand", icon: "⚡" },
+    { text: "Capacity utilization by resource", icon: "📉" },
+    { text: "Show resource actuals for today", icon: "📌" },
+    { text: "List all resources and their capacity", icon: "⚙️" },
+    { text: "Shift coverage gaps", icon: "⏰" },
+  ],
+  dispatch: [
+    { text: "Show jobs ready for dispatch", icon: "🚀" },
+    { text: "List operations in progress", icon: "⚙️" },
+    { text: "Jobs with operation attributes", icon: "📋" },
+    { text: "Show operations by resource", icon: "🔧" },
+    { text: "List job operation products", icon: "📦" },
+    { text: "Operations scheduled for today", icon: "📌" },
+    { text: "Show overdue operations", icon: "🔴" },
+    { text: "Jobs by priority for dispatch", icon: "⭐" },
+    { text: "Operations pending completion", icon: "⏳" },
+    { text: "Resources with scheduled work", icon: "🏭" },
+  ],
+};
+
+// Fallback default questions
+const DEFAULT_QUESTIONS = QUESTIONS_BY_MODE.planning;
 
 // Columns to hide from results display (system-generated IDs)
 const HIDDEN_COLUMNS = ['jobid', 'job_id', 'id'];
@@ -56,6 +89,7 @@ interface QueryResult {
   rows: any[];
   rowCount: number;
   isMock: boolean;
+  suggestions?: string[];
 }
 
 interface DiagnosticsResult {
@@ -68,6 +102,20 @@ interface DiagnosticsResult {
     accessible: boolean;
     error: string | null;
   }>;
+}
+
+interface SemanticMode {
+  id: string;
+  name: string;
+  description: string;
+  tables: string[];
+  default: boolean;
+}
+
+interface SemanticCatalog {
+  modes: SemanticMode[];
+  version: string;
+  lastUpdated: string;
 }
 
 const MOCK_DATA = [
@@ -86,10 +134,42 @@ export default function QueryPage() {
   const [error, setError] = useState<string | null>(null);
   const [faqQuestions, setFaqQuestions] = useState<{ text: string; icon: string }[]>(DEFAULT_QUESTIONS);
   const [showAllRows, setShowAllRows] = useState(false);
+  const [showSql, setShowSql] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
+  const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
+  const [selectedMode, setSelectedMode] = useState('planning');
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  const submitFeedback = async (feedback: 'up' | 'down') => {
+    if (!result || feedbackGiven) return;
+    
+    setFeedbackLoading(true);
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: submittedQuestion,
+          sql: result.sql,
+          feedback,
+        }),
+      });
+      if (response.ok) {
+        setFeedbackGiven(feedback);
+      } else {
+        console.error('Failed to submit feedback:', response.statusText);
+      }
+    } catch (err) {
+      console.error('Failed to submit feedback:', err);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   // Fetch popular questions on mount and after each successful query
   const fetchPopularQuestions = async () => {
@@ -127,6 +207,19 @@ export default function QueryPage() {
     fetch('/api/db/diagnostics', { method: 'HEAD' })
       .then(res => setIsDevelopment(res.status !== 403))
       .catch(() => setIsDevelopment(false));
+    
+    // Fetch semantic catalog
+    fetch('/api/semantic-catalog')
+      .then(res => res.json())
+      .then(data => {
+        setSemanticCatalog(data);
+        // Set default mode if specified
+        const defaultMode = data.modes.find((m: SemanticMode) => m.default);
+        if (defaultMode) {
+          setSelectedMode(defaultMode.id);
+        }
+      })
+      .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
 
   const executeQuery = async (q: string) => {
@@ -135,13 +228,19 @@ export default function QueryPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setFeedbackGiven(null);
     setShowAllRows(false);
+    setSubmittedQuestion(q.trim());
 
     try {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ 
+          question: q,
+          mode: selectedMode,
+          advancedMode 
+        }),
       });
 
       // Try to parse JSON, if it fails (HTML response), throw error to trigger fallback
@@ -290,7 +389,7 @@ export default function QueryPage() {
                 {diagnosticsLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Database className="h-4 w-4" />
+                  <ChevronDown className="h-4 w-4" />
                 )}
                 DB Check
               </Button>
@@ -310,6 +409,45 @@ export default function QueryPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Query Mode</Label>
+                  <div className="flex items-center space-x-2">
+                    <Switch 
+                      id="advanced-mode" 
+                      checked={advancedMode} 
+                      onCheckedChange={setAdvancedMode}
+                      data-testid="switch-advanced-mode"
+                    />
+                    <Label htmlFor="advanced-mode" className="cursor-pointer text-sm text-muted-foreground">
+                      Advanced
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {semanticCatalog?.modes.map((mode) => (
+                    <Button
+                      key={mode.id}
+                      type="button"
+                      variant={selectedMode === mode.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedMode(mode.id)}
+                      data-testid={`mode-${mode.id}`}
+                      className={selectedMode === mode.id 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-background/50 hover:bg-primary/10"}
+                    >
+                      {mode.name}
+                    </Button>
+                  ))}
+                </div>
+                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.description && (
+                  <p className="text-xs text-muted-foreground">
+                    {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}
+                  </p>
+                )}
+              </div>
+
               <Textarea
                 placeholder="What would you like to know about your manufacturing data?"
                 value={question}
@@ -331,7 +469,7 @@ export default function QueryPage() {
           </CardContent>
         </Card>
 
-        {showDiagnostics && diagnosticsResult && (
+        {isDevelopment && showDiagnostics && diagnosticsResult && (
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -419,37 +557,97 @@ export default function QueryPage() {
                   <span className="text-green-500">✓</span>
                   Results
                 </CardTitle>
-                <CardDescription data-testid="text-answer">{result.answer}</CardDescription>
+                {submittedQuestion && (
+                  <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
+                    <p className="text-base font-medium text-foreground">
+                      "{submittedQuestion}"
+                    </p>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">SQL Query</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSql(!showSql)}
+                      className="gap-2 px-2 h-7"
+                      data-testid="button-toggle-sql"
+                    >
+                      {showSql ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 pointer-events-none">SQL Query</Badge>
+                    </Button>
                     <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">{result.rowCount} rows</Badge>
                   </div>
-                  <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
-                    {result.sql}
-                  </pre>
+                  {showSql && (
+                    <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
+                      {result.sql}
+                    </pre>
+                  )}
                 </div>
 
                 {result.rows.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
-                      {result.rows.length > 10 && (
+                      <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              data-testid="button-export"
+                            >
+                              <Download className="h-4 w-4" />
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                try {
+                                  const exportData = result.rows.map(filterRowColumns);
+                                  exportToCSV(exportData, `query-results-${Date.now()}.csv`);
+                                } catch (err: any) {
+                                  setError(`Export failed: ${err.message}`);
+                                }
+                              }}
+                              data-testid="menu-export-csv"
+                            >
+                              Export as CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                try {
+                                  const exportData = result.rows.map(filterRowColumns);
+                                  exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
+                                } catch (err: any) {
+                                  setError(`Export failed: ${err.message}`);
+                                }
+                              }}
+                              data-testid="menu-export-excel"
+                            >
+                              Export as Excel
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setShowAllRows(!showAllRows)}
+                          disabled={result.rows.length <= 10}
+                          className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
                           data-testid="button-toggle-rows"
                         >
                           {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
                         </Button>
-                      )}
+                      </div>
                     </div>
                     <div className="border border-border/50 rounded-xl overflow-hidden">
-                      <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-                        <table className="w-full text-sm">
+                      <div className="overflow-y-auto max-h-[500px]">
+                        <table className="w-full text-sm table-auto">
                           <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
@@ -481,15 +679,75 @@ export default function QueryPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Feedback Section */}
+                <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Was this helpful?</span>
+                    <Button
+                      variant={feedbackGiven === 'up' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => submitFeedback('up')}
+                      disabled={feedbackLoading || feedbackGiven !== null}
+                      data-testid="button-feedback-up"
+                      className={feedbackGiven === 'up' ? "bg-green-500 hover:bg-green-600" : ""}
+                    >
+                      <ThumbsUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={feedbackGiven === 'down' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => submitFeedback('down')}
+                      disabled={feedbackLoading || feedbackGiven !== null}
+                      data-testid="button-feedback-down"
+                      className={feedbackGiven === 'down' ? "bg-red-500 hover:bg-red-600" : ""}
+                    >
+                      <ThumbsDown className="h-4 w-4" />
+                    </Button>
+                    {feedbackGiven && (
+                      <span className="text-sm text-muted-foreground ml-2">Thanks for your feedback!</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Did you mean? Suggestions */}
+                {result.suggestions && result.suggestions.length > 0 && (
+                  <div className="pt-4 border-t border-border/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">Related questions you might ask:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {result.suggestions.map((suggestion, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => executeQuery(suggestion)}
+                          disabled={loading}
+                          data-testid={`button-suggestion-${idx}`}
+                          className="text-xs bg-yellow-500/5 border-yellow-500/30 hover:bg-yellow-500/10"
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         )}
 
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground/80">Quick Questions</h2>
+          <h2 className="text-lg font-semibold text-foreground/80">
+            Quick Questions
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Planning'} mode)
+            </span>
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {faqQuestions.map((q, idx) => (
+            {(QUESTIONS_BY_MODE[selectedMode] || DEFAULT_QUESTIONS).map((q, idx) => (
               <button
                 key={idx}
                 onClick={() => executeQuery(q.text)}

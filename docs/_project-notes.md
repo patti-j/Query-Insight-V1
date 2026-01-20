@@ -47,6 +47,24 @@
 - **Response**: JSON with table count, accessibility status, and per-table validation results
 - **Configuration**: Set `DIAGNOSTICS_TOKEN` in Replit Secrets to enable in production (optional)
 
+### Semantic Mode Presets
+- **Feature**: Query mode selector with curated table allowlists
+- **Purpose**: Focus queries on relevant tables based on report context (Planning, Capacity, or Dispatch)
+- **Catalog**: `docs/semantic/semantic-catalog.json` defines available modes and their table allowlists
+- **Modes**:
+  - **Planning** (default): Manufacturing planning, job operations, materials, resources, inventory, sales/purchase orders
+  - **Capacity**: Resource capacity planning, demand, actuals, shift schedules
+  - **Dispatch**: Production dispatch and job operation execution
+- **Endpoints**:
+  - `GET /api/semantic-catalog`: Returns the full semantic catalog
+  - `POST /api/ask`: Accepts `mode` and `advancedMode` parameters
+- **Validation**: 
+  - By default, queries are restricted to mode-specific tables
+  - "Advanced mode" toggle allows querying any `publish.DASHt_*` table while still enforcing SELECT-only and TOP limits
+  - All queries remain subject to security validation (SELECT-only, no JOINs, TOP enforcement)
+- **UI**: Mode selector dropdown and advanced toggle in query form
+- **OpenAI Integration**: Mode-specific table context injected into SQL generation prompt
+
 ### Next Steps
 - Complete repo structure audit.
 - Define runtime architecture (frontend/backend split if any).

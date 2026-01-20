@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
-import { validateAndModifySql, runValidatorSelfCheck } from "./sql-validator";
-import { generateSqlFromQuestion } from "./openai-client";
+import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
+import { generateSqlFromQuestion, generateSuggestions } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -12,7 +12,11 @@ import {
   logGenerationFailure,
   trackQueryForFAQ,
   getPopularQuestions,
+  storeFeedback,
+  getFeedbackStats,
 } from "./query-logger";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -40,6 +44,47 @@ export async function registerRoutes(
     res.json({ questions });
   });
 
+  // Submit feedback for a query result
+  app.post("/api/feedback", (req, res) => {
+    const { question, sql, feedback, comment } = req.body;
+
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({ error: 'Question is required' });
+    }
+    if (!sql || typeof sql !== 'string') {
+      return res.status(400).json({ error: 'SQL is required' });
+    }
+    if (!feedback || (feedback !== 'up' && feedback !== 'down')) {
+      return res.status(400).json({ error: 'Feedback must be "up" or "down"' });
+    }
+
+    storeFeedback(question, sql, feedback, comment);
+    log(`Feedback received: ${feedback} for question: ${question.substring(0, 50)}...`, 'feedback');
+
+    res.json({ success: true });
+  });
+
+  // Get feedback statistics
+  app.get("/api/feedback/stats", (_req, res) => {
+    const stats = getFeedbackStats();
+    res.json(stats);
+  });
+
+  // Get semantic catalog
+  app.get("/api/semantic-catalog", (_req, res) => {
+    try {
+      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
+      const catalogContent = readFileSync(catalogPath, 'utf-8');
+      const catalog = JSON.parse(catalogContent);
+      res.json(catalog);
+    } catch (error: any) {
+      log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
+      res.status(500).json({
+        error: 'Failed to load semantic catalog',
+      });
+    }
+  });
+
   // Database connectivity check
   app.get("/api/db-check", async (_req, res) => {
     try {
@@ -57,6 +102,28 @@ export async function registerRoutes(
       res.status(500).json({
         ok: false,
         error: error.message || 'Database connection failed',
+      });
+    }
+  });
+
+  // Get latest publish date from DASHt_Planning
+  app.get("/api/last-update", async (_req, res) => {
+    try {
+      const result = await executeQuery(
+        'SELECT TOP (1) MAX(PublishDate) as lastUpdate FROM [publish].[DASHt_Planning]'
+      );
+      
+      const lastUpdate = result.recordset[0]?.lastUpdate || null;
+      
+      res.json({
+        ok: true,
+        lastUpdate,
+      });
+    } catch (error: any) {
+      log(`Last update fetch failed: ${error.message}`, 'last-update');
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch last update date',
       });
     }
   });
@@ -156,7 +223,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question } = req.body;
+    const { question, mode = 'planning', advancedMode = false } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -165,23 +232,43 @@ export async function registerRoutes(
       });
     }
 
+    // Load semantic catalog to get allowed tables for the mode
+    let allowedTables: string[] = [];
+    try {
+      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
+      const catalogContent = readFileSync(catalogPath, 'utf-8');
+      const catalog = JSON.parse(catalogContent);
+      
+      const selectedMode = catalog.modes.find((m: any) => m.id === mode);
+      if (selectedMode) {
+        allowedTables = selectedMode.tables;
+      }
+    } catch (error: any) {
+      log(`Failed to load semantic catalog: ${error.message}`, 'ask');
+      // Continue with empty allowedTables - will fall back to any DASHt_* table
+    }
+
     // Create query log context
     const logContext = createQueryLogContext(req, question);
-    log(`Processing question: ${question}`, 'ask');
+    log(`Processing question: ${question} (mode: ${mode}, advancedMode: ${advancedMode})`, 'ask');
 
     let generatedSql: string | undefined;
     let llmStartTime: number | undefined;
     let llmMs: number | undefined;
 
     try {
-      // Generate SQL from natural language
+      // Generate SQL from natural language with mode context
       llmStartTime = Date.now();
-      generatedSql = await generateSqlFromQuestion(question);
+      generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables });
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
 
-      // Validate and modify SQL if needed
-      const validation = validateAndModifySql(generatedSql);
+      // Validate and modify SQL if needed, passing mode-specific options
+      const validationOptions: ValidationOptions = {
+        allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
+        advancedMode,
+      };
+      const validation = validateAndModifySql(generatedSql, validationOptions);
       
       if (!validation.valid) {
         log(`SQL validation failed: ${validation.error}`, 'ask');
@@ -221,12 +308,16 @@ export async function registerRoutes(
       // Track for FAQ popularity
       trackQueryForFAQ(question, true);
 
+      // Generate "did you mean?" suggestions asynchronously
+      const suggestions = await generateSuggestions(question);
+
       res.json({
         answer: `Query executed successfully. Retrieved ${result.recordset.length} row(s).`,
         sql: finalSql,
         rows: result.recordset,
         rowCount: result.recordset.length,
         isMock: false,
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
       });
 
     } catch (error: any) {
@@ -235,7 +326,11 @@ export async function registerRoutes(
       // Determine error stage and log appropriately
       if (generatedSql) {
         // Error during SQL execution (use validated SQL if available)
-        const validation = validateAndModifySql(generatedSql);
+        const validationOptions: ValidationOptions = {
+          allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
+          advancedMode,
+        };
+        const validation = validateAndModifySql(generatedSql, validationOptions);
         const failedSql = validation.modifiedSql || generatedSql;
         logExecutionFailure(
           logContext,
