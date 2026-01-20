@@ -82,6 +82,18 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 
 ## Recent Changes
 
+**2026-01-20: Table Scrollbar Fix for Production Consistency**
+- **Fixed Issue**: Table in Results/Data Preview card now shows internal scrollbars in both dev and production
+- **Root Cause**: Missing horizontal scroll container and non-optimal scroll structure
+- **Solution Applied**:
+  - Outer wrapper: `className="w-full overflow-x-auto border border-border/50 rounded-xl"` (horizontal scroll)
+  - Inner wrapper: `className="max-h-[420px] overflow-auto"` (vertical scroll with fixed max-height)
+  - Table: `className="min-w-[900px] w-full text-sm table-auto"` (minimum width triggers horizontal scroll)
+- **Static Classes**: All Tailwind classes are static literals (no string concatenation) for proper production build inclusion
+- **Cache Busting**: Added APP_VERSION='1.1.0' constant with footer display for deployment validation
+- **Production Build**: Verified CSS includes overflow-auto and overflow-x-auto classes
+- Modified files: `client/src/pages/query.tsx`
+
 **2026-01-20: Analytics Dashboard for Query Performance Monitoring**
 - **Dashboard Page**: New `/dashboard` route showing comprehensive query analytics
 - **Real-time Metrics**: Auto-refreshes every 10 seconds to show current system health
