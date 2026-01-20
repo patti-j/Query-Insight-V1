@@ -1,0 +1,352 @@
+import { log } from "./index";
+import { executeQuery } from "./db-azure";
+
+/**
+ * Quick question definition with validation metadata
+ */
+export interface QuickQuestion {
+  id: string;
+  text: string;
+  icon: string;
+  mode: 'planning' | 'capacity' | 'dispatch';
+  // Tables and columns this question requires (for validation)
+  requiredSchema: {
+    table: string; // e.g., "publish.DASHt_Planning"
+    columns: string[]; // e.g., ["JobOnHold", "JobHoldReason"]
+  }[];
+}
+
+/**
+ * All quick questions with their schema requirements
+ */
+export const ALL_QUICK_QUESTIONS: QuickQuestion[] = [
+  // PLANNING MODE
+  {
+    id: 'planning-overdue',
+    text: 'Show jobs that are overdue',
+    icon: '🔴',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobOverdue', 'JobOverdueDays', 'JobNeedDateTime'] }
+    ]
+  },
+  {
+    id: 'planning-hold',
+    text: 'Show jobs on hold with hold reasons',
+    icon: '⏸️',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobOnHold', 'JobHoldReason'] }
+    ]
+  },
+  {
+    id: 'planning-not-scheduled',
+    text: 'List jobs that are not scheduled',
+    icon: '❌',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobScheduled', 'JobNeedDateTime'] }
+    ]
+  },
+  {
+    id: 'planning-late',
+    text: 'Show late jobs grouped by plant',
+    icon: '🏭',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobLate', 'JobLatenessDays', 'BlockPlant'] }
+    ]
+  },
+  {
+    id: 'planning-top-qty',
+    text: 'Top 10 jobs by quantity',
+    icon: '📊',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobQty', 'JobProduct'] }
+    ]
+  },
+  {
+    id: 'planning-lateness',
+    text: 'Jobs with highest lateness days',
+    icon: '⏰',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobLatenessDays', 'JobNeedDateTime'] }
+    ]
+  },
+  {
+    id: 'planning-scheduled',
+    text: 'List all scheduled jobs',
+    icon: '✅',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'JobScheduled', 'JobScheduledStartDateTime', 'JobScheduledEndDateTime'] }
+    ]
+  },
+  {
+    id: 'planning-priority',
+    text: 'Jobs by priority',
+    icon: '⭐',
+    mode: 'planning',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'JobId', 'Priority', 'JobNeedDateTime'] }
+    ]
+  },
+
+  // CAPACITY MODE
+  {
+    id: 'capacity-demand-week',
+    text: 'Show resource demand for next 7 days',
+    icon: '📈',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['ResourceName', 'DemandDate', 'DemandHours', 'PlantName'] }
+    ]
+  },
+  {
+    id: 'capacity-available',
+    text: 'List available capacity by resource',
+    icon: '✅',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ResourceCapacity', columns: ['ResourceName', 'ShiftDate', 'NormalOnlineHours', 'OvertimeHours', 'PlantName'] }
+    ]
+  },
+  {
+    id: 'capacity-intervals',
+    text: 'Show shift intervals by resource',
+    icon: '📅',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ShiftsCombined', columns: ['ResourceName', 'IntervalName', 'StartDateTime', 'EndDateTime', 'IntervalType'] }
+    ]
+  },
+  {
+    id: 'capacity-demand-summary',
+    text: 'Resource demand summary by plant',
+    icon: '🏭',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['PlantName', 'ResourceName', 'DemandHours'] }
+    ]
+  },
+  {
+    id: 'capacity-utilization',
+    text: 'Capacity utilization by resource type',
+    icon: '📊',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_CapacityPlanning_ResourceCapacity', columns: ['ResourceName', 'ResourceType', 'NormalOnlineHours', 'ShiftDate'] },
+      { table: 'publish.DASHt_CapacityPlanning_ResourceDemand', columns: ['ResourceName', 'DemandHours', 'DemandDate'] }
+    ]
+  },
+  {
+    id: 'capacity-bottleneck',
+    text: 'Show bottleneck resources',
+    icon: '🔴',
+    mode: 'capacity',
+    requiredSchema: [
+      { table: 'publish.DASHt_Resources', columns: ['ResourceName', 'Bottleneck', 'ResourceType', 'PlantName'] }
+    ]
+  },
+
+  // DISPATCH MODE
+  {
+    id: 'dispatch-scheduled-today',
+    text: 'Operations scheduled for today',
+    icon: '📌',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'OPName', 'BlockScheduledStart', 'BlockScheduledEnd', 'BlockResource', 'BlockScheduled'] }
+    ]
+  },
+  {
+    id: 'dispatch-in-progress',
+    text: 'List operations in progress',
+    icon: '⚙️',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'OPName', 'ActivityPercentFinished', 'BlockResource', 'BlockProductionStatus'] }
+    ]
+  },
+  {
+    id: 'dispatch-with-attributes',
+    text: 'Jobs with operation attributes',
+    icon: '📋',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'OPName', 'OPAttributesSummary'] },
+      { table: 'publish.DASHt_JobOperationAttributes', columns: ['JobId', 'OperationId', 'AttributesExternalIds'] }
+    ]
+  },
+  {
+    id: 'dispatch-by-resource',
+    text: 'Show operations by resource',
+    icon: '🔧',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'OPName', 'BlockResource', 'BlockScheduledStart', 'BlockScheduledEnd'] }
+    ]
+  },
+  {
+    id: 'dispatch-products',
+    text: 'List job operation products',
+    icon: '📦',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_JobOperationProducts', columns: ['JobId', 'OperationId', 'ProductIds', 'ProductGroups'] }
+    ]
+  },
+  {
+    id: 'dispatch-overdue',
+    text: 'Show overdue operations',
+    icon: '🔴',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'OPName', 'OPLate', 'OPNeedDate', 'BlockScheduledEnd'] }
+    ]
+  },
+  {
+    id: 'dispatch-priority',
+    text: 'Jobs by priority for dispatch',
+    icon: '⭐',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['JobName', 'Priority', 'BlockScheduledStart', 'BlockResource'] }
+    ]
+  },
+  {
+    id: 'dispatch-resources-work',
+    text: 'Resources with scheduled work',
+    icon: '🏭',
+    mode: 'dispatch',
+    requiredSchema: [
+      { table: 'publish.DASHt_Planning', columns: ['BlockResource', 'JobName', 'OPName', 'BlockScheduledStart'] },
+      { table: 'publish.DASHt_Resources', columns: ['ResourceName', 'ResourceType', 'PlantName'] }
+    ]
+  },
+];
+
+/**
+ * Cache for schema validation results
+ */
+let schemaCache: Map<string, Set<string>> | null = null;
+let schemaCacheTimestamp: number | null = null;
+const SCHEMA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch available columns for each table from INFORMATION_SCHEMA.COLUMNS
+ */
+async function fetchSchemaColumns(): Promise<Map<string, Set<string>>> {
+  const schemaMap = new Map<string, Set<string>>();
+
+  try {
+    const query = `
+      SELECT 
+        CONCAT(TABLE_SCHEMA, '.', TABLE_NAME) AS FullTableName,
+        COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = 'publish' 
+        AND TABLE_NAME LIKE 'DASHt_%'
+      ORDER BY FullTableName, ORDINAL_POSITION
+    `;
+
+    const result = await executeQuery(query);
+
+    for (const row of result.recordset) {
+      const tableName = row.FullTableName;
+      const columnName = row.COLUMN_NAME;
+
+      if (!schemaMap.has(tableName)) {
+        schemaMap.set(tableName, new Set());
+      }
+      schemaMap.get(tableName)!.add(columnName);
+    }
+
+    log(`Schema validation: Loaded ${schemaMap.size} tables with column metadata`, 'quick-questions');
+    
+  } catch (error: any) {
+    log(`Failed to fetch schema columns: ${error.message}`, 'quick-questions');
+    // Return empty map on error - questions will be filtered out
+  }
+
+  return schemaMap;
+}
+
+/**
+ * Get cached schema or fetch fresh if expired
+ */
+async function getSchemaColumns(): Promise<Map<string, Set<string>>> {
+  const now = Date.now();
+  
+  // Return cached if valid
+  if (schemaCache && schemaCacheTimestamp && (now - schemaCacheTimestamp) < SCHEMA_CACHE_TTL) {
+    return schemaCache;
+  }
+
+  // Fetch fresh schema
+  schemaCache = await fetchSchemaColumns();
+  schemaCacheTimestamp = now;
+  
+  return schemaCache;
+}
+
+/**
+ * Validate a single question against the current schema
+ */
+function validateQuestion(question: QuickQuestion, schema: Map<string, Set<string>>): boolean {
+  for (const requirement of question.requiredSchema) {
+    const tableName = requirement.table;
+    const availableColumns = schema.get(tableName);
+
+    if (!availableColumns) {
+      log(`Quick question '${question.id}' requires missing table: ${tableName}`, 'quick-questions');
+      return false;
+    }
+
+    for (const requiredColumn of requirement.columns) {
+      if (!availableColumns.has(requiredColumn)) {
+        log(`Quick question '${question.id}' requires missing column: ${tableName}.${requiredColumn}`, 'quick-questions');
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Get validated quick questions for a specific mode
+ */
+export async function getValidatedQuickQuestions(mode: 'planning' | 'capacity' | 'dispatch'): Promise<{ text: string; icon: string }[]> {
+  try {
+    const schema = await getSchemaColumns();
+    
+    // Filter questions for this mode and validate against schema
+    const validQuestions = ALL_QUICK_QUESTIONS
+      .filter(q => q.mode === mode)
+      .filter(q => validateQuestion(q, schema))
+      .map(q => ({ text: q.text, icon: q.icon }));
+
+    log(`Validated quick questions for mode '${mode}': ${validQuestions.length}/${ALL_QUICK_QUESTIONS.filter(q => q.mode === mode).length} passed`, 'quick-questions');
+    
+    return validQuestions;
+  } catch (error: any) {
+    log(`Error validating quick questions: ${error.message}`, 'quick-questions');
+    // Return empty array on error to avoid showing potentially broken questions
+    return [];
+  }
+}
+
+/**
+ * Prefetch schema on startup (optional - for faster first request)
+ */
+export async function prefetchSchema(): Promise<void> {
+  try {
+    await getSchemaColumns();
+    log('Schema prefetch completed successfully', 'quick-questions');
+  } catch (error: any) {
+    log(`Schema prefetch failed: ${error.message}`, 'quick-questions');
+  }
+}

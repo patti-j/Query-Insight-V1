@@ -15,6 +15,7 @@ import {
   storeFeedback,
   getFeedbackStats,
 } from "./query-logger";
+import { getValidatedQuickQuestions } from "./quick-questions";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -81,6 +82,26 @@ export async function registerRoutes(
       log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
       res.status(500).json({
         error: 'Failed to load semantic catalog',
+      });
+    }
+  });
+
+  // Get validated quick questions for a mode
+  app.get("/api/quick-questions/:mode", async (req, res) => {
+    try {
+      const mode = req.params.mode as 'planning' | 'capacity' | 'dispatch';
+      
+      if (!['planning', 'capacity', 'dispatch'].includes(mode)) {
+        return res.status(400).json({ error: 'Invalid mode. Must be planning, capacity, or dispatch.' });
+      }
+
+      const questions = await getValidatedQuickQuestions(mode);
+      res.json({ questions, mode });
+    } catch (error: any) {
+      log(`Failed to get quick questions for mode ${req.params.mode}: ${error.message}`, 'quick-questions');
+      res.status(500).json({
+        error: 'Failed to load quick questions',
+        questions: [] // Return empty array on error
       });
     }
   });

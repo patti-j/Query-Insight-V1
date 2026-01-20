@@ -171,38 +171,29 @@ export default function QueryPage() {
     }
   };
 
-  // Fetch popular questions on mount and after each successful query
-  const fetchPopularQuestions = async () => {
+  // Fetch validated quick questions for the current mode
+  const fetchQuickQuestions = async (mode: string) => {
     try {
-      const response = await fetch('/api/popular-questions');
+      const response = await fetch(`/api/quick-questions/${mode}`);
       if (response.ok) {
         const data = await response.json();
         if (data.questions && data.questions.length > 0) {
-          // Convert popular questions to display format with icons
-          const faq = data.questions.map((q: { question: string; count: number }) => ({
-            text: q.question,
-            icon: getQuestionIcon(q.question),
-          }));
-          // Merge FAQ with defaults: FAQ first, then fill remaining slots with defaults
-          const faqTexts = new Set(faq.map((q: { text: string }) => q.text.toLowerCase()));
-          const remainingDefaults = DEFAULT_QUESTIONS.filter(
-            d => !faqTexts.has(d.text.toLowerCase())
-          );
-          const merged = [...faq, ...remainingDefaults].slice(0, 10);
-          setFaqQuestions(merged);
+          setFaqQuestions(data.questions);
+        } else {
+          // No validated questions available for this mode
+          setFaqQuestions([]);
         }
       } else {
-        // Fall back to defaults silently if API fails
-        setFaqQuestions(DEFAULT_QUESTIONS);
+        // Fall back to mode-specific defaults if API fails
+        setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
       }
     } catch (err) {
-      // Fall back to defaults silently
-      setFaqQuestions(DEFAULT_QUESTIONS);
+      // Fall back to mode-specific defaults silently
+      setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
     }
   };
 
   useEffect(() => {
-    fetchPopularQuestions();
     // Check if diagnostics is available (dev mode check)
     fetch('/api/db/diagnostics', { method: 'HEAD' })
       .then(res => setIsDevelopment(res.status !== 403))
@@ -217,10 +208,19 @@ export default function QueryPage() {
         const defaultMode = data.modes.find((m: SemanticMode) => m.default);
         if (defaultMode) {
           setSelectedMode(defaultMode.id);
+          // Fetch quick questions for default mode
+          fetchQuickQuestions(defaultMode.id);
         }
       })
       .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
+
+  // Fetch quick questions when mode changes
+  useEffect(() => {
+    if (selectedMode) {
+      fetchQuickQuestions(selectedMode);
+    }
+  }, [selectedMode]);
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
@@ -262,9 +262,8 @@ export default function QueryPage() {
       }
 
       setResult(data);
-      // Clear the query box and refresh FAQ after successful query
+      // Clear the query box after successful query
       setQuestion('');
-      fetchPopularQuestions();
     } catch (err: any) {
       console.error("API Query Failed:", err);
       // Fallback to mock data if API fails (e.g. secrets not set)
