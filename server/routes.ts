@@ -76,7 +76,7 @@ export async function registerRoutes(
 
   // Get analytics data for dashboard
   app.get("/api/analytics", (req, res) => {
-    const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string, 10) : 60;
+    const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string, 10) : 1440; // 24 hours
     const analytics = getAnalytics(timeRange);
     res.json(analytics);
   });
