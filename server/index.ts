@@ -3,8 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { prefetchSchema } from "./quick-questions";
-import { prefetchAllModeSchemas } from "./schema-introspection";
-import { join } from "path";
+import { prefetchAllModeSchemas } from "./mode-schema-cache";
 
 const app = express();
 const httpServer = createServer(app);
@@ -63,12 +62,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Prefetch schemas for all modes BEFORE registering routes (blocking)
+  // Prefetch mode-specific schemas BEFORE registering routes (blocking)
   try {
-    const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
-    await prefetchAllModeSchemas(catalogPath);
+    await prefetchAllModeSchemas();
   } catch (err: any) {
-    log(`⚠️  Schema prefetch failed: ${err.message}. SQL generation may not work correctly.`, 'startup');
+    log(`⚠️  Mode schema prefetch failed: ${err.message}. SQL generation may not work correctly.`, 'startup');
   }
 
   await registerRoutes(httpServer, app);

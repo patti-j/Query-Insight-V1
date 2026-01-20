@@ -104,21 +104,46 @@ async function fetchSchemaFromDatabase(tableNames: string[]): Promise<Map<string
 export async function getTableSchemas(tableNames: string[]): Promise<Map<string, TableSchema>> {
   const now = Date.now();
   
-  // Check if cache is valid
+  // Check if cache is valid and contains all requested tables
   if (schemaCache && (now - schemaCache.timestamp) < SCHEMA_CACHE_TTL_MS) {
-    log('schema-introspection', `Using cached schema (age: ${Math.round((now - schemaCache.timestamp) / 1000)}s)`);
-    return schemaCache.data;
+    const missingTables = tableNames.filter(t => !schemaCache!.data.has(t));
+    
+    if (missingTables.length === 0) {
+      // All requested tables are in cache
+      log('schema-introspection', `Using cached schema (age: ${Math.round((now - schemaCache.timestamp) / 1000)}s)`);
+      
+      // Filter and return only the requested tables
+      const filteredSchemas = new Map<string, TableSchema>();
+      for (const tableName of tableNames) {
+        const schema = schemaCache.data.get(tableName);
+        if (schema) {
+          filteredSchemas.set(tableName, schema);
+        }
+      }
+      return filteredSchemas;
+    } else {
+      // Some tables are missing from cache - need to fetch
+      log('schema-introspection', `Cache partial miss. Missing ${missingTables.length} tables: ${missingTables.join(', ')}`);
+    }
   }
 
-  // Fetch fresh data
+  // Fetch fresh data for requested tables
   log('schema-introspection', `Cache miss or expired. Fetching schema for ${tableNames.length} tables...`);
   const schemas = await fetchSchemaFromDatabase(tableNames);
   
-  // Update cache
-  schemaCache = {
-    data: schemas,
-    timestamp: now
-  };
+  // Merge with existing cache (if still valid) to accumulate all table schemas
+  if (schemaCache && (now - schemaCache.timestamp) < SCHEMA_CACHE_TTL_MS) {
+    for (const [tableName, schema] of Array.from(schemas)) {
+      schemaCache.data.set(tableName, schema);
+    }
+    log('schema-introspection', `Merged new schemas into cache. Total tables in cache: ${schemaCache.data.size}`);
+  } else {
+    // Replace cache with fresh data
+    schemaCache = {
+      data: schemas,
+      timestamp: now
+    };
+  }
   
   return schemas;
 }
