@@ -4,10 +4,16 @@
 
 Query Insight is a natural language interface for querying manufacturing planning data from PlanetTogether analytics. Users ask questions in plain English, and the system uses OpenAI to generate SQL queries against an Azure SQL database containing curated Power BI reporting tables.
 
-The application supports three semantic modes:
-- **Planning** (default) - Job scheduling, materials, resources, inventory
-- **Capacity** - Resource demand, capacity, shifts, utilization
-- **Dispatch** - Job operations and production execution
+The application supports 15 Power BI report contexts accessible via dropdown selector:
+- **Production & Planning** (default) - Manufacturing planning and scheduling
+- **Capacity Plan** - Resource capacity planning and demand analysis
+- **Dispatch List** - Production dispatch and job operations
+- **Inventories** - Inventory management and material balances
+- **Sales Orders** - Sales order tracking and fulfillment
+- **Schedule Conformance** - Schedule adherence and conformance metrics
+- **AuditLog** - System audit trail and transaction history
+- **New Dispatch List report** - Enhanced dispatch view with additional details
+- **Finance, Customer Analysis, Custom KPIs, Plant Comparison, CP1, CP2, Analytics DB Explorer** - Coming soon
 
 All queries target curated `publish.DASHt_*` tables designed for Power BI reporting consistency.
 
@@ -81,6 +87,23 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 - `PUBLIC_BASE_URL` - Deployment URL for meta tags
 
 ## Recent Changes
+
+**2026-01-20: 15-Report Power BI Dropdown with Schema Cache Fix**
+- **Objective**: Replace 3-mode button selector with comprehensive 15-report dropdown mirroring main app report list
+- **UI Update**: Dropdown labeled "Power BI report" with all 15 reports in specified order (Capacity Plan, Production & Planning, Dispatch List, Finance, Customer Analysis, Inventories, Sales Orders, Schedule Conformance, AuditLog, New Dispatch List report, Custom KPIs, Plant Comparison, CP1, CP2, Analytics DB Explorer)
+- **Report Implementation Status**: 
+  - Fully implemented (11 reports): Production & Planning, Capacity Plan, Dispatch List, Inventories, Sales Orders, Schedule Conformance, AuditLog, New Dispatch List
+  - Coming Soon (7 reports): Finance, Customer Analysis, Custom KPIs, Plant Comparison, CP1, CP2, Analytics DB Explorer
+- **Schema Cache Fix**: Fixed critical bug in `server/schema-introspection.ts` where cache returned unfiltered data for partial table requests
+  - Cache now filters requested tables and merges newly fetched schemas
+  - All reports now show correct column counts (production-planning: 329 cols, inventories: 210 cols, sales-orders: 186 cols)
+- **Report ID Mapping**: Backend maps new report IDs (production-planning, capacity-plan, etc.) to legacy mode types (planning, capacity, dispatch) for backward compatibility
+- **Quick Questions**: Updated to accept report IDs and map to appropriate question sets via `mapReportIdToMode` function
+- **UI Validation**: Frontend prevents queries on reports with `schemaImplemented: false` with clear error message
+- **Default Selection**: "Production & Planning" (previously "Planning")
+- **Coming Soon Badges**: Unimplemented reports show "Coming Soon" badge and are disabled in dropdown
+- New files: None
+- Modified files: `docs/semantic/semantic-catalog.json`, `client/src/pages/query.tsx`, `server/quick-questions.ts`, `server/routes.ts`, `server/schema-introspection.ts`
 
 **2026-01-20: Mode-Specific Schema Optimization for LLM Performance**
 - **Objective**: Reduce LLM prompt size and generation latency by trimming schema context per semantic mode
