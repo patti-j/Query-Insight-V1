@@ -14,6 +14,10 @@ interface FeedbackEntry {
 }
 const feedbackStore: FeedbackEntry[] = [];
 
+// In-memory store for detailed query logs (for analytics dashboard)
+const queryLogs: QueryLogEntry[] = [];
+const MAX_LOG_ENTRIES = 1000; // Keep last 1000 entries
+
 /**
  * Store feedback for a query result
  */
@@ -294,6 +298,12 @@ export function logQuery(context: QueryLogContext, result: QueryLogResult): void
 
   // Output as single-line JSON for easy parsing
   console.log(JSON.stringify(logEntry));
+  
+  // Store in memory for analytics (keep last MAX_LOG_ENTRIES)
+  queryLogs.push(logEntry);
+  if (queryLogs.length > MAX_LOG_ENTRIES) {
+    queryLogs.shift(); // Remove oldest entry
+  }
 }
 
 /**
@@ -377,4 +387,125 @@ export function logSuccess(
     sqlMs,
     isMock: false,
   });
+}
+
+/**
+ * Get analytics data for dashboard
+ */
+export function getAnalytics(timeRangeMinutes: number = 60): {
+  summary: {
+    totalQueries: number;
+    successfulQueries: number;
+    failedQueries: number;
+    averageLatency: number;
+    averageLlmMs: number;
+    averageSqlMs: number;
+  };
+  errorBreakdown: Array<{ stage: string; count: number; percentage: number }>;
+  performanceOverTime: Array<{ timestamp: string; latency: number; llmMs: number; sqlMs: number }>;
+  topErrors: Array<{ message: string; count: number; lastOccurred: string }>;
+  recentQueries: Array<{
+    timestamp: string;
+    question: string;
+    success: boolean;
+    latency: number;
+    rowCount: number | null;
+    error?: string;
+  }>;
+} {
+  const cutoffTime = new Date(Date.now() - timeRangeMinutes * 60 * 1000);
+  const recentLogs = queryLogs.filter(log => new Date(log.timestamp) >= cutoffTime);
+
+  // Summary statistics
+  const totalQueries = recentLogs.length;
+  const successfulQueries = recentLogs.filter(log => !log.error).length;
+  const failedQueries = totalQueries - successfulQueries;
+  
+  const latencies = recentLogs.map(log => log.timings.totalMs);
+  const averageLatency = latencies.length > 0 
+    ? latencies.reduce((a, b) => a + b, 0) / latencies.length 
+    : 0;
+  
+  const llmTimes = recentLogs.map(log => log.timings.llmMs).filter((ms): ms is number => ms !== null);
+  const averageLlmMs = llmTimes.length > 0
+    ? llmTimes.reduce((a, b) => a + b, 0) / llmTimes.length
+    : 0;
+  
+  const sqlTimes = recentLogs.map(log => log.timings.sqlMs).filter((ms): ms is number => ms !== null);
+  const averageSqlMs = sqlTimes.length > 0
+    ? sqlTimes.reduce((a, b) => a + b, 0) / sqlTimes.length
+    : 0;
+
+  // Error breakdown by stage
+  const errorsByStage = new Map<string, number>();
+  recentLogs.filter(log => log.error).forEach(log => {
+    const stage = log.error!.stage;
+    errorsByStage.set(stage, (errorsByStage.get(stage) || 0) + 1);
+  });
+  
+  const errorBreakdown = Array.from(errorsByStage.entries()).map(([stage, count]) => ({
+    stage,
+    count,
+    percentage: (count / Math.max(failedQueries, 1)) * 100,
+  }));
+
+  // Performance over time (sample every minute or every 10 queries)
+  const performanceOverTime = recentLogs
+    .filter(log => !log.error)
+    .slice(-50) // Last 50 successful queries
+    .map(log => ({
+      timestamp: log.timestamp,
+      latency: log.timings.totalMs,
+      llmMs: log.timings.llmMs || 0,
+      sqlMs: log.timings.sqlMs || 0,
+    }));
+
+  // Top errors
+  const errorMessages = new Map<string, { count: number; lastOccurred: string }>();
+  recentLogs.filter(log => log.error).forEach(log => {
+    const message = log.error!.message.substring(0, 100); // Truncate long messages
+    const existing = errorMessages.get(message);
+    if (existing) {
+      existing.count++;
+      if (log.timestamp > existing.lastOccurred) {
+        existing.lastOccurred = log.timestamp;
+      }
+    } else {
+      errorMessages.set(message, { count: 1, lastOccurred: log.timestamp });
+    }
+  });
+  
+  const topErrors = Array.from(errorMessages.entries())
+    .map(([message, data]) => ({
+      message,
+      count: data.count,
+      lastOccurred: data.lastOccurred,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  // Recent queries
+  const recentQueries = recentLogs.slice(-20).reverse().map(log => ({
+    timestamp: log.timestamp,
+    question: log.question,
+    success: !log.error,
+    latency: log.timings.totalMs,
+    rowCount: log.rowCount,
+    error: log.error?.message,
+  }));
+
+  return {
+    summary: {
+      totalQueries,
+      successfulQueries,
+      failedQueries,
+      averageLatency: Math.round(averageLatency),
+      averageLlmMs: Math.round(averageLlmMs),
+      averageSqlMs: Math.round(averageSqlMs),
+    },
+    errorBreakdown,
+    performanceOverTime,
+    topErrors,
+    recentQueries,
+  };
 }
