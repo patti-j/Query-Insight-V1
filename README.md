@@ -36,6 +36,37 @@ Query Insight is a lightweight web app for exploring PlanetTogether analytics da
   - **Planning** (default)
   - **Capacity**
   - **Dispatch**
+ 
+---
+
+## AI-Assisted Query Generation
+
+Query Insight uses **OpenAI** to assist with translating natural-language questions into SQL.  
+AI is used strictly for **query generation**, not execution, and is always governed by server-side safety controls.
+
+### How it works
+1. A user submits a natural-language question and selects a semantic mode (Planning, Capacity, Dispatch).
+2. The backend constructs a system prompt that includes:
+   - The selected semantic mode
+   - Allowed tables (`publish.DASHt_*`)
+   - SQL syntax and safety rules
+   - Live schema metadata (table and column names)
+3. The prompt is sent to the **OpenAI API**, which generates a candidate SQL query.
+4. The backend validates the generated SQL before execution:
+   - `SELECT` statements only
+   - Allowlisted tables and restricted JOIN patterns
+   - Row limits enforced
+   - Schema validation to prevent unsafe or unsupported access
+5. Valid SQL is executed against Azure SQL and results are returned to the UI.
+
+### Trust & governance model
+- AI **never executes SQL directly**
+- All queries run server-side with read-only permissions
+- Queries are constrained to curated analytics tables aligned with Power BI
+- Invalid or unsafe queries are rejected before reaching the database
+
+This design provides the flexibility of natural-language analytics while preserving the same data trust model used for enterprise reporting.
+
 
 ## Data model conventions
 The database includes curated analytics tables (materialized tables) prefixed with:
