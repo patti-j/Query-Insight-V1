@@ -10,6 +10,12 @@
  */
 export function isDateTimeColumn(columnName: string): boolean {
   const normalizedName = columnName.toLowerCase();
+  
+  // Exclude columns that end with "days" - these are numeric day counts, not dates
+  if (normalizedName.endsWith('days')) {
+    return false;
+  }
+  
   const dateTimeKeywords = [
     'date',
     'time',

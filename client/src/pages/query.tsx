@@ -383,17 +383,6 @@ export default function QueryPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="report-selector">Power BI report</Label>
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="advanced-mode" 
-                      checked={advancedMode} 
-                      onCheckedChange={setAdvancedMode}
-                      data-testid="switch-advanced-mode"
-                    />
-                    <Label htmlFor="advanced-mode" className="cursor-pointer text-sm text-muted-foreground">
-                      Advanced
-                    </Label>
-                  </div>
                 </div>
                 <Select
                   value={selectedMode}
