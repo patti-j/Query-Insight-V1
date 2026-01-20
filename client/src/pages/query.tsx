@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
+import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 
 const APP_VERSION = '1.1.0'; // Incremented for table scroll fix
 
@@ -147,6 +148,7 @@ export default function QueryPage() {
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
 
   const submitFeedback = async (feedback: 'up' | 'down') => {
     if (!result || feedbackGiven) return;
@@ -265,6 +267,15 @@ export default function QueryPage() {
       }
 
       setResult(data);
+      
+      // Detect date/time columns in the result data
+      if (data.rows && data.rows.length > 0) {
+        const detectedColumns = detectDateTimeColumns(data.rows);
+        setDateTimeColumns(detectedColumns);
+      } else {
+        setDateTimeColumns(new Set());
+      }
+      
       // Clear the query box after successful query
       setQuestion('');
     } catch (err: any) {
@@ -300,6 +311,14 @@ export default function QueryPage() {
       };
 
       setResult(mockResult);
+      
+      // Detect date/time columns in mock data
+      if (mockRows.length > 0) {
+        const detectedColumns = detectDateTimeColumns(mockRows);
+        setDateTimeColumns(detectedColumns);
+      } else {
+        setDateTimeColumns(new Set());
+      }
       // If it was a real error (not just missing backend), maybe show a toast or small indicator?
       // For now, the "Mock Mode" indicator in result is enough.
       setError(`Backend Error: ${err.message}. Showing mock data.`);
@@ -676,9 +695,13 @@ export default function QueryPage() {
                               const filteredRow = filterRowColumns(row);
                               return (
                                 <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-result-${idx}`}>
-                                  {Object.values(filteredRow).map((value: any, cellIdx) => (
+                                  {Object.entries(filteredRow).map(([columnName, value]: [string, any], cellIdx) => (
                                     <td key={cellIdx} className="px-4 py-3">
-                                      {value === null ? <span className="text-muted-foreground italic">null</span> : String(value)}
+                                      {value === null ? (
+                                        <span className="text-muted-foreground italic">null</span>
+                                      ) : (
+                                        formatCellValue(value, columnName, dateTimeColumns)
+                                      )}
                                     </td>
                                   ))}
                                 </tr>
