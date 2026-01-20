@@ -46,4 +46,4 @@ jobs:
           app-name: 'query-insight'
           slot-name: 'Production'
           package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_FB63B60F37E24CC8B59675B3C7C1F41B }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E572025BCEA2493DB49566266EDAF83A }}
