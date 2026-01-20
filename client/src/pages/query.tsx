@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3 } from 'lucide-react';
+import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -375,6 +376,20 @@ export default function QueryPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/dashboard">
+              <a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  data-testid="button-dashboard"
+                  title="View analytics dashboard"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              </a>
+            </Link>
             {isDevelopment && (
               <Button
                 variant="outline"

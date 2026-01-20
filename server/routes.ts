@@ -14,6 +14,7 @@ import {
   getPopularQuestions,
   storeFeedback,
   getFeedbackStats,
+  getAnalytics,
 } from "./query-logger";
 import { getValidatedQuickQuestions } from "./quick-questions";
 import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-introspection";
@@ -71,6 +72,13 @@ export async function registerRoutes(
   app.get("/api/feedback/stats", (_req, res) => {
     const stats = getFeedbackStats();
     res.json(stats);
+  });
+
+  // Get analytics data for dashboard
+  app.get("/api/analytics", (req, res) => {
+    const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string, 10) : 60;
+    const analytics = getAnalytics(timeRange);
+    res.json(analytics);
   });
 
   // Get semantic catalog
