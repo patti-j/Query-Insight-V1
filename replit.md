@@ -82,6 +82,22 @@ All secrets managed via Replit Secrets or Azure App Service configuration:
 
 ## Recent Changes
 
+**2026-01-20: Comprehensive Schema Grounding with Column Validation**
+- **Schema Prefetch on Startup**: All mode schemas now prefetched during server initialization (blocking) before accepting requests
+- **Column Normalizer with Fuzzy Matching**: Added Levenshtein distance matching to map similar column names (e.g., "EndDateTime" → "EndDate")
+- **SQL Column Validator**: Parses SQL and validates all column references against cached schema before execution
+  - Extracts columns from SELECT, WHERE, GROUP BY, ORDER BY, and JOIN ON clauses
+  - Detects invented columns and provides helpful error messages with available columns
+  - Suggests close matches for typos or similar column names
+- **Enhanced Error Messages**: Column validation errors now include:
+  - Specific invalid columns
+  - Available columns in the table (limited to first 5)
+  - Suggestions for close matches
+  - No mock data fallback - always shows schema mismatch details
+- **Server-Side Logging**: All column validation errors logged with 🔴 COLUMN VALIDATION FAILED marker
+- New files: `server/sql-column-validator.ts`
+- Modified files: `server/index.ts`, `server/routes.ts`, `server/schema-introspection.ts`
+
 **2026-01-20: Schema Introspection to Eliminate Column Name Hallucination**
 - Created schema introspection utility (`server/schema-introspection.ts`) that queries `INFORMATION_SCHEMA.COLUMNS` with 10-minute in-memory cache
 - Added GET `/api/schema/:mode` endpoint exposing discovered table→columns map for each semantic mode

@@ -152,3 +152,131 @@ export function clearSchemaCache(): void {
   schemaCache = null;
   log('schema-introspection', 'Schema cache cleared');
 }
+
+/**
+ * Prefetch schemas for all modes on startup
+ */
+export async function prefetchAllModeSchemas(catalogPath: string): Promise<void> {
+  const { readFileSync } = await import('fs');
+  const { join } = await import('path');
+  
+  try {
+    const catalogContent = readFileSync(catalogPath, 'utf-8');
+    const catalog = JSON.parse(catalogContent);
+    
+    const allTables = new Set<string>();
+    for (const mode of catalog.modes) {
+      for (const table of mode.tables) {
+        allTables.add(table);
+      }
+    }
+    
+    const tableList = Array.from(allTables);
+    log('schema-introspection', `Prefetching schemas for ${tableList.length} unique tables across all modes...`);
+    
+    await getTableSchemas(tableList);
+    log('schema-introspection', `Schema prefetch completed successfully`);
+  } catch (error: any) {
+    log('schema-introspection', `Schema prefetch failed: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,      // deletion
+        matrix[i][j - 1] + 1,      // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  return matrix[len1][len2];
+}
+
+/**
+ * Find closest matching column name in a table's schema
+ * Returns null if no good match found (distance > threshold)
+ */
+export function findClosestColumn(
+  targetColumn: string,
+  tableName: string,
+  schemas: Map<string, TableSchema>,
+  threshold: number = 3
+): string | null {
+  const tableSchema = schemas.get(tableName);
+  if (!tableSchema) {
+    return null;
+  }
+
+  const targetLower = targetColumn.toLowerCase();
+  let bestMatch: string | null = null;
+  let bestDistance = Infinity;
+
+  for (const col of tableSchema.columns) {
+    const colLower = col.columnName.toLowerCase();
+    
+    // Exact match (case-insensitive)
+    if (colLower === targetLower) {
+      return col.columnName;
+    }
+    
+    // Starts-with match (e.g., "EndDateTime" matches "EndDate")
+    if (colLower.startsWith(targetLower) || targetLower.startsWith(colLower)) {
+      const distance = Math.abs(colLower.length - targetLower.length);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = col.columnName;
+      }
+    }
+    
+    // Levenshtein distance match
+    const distance = levenshteinDistance(targetLower, colLower);
+    if (distance <= threshold && distance < bestDistance) {
+      bestDistance = distance;
+      bestMatch = col.columnName;
+    }
+  }
+
+  return bestMatch;
+}
+
+/**
+ * Get all column names for a table
+ */
+export function getTableColumns(tableName: string, schemas: Map<string, TableSchema>): string[] {
+  const tableSchema = schemas.get(tableName);
+  if (!tableSchema) {
+    return [];
+  }
+  return tableSchema.columns.map(c => c.columnName);
+}
+
+/**
+ * Check if a column exists in a table
+ */
+export function columnExists(tableName: string, columnName: string, schemas: Map<string, TableSchema>): boolean {
+  const tableSchema = schemas.get(tableName);
+  if (!tableSchema) {
+    return false;
+  }
+  return tableSchema.columns.some(c => c.columnName.toLowerCase() === columnName.toLowerCase());
+}

@@ -17,6 +17,7 @@ import {
 } from "./query-logger";
 import { getValidatedQuickQuestions } from "./quick-questions";
 import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-introspection";
+import { validateSqlColumns } from "./sql-column-validator";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -354,6 +355,48 @@ export async function registerRoutes(
       }
 
       const finalSql = validation.modifiedSql || generatedSql;
+      
+      // Validate column references against schema
+      const columnValidation = await validateSqlColumns(finalSql, allowedTables);
+      if (!columnValidation.valid) {
+        log(`🔴 COLUMN VALIDATION FAILED: ${columnValidation.errors.length} errors found`, 'ask');
+        
+        for (const error of columnValidation.errors) {
+          log(`  - ${error.message}`, 'ask');
+        }
+        
+        // Log validation failure
+        logValidationFailure(
+          logContext,
+          finalSql,
+          `Column validation failed: ${columnValidation.errors.map(e => e.message).join('; ')}`,
+          llmMs
+        );
+        
+        // Build helpful error message
+        const firstError = columnValidation.errors[0];
+        let errorMessage = firstError.message;
+        if (firstError.availableColumns && firstError.availableColumns.length > 0) {
+          errorMessage += `\n\nAvailable columns in ${firstError.table || 'the table'}: ${firstError.availableColumns.slice(0, 5).join(', ')}${firstError.availableColumns.length > 5 ? ', ...' : ''}`;
+        }
+        
+        return res.status(400).json({
+          error: errorMessage,
+          sql: finalSql,
+          isMock: false,
+          schemaError: true,
+          invalidColumns: columnValidation.errors.map(e => e.column),
+        });
+      }
+      
+      // Log column mapping suggestions if any
+      if (columnValidation.warnings.length > 0) {
+        log(`Column mapping suggestions:`, 'ask');
+        for (const warning of columnValidation.warnings) {
+          log(`  ${warning.originalColumn} → ${warning.suggestedColumn} (${warning.table})`, 'ask');
+        }
+      }
+      
       log(`Executing SQL: ${finalSql}`, 'ask');
 
       // Execute the query
