@@ -19,29 +19,29 @@ export interface ReportQuickQuestions {
  */
 export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   'capacity-plan': [
-    { text: 'Show resource demand for the next 7 days', icon: '📅' },
-    { text: 'Show resource capacity for the next 7 days', icon: '📊' },
-    { text: 'Which resources are over capacity next week?', icon: '🔴' },
-    { text: 'Show utilization by resource for this week', icon: '📈' },
+    { text: 'Show resource demand for 7 days from publish date', icon: '📅' },
+    { text: 'Show resource capacity for 7 days from publish date', icon: '📊' },
+    { text: 'Which resources are over capacity in publish week?', icon: '🔴' },
+    { text: 'Show utilization by resource in publish week', icon: '📈' },
     { text: 'Show demand vs capacity by day', icon: '⚖️' },
     { text: 'Which resources have the highest utilization?', icon: '🔥' },
     { text: 'Show unfulfilled demand by resource', icon: '⚠️' },
   ],
   
   'production-planning': [
-    { text: 'Show jobs scheduled for today', icon: '📌' },
-    { text: 'Show jobs starting this week', icon: '🚀' },
-    { text: 'Show jobs completing this week', icon: '✅' },
+    { text: 'Show jobs scheduled on publish date', icon: '📌' },
+    { text: 'Show jobs starting in publish week', icon: '🚀' },
+    { text: 'Show jobs completing in publish week', icon: '✅' },
     { text: 'Show overdue jobs', icon: '🔴' },
     { text: 'Show jobs by priority', icon: '⭐' },
-    { text: 'Show operations scheduled for today', icon: '⚙️' },
+    { text: 'Show operations scheduled on publish date', icon: '⚙️' },
     { text: 'Show jobs on hold', icon: '⏸️' },
   ],
   
   'dispatch-list': [
     { text: 'Show jobs ready for dispatch', icon: '🚀' },
     { text: 'Show operations ready to start', icon: '▶️' },
-    { text: 'Show operations scheduled for today', icon: '📌' },
+    { text: 'Show operations scheduled on publish date', icon: '📌' },
     { text: 'Show overdue operations', icon: '🔴' },
     { text: 'Show operations by resource', icon: '⚙️' },
     { text: 'Show operations by priority', icon: '⭐' },
@@ -76,7 +76,7 @@ export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   
   'sales-orders': [
     { text: 'Show open sales orders', icon: '📋' },
-    { text: 'Show sales orders due this week', icon: '📅' },
+    { text: 'Show sales orders due in publish week', icon: '📅' },
     { text: 'Show overdue sales orders', icon: '🔴' },
     { text: 'Show sales orders by customer', icon: '👥' },
     { text: 'Show sales orders by priority', icon: '⭐' },

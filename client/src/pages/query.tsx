@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
+import { usePublishDate } from '@/hooks/usePublishDate';
+import { transformRelativeDates, hasRelativeDateLanguage } from '@/lib/date-anchor';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -102,6 +104,10 @@ export default function QueryPage() {
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
+  const [queryWasTransformed, setQueryWasTransformed] = useState(false);
+  
+  // Fetch publish date for date anchoring
+  const { data: publishDate } = usePublishDate();
 
   const submitFeedback = async (feedback: 'up' | 'down') => {
     if (!result || feedbackGiven) return;
@@ -175,12 +181,22 @@ export default function QueryPage() {
     setShowAllRows(false);
     setSubmittedQuestion(q.trim());
 
+    // Transform relative dates to concrete dates if publish date is available
+    let queryToSend = q.trim();
+    const wasTransformed = publishDate && hasRelativeDateLanguage(queryToSend);
+    if (wasTransformed) {
+      queryToSend = transformRelativeDates(queryToSend, publishDate);
+      setQueryWasTransformed(true);
+    } else {
+      setQueryWasTransformed(false);
+    }
+
     try {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          question: q,
+          question: queryToSend,
           mode: selectedMode,
           advancedMode 
         }),
@@ -442,6 +458,21 @@ export default function QueryPage() {
                     </div>
                   );
                 })()}
+                
+                {/* Display publish date anchor */}
+                {publishDate && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
+                    <span className="font-medium">Date anchor:</span>
+                    <span className="text-foreground/70">
+                      {publishDate.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                    <span className="italic text-xs">(demo publish date)</span>
+                  </div>
+                )}
               </div>
 
               <Textarea
@@ -554,10 +585,26 @@ export default function QueryPage() {
                   Results
                 </CardTitle>
                 {submittedQuestion && (
-                  <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
-                    <p className="text-base font-medium text-foreground">
-                      "{submittedQuestion}"
-                    </p>
+                  <div className="mt-2 space-y-2">
+                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
+                      <p className="text-base font-medium text-foreground">
+                        "{submittedQuestion}"
+                      </p>
+                    </div>
+                    {queryWasTransformed && publishDate && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
+                        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                          Anchored
+                        </Badge>
+                        <span>
+                          Date-relative terms converted to {publishDate.toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardHeader>
