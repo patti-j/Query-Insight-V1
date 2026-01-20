@@ -143,7 +143,7 @@ export async function generateSuggestions(question: string): Promise<string[]> {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1',
       messages: [
         { role: 'system', content: SUGGESTION_PROMPT },
         { role: 'user', content: question }
@@ -202,7 +202,7 @@ Example: If you need "demand quantity" but only see "DemandHours", use DemandHou
   }
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'gpt-4.1',
     messages: [
       {
         role: 'system',
