@@ -12,51 +12,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
+import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
-
-// Default questions by mode
-const QUESTIONS_BY_MODE: Record<string, { text: string; icon: string }[]> = {
-  planning: [
-    { text: "Show jobs that are overdue", icon: "🔴" },
-    { text: "Show jobs on hold with hold reasons", icon: "⏸️" },
-    { text: "List jobs that are not scheduled", icon: "❌" },
-    { text: "What jobs are scheduled for next week?", icon: "📅" },
-    { text: "Show late jobs grouped by plant", icon: "🏭" },
-    { text: "Top 10 jobs by quantity", icon: "📊" },
-    { text: "Jobs with highest lateness days", icon: "⏰" },
-    { text: "List all scheduled jobs", icon: "✅" },
-    { text: "Show inventory balances", icon: "📦" },
-    { text: "Jobs scheduled to finish this month", icon: "🎯" },
-  ],
-  capacity: [
-    { text: "Show resource demand for next week", icon: "📈" },
-    { text: "Which resources are over capacity?", icon: "🔴" },
-    { text: "List available capacity by resource", icon: "✅" },
-    { text: "Show shift schedules", icon: "📅" },
-    { text: "Compare planned vs actual resource usage", icon: "📊" },
-    { text: "Resources with highest demand", icon: "⚡" },
-    { text: "Capacity utilization by resource", icon: "📉" },
-    { text: "Show resource actuals for today", icon: "📌" },
-    { text: "List all resources and their capacity", icon: "⚙️" },
-    { text: "Shift coverage gaps", icon: "⏰" },
-  ],
-  dispatch: [
-    { text: "Show jobs ready for dispatch", icon: "🚀" },
-    { text: "List operations in progress", icon: "⚙️" },
-    { text: "Jobs with operation attributes", icon: "📋" },
-    { text: "Show operations by resource", icon: "🔧" },
-    { text: "List job operation products", icon: "📦" },
-    { text: "Operations scheduled for today", icon: "📌" },
-    { text: "Show overdue operations", icon: "🔴" },
-    { text: "Jobs by priority for dispatch", icon: "⭐" },
-    { text: "Operations pending completion", icon: "⏳" },
-    { text: "Resources with scheduled work", icon: "🏭" },
-  ],
-};
-
-// Fallback default questions
-const DEFAULT_QUESTIONS = QUESTIONS_BY_MODE.planning;
 
 // Columns to hide from results display (system-generated IDs)
 const HIDDEN_COLUMNS = ['jobid', 'job_id', 'id'];
@@ -79,22 +37,6 @@ function formatTableName(fullTableName: string): string {
   // Remove 'DASHt_' prefix if present
   tableName = tableName.replace(/^DASHt_/i, '');
   return tableName;
-}
-
-// Icons for FAQ questions (assigned based on content keywords)
-function getQuestionIcon(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes('overdue') || q.includes('late')) return '🔴';
-  if (q.includes('hold') || q.includes('pause')) return '⏸️';
-  if (q.includes('fail') || q.includes('error')) return '❌';
-  if (q.includes('week') || q.includes('schedule')) return '📅';
-  if (q.includes('plant') || q.includes('facility')) return '🏭';
-  if (q.includes('top') || q.includes('quantity') || q.includes('count')) return '📊';
-  if (q.includes('lateness') || q.includes('time')) return '⏰';
-  if (q.includes('finish') || q.includes('complete')) return '🎯';
-  if (q.includes('resource') || q.includes('busy')) return '⚙️';
-  if (q.includes('today') || q.includes('now')) return '📌';
-  return '💡';
 }
 
 interface QueryResult {
@@ -147,7 +89,7 @@ export default function QueryPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [faqQuestions, setFaqQuestions] = useState<{ text: string; icon: string }[]>(DEFAULT_QUESTIONS);
+  const [faqQuestions, setFaqQuestions] = useState<QuickQuestion[]>([]);
   const [showAllRows, setShowAllRows] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
@@ -187,28 +129,6 @@ export default function QueryPage() {
     }
   };
 
-  // Fetch validated quick questions for the current mode
-  const fetchQuickQuestions = async (mode: string) => {
-    try {
-      const response = await fetch(`/api/quick-questions/${mode}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.questions && data.questions.length > 0) {
-          setFaqQuestions(data.questions);
-        } else {
-          // No validated questions available for this mode
-          setFaqQuestions([]);
-        }
-      } else {
-        // Fall back to mode-specific defaults if API fails
-        setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
-      }
-    } catch (err) {
-      // Fall back to mode-specific defaults silently
-      setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
-    }
-  };
-
   useEffect(() => {
     // Check if diagnostics is available (dev mode check)
     fetch('/api/db/diagnostics', { method: 'HEAD' })
@@ -224,17 +144,17 @@ export default function QueryPage() {
         const defaultMode = data.modes.find((m: SemanticMode) => m.default);
         if (defaultMode) {
           setSelectedMode(defaultMode.id);
-          // Fetch quick questions for default mode
-          fetchQuickQuestions(defaultMode.id);
+          // Load quick questions for default mode from static config
+          setFaqQuestions(getQuickQuestionsForReport(defaultMode.id));
         }
       })
       .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
 
-  // Fetch quick questions when mode changes
+  // Update quick questions when report selection changes
   useEffect(() => {
     if (selectedMode) {
-      fetchQuickQuestions(selectedMode);
+      setFaqQuestions(getQuickQuestionsForReport(selectedMode));
     }
   }, [selectedMode]);
 
@@ -832,27 +752,36 @@ export default function QueryPage() {
 
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground/80">
-            Quick Questions
+            Quick questions for this report
             <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Planning'} mode)
+              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Production & Planning'})
             </span>
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {(QUESTIONS_BY_MODE[selectedMode] || DEFAULT_QUESTIONS).map((q, idx) => (
-              <button
-                key={idx}
-                onClick={() => executeQuery(q.text)}
-                disabled={loading}
-                className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                data-testid={`card-sample-question-${idx}`}
-              >
-                <span className="text-2xl mb-2 block">{q.icon}</span>
-                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
-                  {q.text}
-                </span>
-              </button>
-            ))}
-          </div>
+          
+          {faqQuestions.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {faqQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => executeQuery(q.text)}
+                  disabled={loading}
+                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid={`card-sample-question-${idx}`}
+                >
+                  <span className="text-2xl mb-2 block">{q.icon}</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                    {q.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
+              <p className="text-sm text-muted-foreground italic" data-testid="text-questions-coming-soon">
+                Quick questions: coming soon
+              </p>
+            </div>
+          )}
         </div>
 
         <footer className="mt-12 pb-6 text-center">
