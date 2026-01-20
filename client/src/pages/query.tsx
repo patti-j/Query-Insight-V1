@@ -3,12 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3 } from 'lucide-react';
+import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
+
+const APP_VERSION = '1.1.0'; // Incremented for table scroll fix
 
 // Default questions by mode
 const QUESTIONS_BY_MODE: Record<string, { text: string; icon: string }[]> = {
@@ -171,38 +174,29 @@ export default function QueryPage() {
     }
   };
 
-  // Fetch popular questions on mount and after each successful query
-  const fetchPopularQuestions = async () => {
+  // Fetch validated quick questions for the current mode
+  const fetchQuickQuestions = async (mode: string) => {
     try {
-      const response = await fetch('/api/popular-questions');
+      const response = await fetch(`/api/quick-questions/${mode}`);
       if (response.ok) {
         const data = await response.json();
         if (data.questions && data.questions.length > 0) {
-          // Convert popular questions to display format with icons
-          const faq = data.questions.map((q: { question: string; count: number }) => ({
-            text: q.question,
-            icon: getQuestionIcon(q.question),
-          }));
-          // Merge FAQ with defaults: FAQ first, then fill remaining slots with defaults
-          const faqTexts = new Set(faq.map((q: { text: string }) => q.text.toLowerCase()));
-          const remainingDefaults = DEFAULT_QUESTIONS.filter(
-            d => !faqTexts.has(d.text.toLowerCase())
-          );
-          const merged = [...faq, ...remainingDefaults].slice(0, 10);
-          setFaqQuestions(merged);
+          setFaqQuestions(data.questions);
+        } else {
+          // No validated questions available for this mode
+          setFaqQuestions([]);
         }
       } else {
-        // Fall back to defaults silently if API fails
-        setFaqQuestions(DEFAULT_QUESTIONS);
+        // Fall back to mode-specific defaults if API fails
+        setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
       }
     } catch (err) {
-      // Fall back to defaults silently
-      setFaqQuestions(DEFAULT_QUESTIONS);
+      // Fall back to mode-specific defaults silently
+      setFaqQuestions(QUESTIONS_BY_MODE[mode as keyof typeof QUESTIONS_BY_MODE] || []);
     }
   };
 
   useEffect(() => {
-    fetchPopularQuestions();
     // Check if diagnostics is available (dev mode check)
     fetch('/api/db/diagnostics', { method: 'HEAD' })
       .then(res => setIsDevelopment(res.status !== 403))
@@ -217,10 +211,19 @@ export default function QueryPage() {
         const defaultMode = data.modes.find((m: SemanticMode) => m.default);
         if (defaultMode) {
           setSelectedMode(defaultMode.id);
+          // Fetch quick questions for default mode
+          fetchQuickQuestions(defaultMode.id);
         }
       })
       .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
+
+  // Fetch quick questions when mode changes
+  useEffect(() => {
+    if (selectedMode) {
+      fetchQuickQuestions(selectedMode);
+    }
+  }, [selectedMode]);
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
@@ -262,9 +265,8 @@ export default function QueryPage() {
       }
 
       setResult(data);
-      // Clear the query box and refresh FAQ after successful query
+      // Clear the query box after successful query
       setQuestion('');
-      fetchPopularQuestions();
     } catch (err: any) {
       console.error("API Query Failed:", err);
       // Fallback to mock data if API fails (e.g. secrets not set)
@@ -376,6 +378,18 @@ export default function QueryPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/dashboard">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                data-testid="button-dashboard"
+                title="View analytics dashboard"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
             {isDevelopment && (
               <Button
                 variant="outline"
@@ -645,9 +659,9 @@ export default function QueryPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="border border-border/50 rounded-xl overflow-hidden">
-                      <div className="overflow-y-auto max-h-[500px]">
-                        <table className="w-full text-sm table-auto">
+                    <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
+                      <div className="max-h-[420px] overflow-auto">
+                        <table className="min-w-[900px] w-full text-sm table-auto">
                           <thead className="bg-muted sticky top-0 z-10 shadow-sm">
                             <tr>
                               {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
@@ -763,6 +777,12 @@ export default function QueryPage() {
             ))}
           </div>
         </div>
+
+        <footer className="mt-12 pb-6 text-center">
+          <p className="text-xs text-muted-foreground" data-testid="text-app-version">
+            Query Insight v{APP_VERSION}
+          </p>
+        </footer>
       </div>
     </div>
   );
