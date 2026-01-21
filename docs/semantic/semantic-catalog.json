@@ -3,25 +3,24 @@
     {
       "id": "capacity-plan",
       "name": "Capacity Plan",
-      "description": "Resource capacity and utilization analysis based on scheduled operations",
+      "description": "Resource capacity and utilization analysis",
       "tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_Resources",
-        "publish.DASHt_JobOperationProducts",
         "publish.DASHt_HistoricalKPIs"
       ],
       "default": true,
       "schemaImplemented": true,
       "commonFields": [
+        "ResourceName",
+        "ResourceId",
         "BlockResource",
         "BlockDepartment",
         "BlockPlant",
-        "BlockScheduledStart",
-        "BlockScheduledEnd",
-        "ResourceName",
-        "ResourceId"
+        "Bottleneck",
+        "WorkcenterName"
       ],
-      "keywords": ["resource", "capacity", "utilization", "department", "bottleneck", "workload", "shift"]
+      "keywords": ["capacity", "overtime", "utilization", "idle", "offline", "resource", "hours", "workcenter", "bottleneck", "shift"]
     },
     {
       "id": "production-planning",
@@ -50,7 +49,7 @@
         "JobOnHold",
         "JobOverdue"
       ],
-      "keywords": ["job", "operation", "schedule", "dispatch", "order", "production", "manufacturing", "planning", "overdue", "hold", "priority"]
+      "keywords": ["job", "jobs", "planning", "overdue", "lateness", "otif", "bottleneck", "operation", "dispatch", "schedule", "makespan", "hold"]
     },
     {
       "id": "finance",
@@ -72,9 +71,9 @@
         "InventoryCost",
         "CustomerName"
       ],
-      "keywords": ["cost", "revenue", "price", "amount", "sales", "financial", "budget", "profit", "margin", "expense", "invoice"]
+      "keywords": ["revenue", "cost", "margin", "finance", "yield", "price", "sales", "shipments", "amount", "invoice"]
     }
   ],
-  "version": "3.0.1",
+  "version": "3.1.0",
   "lastUpdated": "2026-01-21"
 }
