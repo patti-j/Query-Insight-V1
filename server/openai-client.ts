@@ -155,18 +155,33 @@ PRODUCTION & PLANNING MODE - CRITICAL RULES:
   } else if (mode === 'finance') {
     modeGuidance = `
 
-FINANCE MODE - SCENARIO-AWARE RULES:
-- DASHt_SalesOrders is scenario-aware. It contains both Production and What-If scenario data.
-- DEFAULT BEHAVIOR: If user does NOT mention "scenario", "what-if", or "compare", default to filtering by ScenarioType = 'Production'
-- WHAT-IF TRIGGERS: Only include What-If data when user explicitly says "what-if", "scenario", "compare scenarios", or asks for scenario comparison
-- NEVER mix Production + What-If unless user explicitly asks for comparison
-- QUANTITY METRICS (prefer these over revenue):
-  - Orders = COUNT(DISTINCT OrderNumber) or similar identifier
-  - Demand Qty = SUM(OrderQty) or the quantity column
-  - Open Qty = SUM(OrderQty - CompletedQty) if available
-  - Overdue = DueDate < CAST(GETDATE() AS DATE) AND OpenQty > 0
-- If revenue/sales amount is requested but no revenue column exists, respond that revenue is not available and suggest "quantity at risk" as a proxy
-- ONLY use columns explicitly listed in the schema above`;
+FINANCE MODE - SCENARIO-AWARE RULES FOR DASHt_SalesOrders:
+
+SCENARIO CONTROL (CRITICAL):
+- If user does NOT mention scenario, ALWAYS add: WHERE ScenarioType = 'Production'
+- If user mentions "what-if", "scenario", "copy", "simulation" → allow ScenarioType = 'What-If'
+- NEVER mix Production and What-If unless user explicitly asks for comparison
+- For comparisons, GROUP BY ScenarioType and/or ScenarioName
+
+EXACT METRIC FORMULAS (use these column names):
+- Order Count: COUNT(DISTINCT SalesOrderName)
+- Total Demand: SUM(QtyOrdered)
+- Shipped Quantity: SUM(QtyShipped)
+- Open Quantity: SUM(QtyOrdered - QtyShipped)
+- Overdue Orders: RequiredAvailableDate < CAST(GETDATE() AS DATE) AND (QtyOrdered - QtyShipped) > 0
+- Revenue: SUM(SalesAmount) - if NULL or zero-heavy, explain limitation
+
+KEY COLUMNS FOR DASHt_SalesOrders:
+- Identity: PlanningAreaName, SalesOrderName, SalesOrderId, SalesOrderLineId, LineNumber
+- Customer: CustomerName, CustomerExternalId
+- Item: ItemName, ItemType, ItemId, LineDescription
+- Quantities: QtyOrdered, QtyShipped
+- Dates: RequiredAvailableDate, ExpirationDate, PublishDate
+- Financial: UnitPrice, SalesAmount
+- Status: Cancelled, Hold, HoldReason, Priority
+- Scenario: ScenarioId, NewScenarioId, ScenarioName, ScenarioType
+
+ONLY use columns explicitly listed in the schema above.`;
   }
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}

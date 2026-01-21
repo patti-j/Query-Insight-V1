@@ -38,12 +38,12 @@ export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   ],
   
   'finance': [
-    { text: 'Total sales order demand qty this month by customer (Production scenario)', icon: '💰' },
-    { text: 'What sales orders are overdue (Production scenario)?', icon: '⚠️' },
-    { text: 'Compare Production vs What-If demand qty next 30 days', icon: '🔄' },
-    { text: 'Inventory adjustments total last 30 days', icon: '📦' },
-    { text: 'Net inventory balance by item and plant', icon: '📊' },
-    { text: 'Top purchase orders by qty next 30 days', icon: '💳' },
+    { text: 'Total sales order revenue this month (Production)', icon: '💰' },
+    { text: 'Open demand quantity by customer', icon: '📦' },
+    { text: 'What sales orders are overdue?', icon: '⚠️' },
+    { text: 'Revenue at risk (overdue open orders)', icon: '🔥' },
+    { text: 'Compare Production vs What-If demand next 30 days', icon: '🔄' },
+    { text: 'Orders on hold and hold reasons', icon: '⏸️' },
   ],
 };
 
