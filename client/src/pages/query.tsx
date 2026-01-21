@@ -384,6 +384,41 @@ export default function QueryPage() {
       <div className="max-w-6xl mx-auto p-8 space-y-8">
         <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
 
+        {/* Quick Questions */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground/80">
+            Quick questions for this report
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Production & Planning'})
+            </span>
+          </h2>
+          
+          {faqQuestions.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {faqQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => executeQuery(q.text)}
+                  disabled={loading}
+                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid={`card-sample-question-${idx}`}
+                >
+                  <span className="text-2xl mb-2 block">{q.icon}</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                    {q.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
+              <p className="text-sm text-muted-foreground italic" data-testid="text-questions-coming-soon">
+                Quick questions: coming soon
+              </p>
+            </div>
+          )}
+        </div>
+
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -828,40 +863,6 @@ export default function QueryPage() {
             </Card>
           </div>
         )}
-
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground/80">
-            Quick questions for this report
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Production & Planning'})
-            </span>
-          </h2>
-          
-          {faqQuestions.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {faqQuestions.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => executeQuery(q.text)}
-                  disabled={loading}
-                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid={`card-sample-question-${idx}`}
-                >
-                  <span className="text-2xl mb-2 block">{q.icon}</span>
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
-                    {q.text}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
-              <p className="text-sm text-muted-foreground italic" data-testid="text-questions-coming-soon">
-                Quick questions: coming soon
-              </p>
-            </div>
-          )}
-        </div>
 
         <footer className="mt-12 pb-6 text-center">
           <p className="text-xs text-muted-foreground" data-testid="text-app-version">
