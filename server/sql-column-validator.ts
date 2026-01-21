@@ -1,5 +1,5 @@
 import { log } from './index';
-import { getTableSchemas, getTableColumns, columnExists, findClosestColumn, TableSchema } from './schema-introspection';
+import { getTableSchemas, getTableColumns, columnExists, findClosestColumn, findClosestColumns, TableSchema } from './schema-introspection';
 
 export interface ColumnValidationResult {
   valid: boolean;
@@ -261,29 +261,29 @@ export async function validateSqlColumns(
       }
       
       if (!found) {
-        // Column not found - try to find a close match
-        let bestMatch: string | null = null;
+        // Column not found - try to find top 5 closest matches via fuzzy matching
+        let closestMatches: string[] = [];
         let matchTable: string | null = null;
         
         for (const table of tableRefs) {
-          const match = findClosestColumn(ref.column, table, schemas, 3);
-          if (match) {
-            bestMatch = match;
+          const matches = findClosestColumns(ref.column, table, schemas, 5, 5);
+          if (matches.length > 0) {
+            closestMatches = matches;
             matchTable = table;
             break;
           }
         }
         
-        if (bestMatch && matchTable) {
-          // Found a close match - suggest it
-          warnings.push({
-            originalColumn: ref.column,
-            suggestedColumn: bestMatch,
+        if (closestMatches.length > 0 && matchTable) {
+          // Found close matches - add error with fuzzy suggestions
+          errors.push({
+            column: ref.column,
             table: matchTable,
-            confidence: 'medium'
+            message: `Column '${ref.column}' does not exist in table ${matchTable}`,
+            availableColumns: closestMatches
           });
         } else {
-          // No close match - this is an error
+          // No close fuzzy match - add error with first 5 columns from table(s)
           const availableColumns: string[] = [];
           for (const table of tableRefs) {
             const cols = getTableColumns(table, schemas);
@@ -292,8 +292,8 @@ export async function validateSqlColumns(
             }
           }
           
-          // Deduplicate and limit
-          const uniqueColumns = Array.from(new Set(availableColumns)).slice(0, 10);
+          // Deduplicate and limit to top 5
+          const uniqueColumns = Array.from(new Set(availableColumns)).slice(0, 5);
           
           errors.push({
             column: ref.column,

@@ -98,7 +98,7 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
 
-  const { mode = 'planning', allowedTables = [] } = options;
+  const { mode = 'production-planning', allowedTables = [] } = options;
 
   // Fetch mode-specific schema (trimmed to only relevant tables/columns)
   let modeSchema = '';
@@ -131,6 +131,15 @@ CAPACITY PLAN MODE - SYNONYM GUIDANCE:
 - If ResourceUtilization columns are not available in the schema, calculate as: (Demand / Capacity) * 100
 - DO NOT invent column names like "UtilizationPercentage" - only use columns that exist in the schema above
 - For demand/capacity analysis: Use DemandHours and NormalOnlineHours columns from the ResourceDemand and ResourceCapacity tables`;
+  } else if (mode === 'production-planning') {
+    modeGuidance = `
+
+PRODUCTION & PLANNING MODE - CRITICAL RULES:
+- DO NOT invent or hallucinate aggregate columns like "TotalResourceDemandHours", "TotalDemand", "UtilizationPercentage", etc.
+- If totals or aggregates are needed, compute them via SUM(), COUNT(), AVG(), etc. over existing numeric columns listed in the schema above
+- If no suitable numeric columns exist in the schema for the requested calculation, DO NOT guess - instead return an error message
+- For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
+- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_Materials, DASHt_RecentPublishedScenariosArchive`;
   }
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}

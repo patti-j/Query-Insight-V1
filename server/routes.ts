@@ -116,18 +116,17 @@ export async function registerRoutes(
     try {
       const mode = req.params.mode as string;
       
-      if (!['planning', 'capacity', 'dispatch', 'advanced'].includes(mode)) {
-        return res.status(400).json({ error: 'Invalid mode. Must be planning, capacity, dispatch, or advanced.' });
-      }
-
-      // Load semantic catalog to get allowed tables for this mode
+      // Load semantic catalog to validate mode against catalog IDs
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
       
       const modeConfig = catalog.modes.find((m: any) => m.id === mode);
       if (!modeConfig) {
-        return res.status(404).json({ error: `Mode '${mode}' not found in semantic catalog` });
+        const validModes = catalog.modes.map((m: any) => m.id).join(', ');
+        return res.status(404).json({ 
+          error: `Mode '${mode}' not found in semantic catalog. Valid modes: ${validModes}` 
+        });
       }
 
       const allowedTables = modeConfig.tables as string[];
@@ -292,7 +291,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question, mode = 'planning', advancedMode = false } = req.body;
+    const { question, mode = 'production-planning', advancedMode = false } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -378,11 +377,40 @@ export async function registerRoutes(
           llmMs
         );
         
-        // Build helpful error message
+        // Detect scope-mismatch: capacity-related question in Production & Planning mode
+        const capacityTerms = [
+          'demand', 'capacity', 'utilization', 'resource load', 'bottleneck',
+          'throughput', 'workload', 'available capacity', 'overload', 'underutilized'
+        ];
+        const questionLower = question.toLowerCase();
+        const hasCapacityTerms = capacityTerms.some(term => questionLower.includes(term));
+        
+        if (mode === 'production-planning' && hasCapacityTerms) {
+          // User asking capacity-style question in wrong mode
+          const firstError = columnValidation.errors[0];
+          let errorMessage = `This question looks like it's about capacity planning, but you're currently in "Production & Planning" mode which doesn't have capacity columns.\n\n`;
+          errorMessage += `💡 Try switching to "Capacity Plan" in the Power BI report dropdown and ask again.\n\n`;
+          errorMessage += `Error details: ${firstError.message}`;
+          
+          if (firstError.availableColumns && firstError.availableColumns.length > 0) {
+            errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
+          }
+          
+          return res.status(400).json({
+            error: errorMessage,
+            sql: finalSql,
+            isMock: false,
+            schemaError: true,
+            invalidColumns: columnValidation.errors.map(e => e.column),
+            suggestMode: 'capacity-plan',
+          });
+        }
+        
+        // Build helpful error message with fuzzy suggestions
         const firstError = columnValidation.errors[0];
         let errorMessage = firstError.message;
         if (firstError.availableColumns && firstError.availableColumns.length > 0) {
-          errorMessage += `\n\nAvailable columns in ${firstError.table || 'the table'}: ${firstError.availableColumns.slice(0, 5).join(', ')}${firstError.availableColumns.length > 5 ? ', ...' : ''}`;
+          errorMessage += `\n\nDid you mean one of these? ${firstError.availableColumns.join(', ')}`;
         }
         
         return res.status(400).json({
