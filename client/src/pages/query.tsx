@@ -722,7 +722,7 @@ export default function QueryPage() {
                   )}
                 </div>
 
-                {result.rows.length > 0 && (
+                {result.rows.length > 0 ? (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
@@ -815,6 +815,14 @@ export default function QueryPage() {
                     </div>
                     <p className="text-sm text-muted-foreground mt-3">
                       Showing {showAllRows ? result.rows.length : Math.min(10, result.rows.length)} of {result.rows.length} rows
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center border border-border/50 rounded-xl bg-muted/30" data-testid="no-results-message">
+                    <div className="text-4xl mb-3">📭</div>
+                    <h3 className="font-semibold text-lg mb-2">No matching records found</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your query ran successfully, but no data matched the criteria. Try adjusting the date range or filters in your question.
                     </p>
                   </div>
                 )}
