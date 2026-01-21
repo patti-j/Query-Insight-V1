@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { getFormattedSchemaForMode, getModeSchemaStats } from './mode-schema-cache';
+import { getFormattedSchemaForMode, getModeSchemaStats, getFormattedSchemaForTables } from './mode-schema-cache';
+import { selectRelevantTables } from './table-relevance';
 
 // Gracefully handle missing OpenAI credentials
 const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -100,20 +101,31 @@ export async function generateSqlFromQuestion(question: string, options: Generat
 
   const { mode = 'production-planning', allowedTables = [] } = options;
 
-  // Fetch mode-specific schema (trimmed to only relevant tables/columns)
+  // Select 2-4 most relevant tables based on question keywords (prompt slimming)
+  const { tables: relevantTables, reasoning } = selectRelevantTables(question, allowedTables.length > 0 ? allowedTables : []);
+  
+  // Fetch schema for relevant tables only
   let modeSchema = '';
   let stats = { tableCount: 0, columnCount: 0 };
   
   try {
     const startTime = Date.now();
-    modeSchema = await getFormattedSchemaForMode(mode);
-    stats = await getModeSchemaStats(mode);
-    const schemaFetchTime = Date.now() - startTime;
     
-    console.log(`[openai-client] Using ${mode} mode schema: ${stats.tableCount} tables, ${stats.columnCount} columns (fetched in ${schemaFetchTime}ms)`);
+    // If we have relevant tables, fetch only those schemas
+    if (relevantTables.length > 0 && relevantTables.length < allowedTables.length) {
+      modeSchema = await getFormattedSchemaForTables(relevantTables);
+      stats = { tableCount: relevantTables.length, columnCount: 0 };
+      console.log(`[openai-client] Prompt slimming: ${reasoning}`);
+    } else {
+      // Fall back to full mode schema
+      modeSchema = await getFormattedSchemaForMode(mode);
+      stats = await getModeSchemaStats(mode);
+    }
+    
+    const schemaFetchTime = Date.now() - startTime;
+    console.log(`[openai-client] Using ${mode} mode schema: ${stats.tableCount} tables (fetched in ${schemaFetchTime}ms)`);
   } catch (error: any) {
     console.error(`[openai-client] Failed to fetch mode schema: ${error.message}. Using fallback.`);
-    // Fallback to basic table list if schema fetch fails
     if (allowedTables.length > 0) {
       modeSchema = `Tables: ${allowedTables.join(', ')}`;
     } else {

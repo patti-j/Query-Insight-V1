@@ -189,8 +189,14 @@ export default function QueryPage() {
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
 
-    // Check if selected report has schema implemented
+    // Check if selected scope has available tables
     const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+    if (selectedReport?.available === false) {
+      setError(`${selectedReport.name} tables are not available in this environment. ${selectedReport.warning || ''}`);
+      return;
+    }
+
+    // Check if selected report has schema implemented
     if (selectedReport && selectedReport.schemaImplemented === false) {
       setError(`The "${selectedReport.name}" report schema is coming soon. Please select a different report.`);
       return;
