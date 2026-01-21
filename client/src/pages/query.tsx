@@ -109,14 +109,10 @@ export default function QueryPage() {
   const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
   const [failedQuestion, setFailedQuestion] = useState<string>('');
   
-  // Fetch publish date (informational)
+  // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
 
-  // Effective Today: real now() in prod, fixed date in dev/demo for consistent relative-date behavior
-  const isProd = import.meta.env.PROD;
-  const devFixedTodayStr = (import.meta.env.VITE_DEV_FIXED_TODAY as string) || '2024-01-01';
-  const effectiveToday = isProd ? new Date() : new Date(`${devFixedTodayStr}T00:00:00Z`);
-const submitFeedback = async (feedback: 'up' | 'down') => {
+  const submitFeedback = async (feedback: 'up' | 'down') => {
     if (!result || feedbackGiven) return;
     
     setFeedbackLoading(true);
@@ -188,11 +184,11 @@ const submitFeedback = async (feedback: 'up' | 'down') => {
     setShowAllRows(false);
     setSubmittedQuestion(q.trim());
 
-    // Transform relative dates to concrete dates using Effective Today
+    // Transform relative dates to concrete dates if publish date is available
     let queryToSend = q.trim();
-    const wasTransformed = hasRelativeDateLanguage(queryToSend);
+    const wasTransformed = publishDate && hasRelativeDateLanguage(queryToSend);
     if (wasTransformed) {
-      queryToSend = transformRelativeDates(queryToSend, effectiveToday);
+      queryToSend = transformRelativeDates(queryToSend, publishDate);
       setQueryWasTransformed(true);
     } else {
       setQueryWasTransformed(false);
@@ -397,9 +393,6 @@ const submitFeedback = async (feedback: 'up' | 'down') => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <p className="text-sm text-muted-foreground" data-testid="scope-instruction">
-                First select the scope of your question based on Power BI reports.
-              </p>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="report-selector">Power BI report</Label>
@@ -463,30 +456,169 @@ const submitFeedback = async (feedback: 'up' | 'down') => {
                   );
                 })()}
                 
-                {/* Display effective today (dev) or publish date (prod) */}
-                {isProd ? (
-                  publishDate ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="publish-date-display">
-                      <span className="font-medium">Publish Date:</span>
-                      <span className="text-foreground/70">
-                        {publishDate.toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                  ) : null
-                ) : (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="effective-today-display">
-                    <span className="font-medium">Effective Today:</span>
-                    <span className="text-foreground/70">{devFixedTodayStr}</span>
-                    <span className="italic text-xs">(dev override)</span>
+                {/* Display publish date anchor */}
+                {publishDate && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
+                    <span className="font-medium">Date anchor:</span>
+                    <span className="text-foreground/70">
+                      {publishDate.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                    <span className="italic text-xs">(demo publish date)</span>
                   </div>
                 )}
               </div>
 
-            <div className="space-y-4">
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="What would you like to know about your manufacturing data?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[100px] bg-background/50"
+                  data-testid="input-question"
+                />
+                
+                {/* Common fields helper */}
+                {(() => {
+                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <div className="space-y-1.5" data-testid="common-fields-display">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Common fields for this report:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedReport.commonFields.map((field) => (
+                          <Badge 
+                            key={field} 
+                            variant="secondary" 
+                            className="text-xs font-mono bg-muted/50 hover:bg-muted/70 cursor-default"
+                            data-testid={`field-chip-${field}`}
+                          >
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
+              <Button 
+                type="submit" 
+                disabled={loading || !question.trim()} 
+                data-testid="button-submit"
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {loading ? 'Analyzing...' : 'Submit Query'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {isDevelopment && showDiagnostics && diagnosticsResult && (
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Database Diagnostics
+              </CardTitle>
+              <CardDescription>
+                Validation of access to publish.DASHt_* tables
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-4">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30" data-testid="badge-total-tables">
+                  {diagnosticsResult.totalTables} tables found
+                </Badge>
+                <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30" data-testid="badge-accessible-tables">
+                  {diagnosticsResult.accessible} accessible
+                </Badge>
+                {diagnosticsResult.failed > 0 && (
+                  <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30" data-testid="badge-failed-tables">
+                    {diagnosticsResult.failed} failed
+                  </Badge>
+                )}
+              </div>
+
+              {diagnosticsResult.tables.length > 0 && (
+                <div className="border border-border/50 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Table Name</th>
+                          <th className="px-4 py-3 text-left font-medium">Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {diagnosticsResult.tables.map((table, idx) => (
+                          <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-diagnostics-${idx}`}>
+                            <td className="px-4 py-3" data-testid={`status-${table.table}`}>
+                              {table.accessible ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono" data-testid={`table-${table.table}`}>{table.table}</td>
+                            <td className="px-4 py-3 text-muted-foreground text-xs" data-testid={`error-${table.table}`}>
+                              {table.error || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground" data-testid="text-diagnostics-timestamp">
+                Last checked: {new Date(diagnosticsResult.timestamp).toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {error && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardHeader>
+              <CardTitle className="text-destructive flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
+              
+              {suggestedMode && semanticCatalog && (
+                <div className="pt-2 border-t border-destructive/20">
+                  <Button
+                    onClick={() => handleSwitchMode(suggestedMode)}
+                    className="bg-primary hover:bg-primary/90"
+                    data-testid="button-switch-mode"
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    Switch to {semanticCatalog.modes.find(m => m.id === suggestedMode)?.name} and Retry
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {result && (
+          <div className="space-y-4">
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -539,53 +671,7 @@ const submitFeedback = async (feedback: 'up' | 'down') => {
                   )}
                 </div>
 
-                                {result.rows.length === 0 && (
-                  <div className="mt-4 rounded-lg border border-border/50 p-4 bg-background/40" data-testid="no-rows-helper">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <div className="flex-1">
-                        <div className="font-medium text-foreground/80">No rows matched that date range.</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Try a broader range or check what dates exist in this dataset.
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuestion(selectedMode === 'capacity-plan'
-                              ? 'Show the latest 50 shift dates by ShiftDate'
-                              : 'Show the latest 50 jobs by JobNeedDateTime')}
-                          >
-                            Show latest
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuestion(selectedMode === 'capacity-plan'
-                              ? 'Show shifts in the next 7 days'
-                              : 'Show jobs due in the next 30 days')}
-                          >
-                            Show next period
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setQuestion(selectedMode === 'capacity-plan'
-                              ? 'What is the min and max ShiftDate?'
-                              : 'What is the min and max JobNeedDateTime?')}
-                          >
-                            What date range does this dataset cover?
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-{result.rows.length > 0 && (
+                {result.rows.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
@@ -777,7 +863,7 @@ const submitFeedback = async (feedback: 'up' | 'down') => {
 
         <footer className="mt-12 pb-6 text-center">
           <p className="text-xs text-muted-foreground" data-testid="text-app-version">
-            Query Insight v{APP_VERSION}
+            AI Analytics v{APP_VERSION}
           </p>
         </footer>
       </div>
