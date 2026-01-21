@@ -14,7 +14,7 @@ import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
-import { transformRelativeDates, hasRelativeDateLanguage } from '@/lib/date-anchor';
+import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -493,20 +493,26 @@ export default function QueryPage() {
                   );
                 })()}
                 
-                {/* Display publish date anchor */}
-                {publishDate && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
-                    <span className="font-medium">Date anchor:</span>
-                    <span className="text-foreground/70">
-                      {publishDate.toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
-                    </span>
-                    <span className="italic text-xs">(demo publish date)</span>
-                  </div>
-                )}
+                {/* Display date anchor from VITE_DEV_FIXED_TODAY in dev, publish date in prod */}
+                {(() => {
+                  const effectiveDate = import.meta.env.PROD ? publishDate : getEffectiveToday();
+                  if (!effectiveDate) return null;
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
+                      <span className="font-medium">Date anchor:</span>
+                      <span className="text-foreground/70">
+                        {effectiveDate.toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </span>
+                      {!import.meta.env.PROD && (
+                        <span className="italic text-xs">(from VITE_DEV_FIXED_TODAY)</span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-3">
