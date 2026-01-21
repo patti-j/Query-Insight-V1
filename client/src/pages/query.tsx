@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3 } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3, Heart, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
 import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
+import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -119,6 +120,9 @@ export default function QueryPage() {
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
+  
+  // Favorite queries
+  const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
 
   const submitFeedback = async (feedback: 'up' | 'down') => {
     if (!result || feedbackGiven) return;
@@ -447,6 +451,54 @@ export default function QueryPage() {
           )}
         </div>
 
+        {/* Favorite Queries */}
+        {favorites.length > 0 && (
+          <div className="space-y-4" data-testid="favorites-section">
+            <h2 className="text-lg font-semibold text-foreground/80 flex items-center gap-2">
+              <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+              Favorite Queries
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {favorites.map((fav) => (
+                <div
+                  key={fav.id}
+                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+                  data-testid={`favorite-${fav.id}`}
+                >
+                  <button
+                    onClick={() => {
+                      if (fav.mode !== selectedMode) {
+                        setSelectedMode(fav.mode);
+                      }
+                      setTimeout(() => executeQuery(fav.question), fav.mode !== selectedMode ? 100 : 0);
+                    }}
+                    disabled={loading}
+                    className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
+                      {fav.question}
+                    </span>
+                    <Badge variant="secondary" className="mt-2 text-xs">
+                      {semanticCatalog?.modes.find(m => m.id === fav.mode)?.name || fav.mode}
+                    </Badge>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFavorite(fav.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                    title="Remove from favorites"
+                    data-testid={`remove-favorite-${fav.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -676,10 +728,24 @@ export default function QueryPage() {
                 </CardTitle>
                 {submittedQuestion && (
                   <div className="mt-2 space-y-2">
-                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
+                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-between" data-testid="text-submitted-question">
                       <p className="text-base font-medium text-foreground">
                         "{submittedQuestion}"
                       </p>
+                      <button
+                        onClick={() => toggleFavorite(submittedQuestion, selectedMode)}
+                        className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                        title={isFavorite(submittedQuestion, selectedMode) ? "Remove from favorites" : "Add to favorites"}
+                        data-testid="button-toggle-favorite"
+                      >
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isFavorite(submittedQuestion, selectedMode) 
+                              ? 'fill-red-500 text-red-500' 
+                              : 'text-muted-foreground hover:text-red-500'
+                          }`} 
+                        />
+                      </button>
                     </div>
                     {queryWasTransformed && publishDate && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
