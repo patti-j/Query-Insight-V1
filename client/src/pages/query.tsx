@@ -493,29 +493,34 @@ export default function QueryPage() {
                   );
                 })()}
                 
-                {/* Display date anchor - from database publish date, fallback to VITE_DEV_FIXED_TODAY in dev */}
-                {(() => {
-                  const effectiveDate = publishDate || (!import.meta.env.PROD ? getEffectiveToday() : null);
-                  if (!effectiveDate) return null;
-                  const isFromDatabase = !!publishDate;
-                  return (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
-                      <span className="font-medium">Date anchor:</span>
+                {/* Display both Today (anchor) and Publish date */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                  <div className="flex items-center gap-2" data-testid="today-anchor-display">
+                    <span className="font-medium">Today:</span>
+                    <span className="text-foreground/70">
+                      {(import.meta.env.PROD ? new Date() : getEffectiveToday()).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                    {!import.meta.env.PROD && (
+                      <span className="italic text-xs">(dev override)</span>
+                    )}
+                  </div>
+                  {publishDate && (
+                    <div className="flex items-center gap-2" data-testid="publish-date-display">
+                      <span className="font-medium">Publish date:</span>
                       <span className="text-foreground/70">
-                        {effectiveDate.toLocaleDateString('en-US', { 
+                        {publishDate.toLocaleDateString('en-US', { 
                           year: 'numeric', 
                           month: 'short', 
                           day: 'numeric' 
                         })}
                       </span>
-                      {!import.meta.env.PROD && (
-                        <span className="italic text-xs">
-                          ({isFromDatabase ? 'from database' : 'from VITE_DEV_FIXED_TODAY'})
-                        </span>
-                      )}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
