@@ -20,11 +20,11 @@ export interface ReportQuickQuestions {
  */
 export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   'capacity-plan': [
-    { text: 'Where are we over capacity next 2 weeks by resource?', icon: '📊' },
-    { text: 'Top 10 constrained resources next week (demand > capacity)', icon: '🚧' },
-    { text: 'Show capacity vs demand by day for the next 14 days', icon: '📈' },
-    { text: 'Which shifts are most overloaded this week?', icon: '⚙️' },
-    { text: 'Idle vs loaded hours by resource for last 7 days', icon: '⏱️' },
+    { text: 'Where are we over capacity by resource?', icon: '📊' },
+    { text: 'Top 10 constrained resources (demand > capacity)', icon: '🚧' },
+    { text: 'Show capacity vs demand by resource', icon: '📈' },
+    { text: 'Which shifts are most overloaded?', icon: '⚙️' },
+    { text: 'Idle vs loaded hours by resource', icon: '⏱️' },
     { text: 'Compare current shifts vs last publish shifts', icon: '🔄' },
   ],
   
