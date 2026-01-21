@@ -21,6 +21,13 @@ import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-
 import { validateSqlColumns } from "./sql-column-validator";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { 
+  getDiscoveryStatus, 
+  getScopeAvailability, 
+  isScopeAvailable, 
+  getAvailableTablesForScope,
+  runTableDiscovery 
+} from "./table-discovery";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -81,17 +88,74 @@ export async function registerRoutes(
     res.json(analytics);
   });
 
-  // Get semantic catalog
+  // Get semantic catalog with availability info
   app.get("/api/semantic-catalog", (_req, res) => {
     try {
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
+      
+      // Enrich modes with availability info from table discovery
+      const scopeAvailability = getScopeAvailability() as any[];
+      if (scopeAvailability && scopeAvailability.length > 0) {
+        for (const mode of catalog.modes) {
+          const availability = scopeAvailability.find((a: any) => a.id === mode.id);
+          if (availability) {
+            mode.available = availability.available;
+            mode.tablesFound = availability.tablesFound;
+            mode.tablesExpected = availability.tablesExpected;
+            mode.availableTables = availability.availableTables;
+            mode.missingTables = availability.missingTables;
+            mode.warning = availability.warning;
+          } else {
+            mode.available = true; // Default to available if no discovery data
+          }
+        }
+      }
+      
       res.json(catalog);
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
       res.status(500).json({
         error: 'Failed to load semantic catalog',
+      });
+    }
+  });
+
+  // Table discovery endpoint - lists discovered tables and scope availability
+  app.get("/api/discovered-tables", async (_req, res) => {
+    try {
+      const status = getDiscoveryStatus();
+      res.json(status);
+    } catch (error: any) {
+      log(`Failed to get discovery status: ${error.message}`, 'discovered-tables');
+      res.status(500).json({
+        error: 'Failed to get discovery status',
+      });
+    }
+  });
+
+  // Trigger table re-discovery (admin endpoint)
+  app.post("/api/discovered-tables/refresh", async (req, res) => {
+    // Security: Only allow in development or with valid DIAGNOSTICS_TOKEN
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const diagnosticsToken = process.env.DIAGNOSTICS_TOKEN;
+    const providedToken = req.headers['x-diagnostics-token'];
+
+    if (!isDevelopment && (!diagnosticsToken || providedToken !== diagnosticsToken)) {
+      return res.status(403).json({
+        error: 'Forbidden: Refresh endpoint requires DIAGNOSTICS_TOKEN in production',
+      });
+    }
+
+    try {
+      await runTableDiscovery();
+      const status = getDiscoveryStatus();
+      res.json({ success: true, ...status });
+    } catch (error: any) {
+      log(`Failed to refresh table discovery: ${error.message}`, 'discovered-tables');
+      res.status(500).json({
+        error: 'Failed to refresh table discovery',
       });
     }
   });
@@ -300,6 +364,15 @@ export async function registerRoutes(
       });
     }
 
+    // Check if scope is available (has tables in the database)
+    if (!isScopeAvailable(mode)) {
+      const scopeInfo = getScopeAvailability(mode) as any;
+      return res.status(400).json({
+        error: scopeInfo?.warning || `${mode} tables are not available in this environment yet`,
+        scopeUnavailable: true,
+      });
+    }
+
     // Load semantic catalog to get allowed tables for the mode
     let allowedTables: string[] = [];
     let catalog: any = null;
@@ -308,13 +381,20 @@ export async function registerRoutes(
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       catalog = JSON.parse(catalogContent);
       
-      const selectedMode = catalog.modes.find((m: any) => m.id === mode);
-      if (selectedMode) {
-        allowedTables = selectedMode.tables;
+      // Use only tables that actually exist in the database
+      allowedTables = getAvailableTablesForScope(mode);
+      
+      // Fallback to catalog tables if discovery hasn't run
+      if (allowedTables.length === 0) {
+        const selectedMode = catalog.modes.find((m: any) => m.id === mode);
+        if (selectedMode) {
+          allowedTables = selectedMode.tables;
+        }
       }
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'ask');
-      // Continue with empty allowedTables - will fall back to any DASHt_* table
+      // Continue with available tables from discovery
+      allowedTables = getAvailableTablesForScope(mode);
     }
 
     // Create query log context

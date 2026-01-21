@@ -72,6 +72,12 @@ interface SemanticMode {
   schemaImplemented?: boolean;
   commonFields?: string[];
   keywords?: string[];
+  available?: boolean;
+  tablesFound?: number;
+  tablesExpected?: number;
+  availableTables?: string[];
+  missingTables?: string[];
+  warning?: string;
 }
 
 interface ScopeMismatch {
@@ -402,22 +408,54 @@ export default function QueryPage() {
         <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
 
         {/* Scope Tabs */}
-        <div className="flex gap-2" data-testid="scope-tabs">
-          {semanticCatalog?.modes.map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setSelectedMode(mode.id)}
-              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                selectedMode === mode.id
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'bg-card/80 text-foreground/70 hover:bg-card hover:text-foreground border border-border/50'
-              }`}
-              data-testid={`tab-${mode.id}`}
-            >
-              {mode.name}
-            </button>
-          ))}
+        <div className="flex gap-2 flex-wrap" data-testid="scope-tabs">
+          {semanticCatalog?.modes.map((mode) => {
+            const isUnavailable = mode.available === false;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => setSelectedMode(mode.id)}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
+                  selectedMode === mode.id
+                    ? isUnavailable 
+                      ? 'bg-amber-600/80 text-amber-100 shadow-md'
+                      : 'bg-primary text-primary-foreground shadow-md'
+                    : isUnavailable
+                      ? 'bg-card/50 text-foreground/40 border border-amber-500/30'
+                      : 'bg-card/80 text-foreground/70 hover:bg-card hover:text-foreground border border-border/50'
+                }`}
+                data-testid={`tab-${mode.id}`}
+              >
+                {mode.name}
+                {isUnavailable && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" title="Tables not available" />
+                )}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Scope Unavailable Warning */}
+        {(() => {
+          const selectedModeData = semanticCatalog?.modes.find(m => m.id === selectedMode);
+          if (selectedModeData?.available === false) {
+            return (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400" data-testid="scope-warning">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">{selectedModeData.warning || `${selectedModeData.name} tables not available in this environment yet`}</span>
+                </div>
+                {selectedModeData.missingTables && selectedModeData.missingTables.length > 0 && (
+                  <p className="mt-2 text-sm opacity-80">
+                    Missing: {selectedModeData.missingTables.slice(0, 3).map(t => t.replace('publish.', '')).join(', ')}
+                    {selectedModeData.missingTables.length > 3 && ` and ${selectedModeData.missingTables.length - 3} more`}
+                  </p>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Quick Questions */}
         <div className="space-y-4">
@@ -427,20 +465,23 @@ export default function QueryPage() {
           
           {faqQuestions.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {faqQuestions.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => executeQuery(q.text)}
-                  disabled={loading}
-                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid={`card-sample-question-${idx}`}
-                >
-                  <span className="text-2xl mb-2 block">{q.icon}</span>
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
-                    {q.text}
-                  </span>
-                </button>
-              ))}
+              {faqQuestions.map((q, idx) => {
+                const isScopeUnavailable = semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => executeQuery(q.text)}
+                    disabled={loading || isScopeUnavailable}
+                    className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid={`card-sample-question-${idx}`}
+                  >
+                    <span className="text-2xl mb-2 block">{q.icon}</span>
+                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                      {q.text}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
@@ -614,7 +655,7 @@ export default function QueryPage() {
               
               <Button 
                 type="submit" 
-                disabled={loading || !question.trim()} 
+                disabled={loading || !question.trim() || semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false} 
                 data-testid="button-submit"
                 className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
               >
