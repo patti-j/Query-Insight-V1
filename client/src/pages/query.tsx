@@ -372,7 +372,9 @@ export default function QueryPage() {
                   DB Check
                 </Button>
               )}
-              <ThemeToggle />
+              <div className="[&_button]:border-slate-600 [&_button]:text-slate-300 [&_button]:hover:bg-slate-800 [&_button]:hover:text-white">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>
