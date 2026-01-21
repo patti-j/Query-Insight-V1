@@ -333,54 +333,53 @@ export default function QueryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/10 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/10">
+      {/* Header Bar */}
+      <div className="bg-slate-900 border-b border-slate-700">
+        <div className="max-w-6xl mx-auto px-8 py-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="AI Analytics" className="h-12" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                AI Analytics
-              </h1>
+              <img src="/logo.svg" alt="AI Analytics" className="h-10" />
             </div>
-            <p className="text-muted-foreground mt-2 ml-14">
-              Ask questions about your manufacturing planning data
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                data-testid="button-dashboard"
-                title="View analytics dashboard"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Dashboard
-              </Button>
-            </Link>
-            {isDevelopment && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={runDiagnostics}
-                disabled={diagnosticsLoading}
-                data-testid="button-diagnostics"
-                className="gap-2"
-                title="Check database table access"
-              >
-                {diagnosticsLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-                DB Check
-              </Button>
-            )}
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
+                  data-testid="button-dashboard"
+                  title="View analytics dashboard"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+              {isDevelopment && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={runDiagnostics}
+                  disabled={diagnosticsLoading}
+                  data-testid="button-diagnostics"
+                  className="gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
+                  title="Check database table access"
+                >
+                  {diagnosticsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  DB Check
+                </Button>
+              )}
+              <ThemeToggle />
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto p-8 space-y-8">
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
