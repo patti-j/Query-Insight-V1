@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { getFormattedSchemaForMode, getModeSchemaStats } from './mode-schema-cache';
+import { getFormattedSchemaForMode, getModeSchemaStats, getFormattedSchemaForTables } from './mode-schema-cache';
+import { selectRelevantTables } from './table-relevance';
 
 // Gracefully handle missing OpenAI credentials
 const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -100,20 +101,31 @@ export async function generateSqlFromQuestion(question: string, options: Generat
 
   const { mode = 'production-planning', allowedTables = [] } = options;
 
-  // Fetch mode-specific schema (trimmed to only relevant tables/columns)
+  // Select 2-4 most relevant tables based on question keywords (prompt slimming)
+  const { tables: relevantTables, reasoning } = selectRelevantTables(question, allowedTables.length > 0 ? allowedTables : []);
+  
+  // Fetch schema for relevant tables only
   let modeSchema = '';
   let stats = { tableCount: 0, columnCount: 0 };
   
   try {
     const startTime = Date.now();
-    modeSchema = await getFormattedSchemaForMode(mode);
-    stats = await getModeSchemaStats(mode);
-    const schemaFetchTime = Date.now() - startTime;
     
-    console.log(`[openai-client] Using ${mode} mode schema: ${stats.tableCount} tables, ${stats.columnCount} columns (fetched in ${schemaFetchTime}ms)`);
+    // If we have relevant tables, fetch only those schemas
+    if (relevantTables.length > 0 && relevantTables.length < allowedTables.length) {
+      modeSchema = await getFormattedSchemaForTables(relevantTables);
+      stats = { tableCount: relevantTables.length, columnCount: 0 };
+      console.log(`[openai-client] Prompt slimming: ${reasoning}`);
+    } else {
+      // Fall back to full mode schema
+      modeSchema = await getFormattedSchemaForMode(mode);
+      stats = await getModeSchemaStats(mode);
+    }
+    
+    const schemaFetchTime = Date.now() - startTime;
+    console.log(`[openai-client] Using ${mode} mode schema: ${stats.tableCount} tables (fetched in ${schemaFetchTime}ms)`);
   } catch (error: any) {
     console.error(`[openai-client] Failed to fetch mode schema: ${error.message}. Using fallback.`);
-    // Fallback to basic table list if schema fetch fails
     if (allowedTables.length > 0) {
       modeSchema = `Tables: ${allowedTables.join(', ')}`;
     } else {
@@ -139,7 +151,37 @@ PRODUCTION & PLANNING MODE - CRITICAL RULES:
 - If totals or aggregates are needed, compute them via SUM(), COUNT(), AVG(), etc. over existing numeric columns listed in the schema above
 - If no suitable numeric columns exist in the schema for the requested calculation, DO NOT guess - instead return an error message
 - For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
-- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_Materials, DASHt_RecentPublishedScenariosArchive`;
+- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive`;
+  } else if (mode === 'finance') {
+    modeGuidance = `
+
+FINANCE MODE - SCENARIO-AWARE RULES FOR DASHt_SalesOrders:
+
+SCENARIO CONTROL (CRITICAL):
+- If user does NOT mention scenario, ALWAYS add: WHERE ScenarioType = 'Production'
+- If user mentions "what-if", "scenario", "copy", "simulation" → allow ScenarioType = 'What-If'
+- NEVER mix Production and What-If unless user explicitly asks for comparison
+- For comparisons, GROUP BY ScenarioType and/or ScenarioName
+
+EXACT METRIC FORMULAS (use these column names):
+- Order Count: COUNT(DISTINCT SalesOrderName)
+- Total Demand: SUM(QtyOrdered)
+- Shipped Quantity: SUM(QtyShipped)
+- Open Quantity: SUM(QtyOrdered - QtyShipped)
+- Overdue Orders: RequiredAvailableDate < CAST(GETDATE() AS DATE) AND (QtyOrdered - QtyShipped) > 0
+- Revenue: SUM(SalesAmount) - if NULL or zero-heavy, explain limitation
+
+KEY COLUMNS FOR DASHt_SalesOrders:
+- Identity: PlanningAreaName, SalesOrderName, SalesOrderId, SalesOrderLineId, LineNumber
+- Customer: CustomerName, CustomerExternalId
+- Item: ItemName, ItemType, ItemId, LineDescription
+- Quantities: QtyOrdered, QtyShipped
+- Dates: RequiredAvailableDate, ExpirationDate, PublishDate
+- Financial: UnitPrice, SalesAmount
+- Status: Cancelled, Hold, HoldReason, Priority
+- Scenario: ScenarioId, NewScenarioId, ScenarioName, ScenarioType
+
+ONLY use columns explicitly listed in the schema above.`;
   }
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}

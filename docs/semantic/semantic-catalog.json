@@ -3,184 +3,178 @@
     {
       "id": "capacity-plan",
       "name": "Capacity Plan",
-      "description": "Resource capacity planning including demand, capacity, actuals, and shift schedules",
+      "description": "Resource capacity and utilization analysis - capacity vs demand, shifts, overtime, constraints",
       "tables": [
-        "publish.DASHt_CapacityPlanning_ResourceDemand",
-        "publish.DASHt_CapacityPlanning_ResourceCapacity",
         "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceDemand",
         "publish.DASHt_CapacityPlanning_ShiftsCombined",
         "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
-        "publish.DASHt_RecentPublishedScenariosArchive"
+        "publish.DASHt_Resources"
       ],
-      "default": false,
+      "tier2Tables": [
+        "publish.CapacityIntervalResourceAssignments",
+        "publish.CapacityIntervals",
+        "publish.Departments",
+        "publish.JobOperations",
+        "publish.JobResourceBlockIntervals",
+        "publish.JobResourceBlocks",
+        "publish.JobResources",
+        "publish.Jobs",
+        "publish.ManufacturingOrders",
+        "publish.Plants",
+        "publish.RecurringCapacityIntervalRecurrences",
+        "publish.RecurringCapacityIntervalResourceAssignments",
+        "publish.RecurringCapacityIntervals",
+        "publish.Resources",
+        "publish.Schedules"
+      ],
+      "default": true,
       "schemaImplemented": true,
       "commonFields": [
         "ResourceName",
         "ResourceId",
-        "PlanningAreaName",
-        "ShiftDate",
-        "DemandHours",
-        "CapacityHours",
-        "ActualHours",
-        "ResourceBottleneck"
-      ]
+        "WorkcenterName",
+        "DepartmentName",
+        "PlantName",
+        "Capacity",
+        "Demand",
+        "Utilization",
+        "ShiftName",
+        "Bottleneck"
+      ],
+      "keywords": ["capacity", "demand", "shift", "overtime", "utilization", "load", "resource", "hours", "workcenter", "constraint", "bottleneck", "idle", "loaded"],
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+      }
     },
     {
       "id": "production-planning",
       "name": "Production & Planning",
-      "description": "Manufacturing planning and scheduling data including job operations, materials, resources, and inventory",
+      "description": "Manufacturing planning and scheduling - jobs, operations, due dates, lateness, priorities",
       "tables": [
         "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
         "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Materials",
-        "publish.DASHt_RecentPublishedScenariosArchive"
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_PredecessorOPIds",
+        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Resources"
       ],
-      "default": true,
+      "tier2Tables": [
+        "publish.Customers",
+        "publish.Departments",
+        "publish.JobActivities",
+        "publish.JobOperationAttributes",
+        "publish.JobOperations",
+        "publish.JobPathNodes",
+        "publish.JobProducts",
+        "publish.JobResourceBlocks",
+        "publish.Jobs",
+        "publish.ManufacturingOrders",
+        "publish.Plants",
+        "publish.ReportBlocks",
+        "publish.Resources",
+        "publish.Schedules",
+        "publish.items"
+      ],
+      "default": false,
       "schemaImplemented": true,
       "commonFields": [
         "JobName",
         "JobId",
         "MOName",
-        "MOId",
         "OPName",
-        "OPId",
-        "StartDate",
-        "EndDate",
-        "DueDate",
-        "Priority"
-      ]
-    },
-    {
-      "id": "dispatch-list",
-      "name": "Dispatch List",
-      "description": "Production dispatch and job operation execution data",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Resources"
+        "JobScheduledStartDateTime",
+        "JobScheduledEndDateTime",
+        "JobNeedDateTime",
+        "Priority",
+        "JobOnHold",
+        "JobOverdue",
+        "Lateness"
       ],
-      "default": false,
-      "schemaImplemented": true
+      "keywords": ["job", "operation", "due", "late", "lateness", "schedule", "dispatch", "predecessor", "wip", "priority", "plan", "otif", "bottleneck", "blocked"],
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+      }
     },
     {
       "id": "finance",
       "name": "Finance",
-      "description": "Financial reporting and analysis (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "customer-analysis",
-      "name": "Customer Analysis",
-      "description": "Customer-focused analytics and insights (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "inventories",
-      "name": "Inventories",
-      "description": "Inventory management and material balances",
-      "tables": [
-        "publish.DASHt_Inventories",
-        "publish.DASHt_NetInventoryBalance",
-        "publish.DASHt_Materials",
-        "publish.DASHt_Planning"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "sales-orders",
-      "name": "Sales Orders",
-      "description": "Sales order tracking and fulfillment",
+      "description": "Financial data - sales orders, purchase orders, inventory values, costs, KPIs, scenario-aware",
       "tables": [
         "publish.DASHt_SalesOrders",
-        "publish.DASHt_Planning",
-        "publish.DASHt_Materials"
+        "publish.DASHt_PurchaseOrders",
+        "publish.DASHt_Inventories",
+        "publish.DASHt_InventoryAdjustments",
+        "publish.DASHt_NetInventoryBalance",
+        "publish.DASHt_Materials",
+        "publish.DASHt_HistoricalKPIs",
+        "publish.DASHt_TranLog",
+        "publish.DASHt_Resources",
+        "publish.DASHt_RecentPublishedScenariosArchive"
+      ],
+      "tier2Tables": [
+        "publish.Customers",
+        "publish.Departments",
+        "publish.ForecastShipmentInventoryAdjustments",
+        "publish.Inventories",
+        "publish.Items",
+        "publish.JobActivities",
+        "publish.JobActivityInventoryAdjustments",
+        "publish.JobMaterialSupplyingActivities",
+        "publish.JobMaterials",
+        "publish.JobOperations",
+        "publish.Jobs",
+        "publish.KPIs",
+        "publish.ManufacturingOrders",
+        "publish.PlantWarehouses",
+        "publish.Plants",
+        "publish.PurchaseToStockDeletedDemands",
+        "publish.PurchaseToStockForecastDemands",
+        "publish.PurchaseToStockInventoryAdjustments",
+        "publish.PurchaseToStockSafetyStockDemands",
+        "publish.PurchaseToStockSalesOrderDemands",
+        "publish.PurchaseToStockTransferOrderDemands",
+        "publish.PurchasesToStock",
+        "publish.Resources",
+        "publish.SalesOrderDistributionInventoryAdjustments",
+        "publish.SalesOrderLineDistributions",
+        "publish.SalesOrderLines",
+        "publish.SalesOrders",
+        "publish.Schedules",
+        "publish.StorageAreas",
+        "publish.TransferOrderDistributionInventoryAdjustments",
+        "publish.Warehouse",
+        "publish.Warehouses",
+        "publish.metrics"
       ],
       "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "schedule-conformance",
-      "name": "Schedule Conformance",
-      "description": "Schedule adherence and conformance metrics",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_Resources"
+      "schemaImplemented": true,
+      "commonFields": [
+        "OrderQty",
+        "DueDate",
+        "ScenarioType",
+        "ScenarioName",
+        "CustomerName",
+        "ItemName",
+        "NetBalance",
+        "AdjustmentQty"
       ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "audit-log",
-      "name": "AuditLog",
-      "description": "System audit trail and transaction history",
-      "tables": [
-        "publish.DASHt_TranLog"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "new-dispatch-list",
-      "name": "New Dispatch List report",
-      "description": "Enhanced dispatch view with additional operation details",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Resources"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "custom-kpis",
-      "name": "Custom KPIs",
-      "description": "Custom key performance indicators (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "plant-comparison",
-      "name": "Plant Comparison",
-      "description": "Multi-plant comparison and benchmarking (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "cp1",
-      "name": "CP1",
-      "description": "Custom report CP1 (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "cp2",
-      "name": "CP2",
-      "description": "Custom report CP2 (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "analytics-db-explorer",
-      "name": "Analytics DB Explorer",
-      "description": "Explore all available data tables and relationships (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
+      "keywords": ["sales", "order", "purchase", "inventory", "adjustment", "balance", "material", "kpi", "scenario", "what-if", "production", "demand", "overdue"],
+      "scenarioRules": {
+        "defaultScenarioType": "Production",
+        "whatIfTriggers": ["what-if", "scenario copy", "scenario", "compare scenario"],
+        "notes": "Default to ScenarioType='Production' unless user mentions what-if or scenario comparison"
+      },
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain.",
+        "scenario_aware": "DASHt_SalesOrders is scenario-aware. Default to ScenarioType='Production'. Allow What-If only when user explicitly mentions scenarios."
+      }
     }
   ],
-  "version": "2.1.0",
+  "version": "5.0.0",
   "lastUpdated": "2026-01-21"
 }

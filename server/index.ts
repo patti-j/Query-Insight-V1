@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { prefetchSchema } from "./quick-questions";
 import { prefetchAllModeSchemas } from "./mode-schema-cache";
+import { runTableDiscovery } from "./table-discovery";
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run table discovery first to build dynamic allowlists
+  try {
+    await runTableDiscovery();
+  } catch (err: any) {
+    log(`⚠️  Table discovery failed: ${err.message}. Some scopes may not be available.`, 'startup');
+  }
+
   // Prefetch mode-specific schemas BEFORE registering routes (blocking)
   try {
     await prefetchAllModeSchemas();

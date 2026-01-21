@@ -160,6 +160,23 @@ export async function getModeSchemaStats(mode: string): Promise<{ tableCount: nu
 }
 
 /**
+ * Get formatted schema for specific tables (used for prompt slimming)
+ */
+export async function getFormattedSchemaForTables(tableNames: string[]): Promise<string> {
+  const schemas = await getTableSchemas(tableNames);
+  
+  const filteredSchemas = new Map<string, TableSchema>();
+  for (const tableName of tableNames) {
+    const schema = schemas.get(tableName);
+    if (schema) {
+      filteredSchemas.set(tableName, schema);
+    }
+  }
+  
+  return formatSchemaForPrompt(filteredSchemas);
+}
+
+/**
  * Clear mode schema cache (useful for testing)
  */
 export function clearModeSchemaCache(mode?: string): void {

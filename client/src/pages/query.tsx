@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3 } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3, Heart, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Label } from '@/components/ui/label';
@@ -14,15 +14,20 @@ import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
-import { transformRelativeDates, hasRelativeDateLanguage } from '@/lib/date-anchor';
+import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
+import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
-// Columns to hide from results display (system-generated IDs)
-const HIDDEN_COLUMNS = ['jobid', 'job_id', 'id'];
+// Columns to hide from results display (system-generated IDs are not user-friendly)
+const HIDDEN_ID_PATTERNS = [
+  /^id$/i,
+  /id$/i,  // Any column ending in "Id" (ResourceId, JobId, etc.)
+  /_id$/i, // Any column ending in "_id"
+];
 
 function isHiddenColumn(columnName: string): boolean {
-  return HIDDEN_COLUMNS.includes(columnName.toLowerCase());
+  return HIDDEN_ID_PATTERNS.some(pattern => pattern.test(columnName));
 }
 
 // Filter out hidden columns from a row
@@ -70,6 +75,19 @@ interface SemanticMode {
   default: boolean;
   schemaImplemented?: boolean;
   commonFields?: string[];
+  keywords?: string[];
+  available?: boolean;
+  tablesFound?: number;
+  tablesExpected?: number;
+  availableTables?: string[];
+  missingTables?: string[];
+  warning?: string;
+}
+
+interface ScopeMismatch {
+  detectedScope: string;
+  currentScope: string;
+  question: string;
 }
 
 interface SemanticCatalog {
@@ -100,7 +118,8 @@ export default function QueryPage() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
   const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
-  const [selectedMode, setSelectedMode] = useState('production-planning');
+  const [selectedMode, setSelectedMode] = useState('capacity-plan');
+  const [scopeMismatch, setScopeMismatch] = useState<ScopeMismatch | null>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -111,6 +130,9 @@ export default function QueryPage() {
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
+  
+  // Favorite queries
+  const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
 
   const submitFeedback = async (feedback: 'up' | 'down') => {
     if (!result || feedbackGiven) return;
@@ -164,19 +186,30 @@ export default function QueryPage() {
   useEffect(() => {
     if (selectedMode) {
       setFaqQuestions(getQuickQuestionsForReport(selectedMode));
+      setScopeMismatch(null);
     }
   }, [selectedMode]);
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
 
-    // Check if selected report has schema implemented
+    // Check if selected scope has available tables
     const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+    if (selectedReport?.available === false) {
+      setError(`${selectedReport.name} tables are not available in this environment. ${selectedReport.warning || ''}`);
+      return;
+    }
+
+    // Check if selected report has schema implemented
     if (selectedReport && selectedReport.schemaImplemented === false) {
       setError(`The "${selectedReport.name}" report schema is coming soon. Please select a different report.`);
       return;
     }
 
+    // Clear any previous scope mismatch state
+    setScopeMismatch(null);
+    setSuggestedMode(null);
+    setFailedQuestion('');
     setLoading(true);
     setError(null);
     setResult(null);
@@ -384,51 +417,154 @@ export default function QueryPage() {
       <div className="max-w-6xl mx-auto p-8 space-y-8">
         <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
 
+        {/* Scope Tabs */}
+        <div className="flex gap-2 flex-wrap" data-testid="scope-tabs">
+          {semanticCatalog?.modes.map((mode) => {
+            const isUnavailable = mode.available === false;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => setSelectedMode(mode.id)}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
+                  selectedMode === mode.id
+                    ? isUnavailable 
+                      ? 'bg-amber-600/80 text-amber-100 shadow-md'
+                      : 'bg-primary text-primary-foreground shadow-md'
+                    : isUnavailable
+                      ? 'bg-card/50 text-foreground/40 border border-amber-500/30'
+                      : 'bg-card/80 text-foreground/70 hover:bg-card hover:text-foreground border border-border/50'
+                }`}
+                data-testid={`tab-${mode.id}`}
+              >
+                {mode.name}
+                {isUnavailable && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" title="Tables not available" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Scope Unavailable Warning */}
+        {(() => {
+          const selectedModeData = semanticCatalog?.modes.find(m => m.id === selectedMode);
+          if (selectedModeData?.available === false) {
+            return (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400" data-testid="scope-warning">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">{selectedModeData.warning || `${selectedModeData.name} tables not available in this environment yet`}</span>
+                </div>
+                {selectedModeData.missingTables && selectedModeData.missingTables.length > 0 && (
+                  <p className="mt-2 text-sm opacity-80">
+                    Missing: {selectedModeData.missingTables.slice(0, 3).map(t => t.replace('publish.', '')).join(', ')}
+                    {selectedModeData.missingTables.length > 3 && ` and ${selectedModeData.missingTables.length - 3} more`}
+                  </p>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Quick Questions */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground/80">
+            Quick questions
+          </h2>
+          
+          {faqQuestions.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {faqQuestions.map((q, idx) => {
+                const isScopeUnavailable = semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => executeQuery(q.text)}
+                    disabled={loading || isScopeUnavailable}
+                    className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid={`card-sample-question-${idx}`}
+                  >
+                    <span className="text-2xl mb-2 block">{q.icon}</span>
+                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                      {q.text}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
+              <p className="text-sm text-muted-foreground italic" data-testid="text-questions-coming-soon">
+                Quick questions: coming soon
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Favorite Queries */}
+        {favorites.length > 0 && (
+          <div className="space-y-4" data-testid="favorites-section">
+            <h2 className="text-lg font-semibold text-foreground/80 flex items-center gap-2">
+              <Heart className="h-5 w-5 fill-red-500 text-red-500" />
+              Favorite Queries
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {favorites.map((fav) => (
+                <div
+                  key={fav.id}
+                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+                  data-testid={`favorite-${fav.id}`}
+                >
+                  <button
+                    onClick={() => {
+                      if (fav.mode !== selectedMode) {
+                        setSelectedMode(fav.mode);
+                      }
+                      setTimeout(() => executeQuery(fav.question), fav.mode !== selectedMode ? 100 : 0);
+                    }}
+                    disabled={loading}
+                    className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
+                      {fav.question}
+                    </span>
+                    <Badge variant="secondary" className="mt-2 text-xs">
+                      {semanticCatalog?.modes.find(m => m.id === fav.mode)?.name || fav.mode}
+                    </Badge>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFavorite(fav.id);
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                    title="Remove from favorites"
+                    data-testid={`remove-favorite-${fav.id}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span>Ask a Question</span>
+              <Badge variant="outline" className="font-normal">
+                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name}
+              </Badge>
             </CardTitle>
             <CardDescription>
-              Type a natural language question or click on one of the predefined questions below
+              Type a natural language question about {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name?.toLowerCase() || 'your data'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="report-selector">Power BI report</Label>
-                </div>
-                <Select
-                  value={selectedMode}
-                  onValueChange={setSelectedMode}
-                >
-                  <SelectTrigger id="report-selector" className="w-full" data-testid="select-report">
-                    <SelectValue placeholder="Select a report" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {semanticCatalog?.modes.map((mode) => (
-                      <SelectItem 
-                        key={mode.id} 
-                        value={mode.id}
-                        disabled={mode.schemaImplemented === false}
-                        data-testid={`report-${mode.id}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{mode.name}</span>
-                          {mode.schemaImplemented === false && (
-                            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.description && (
-                  <p className="text-xs text-muted-foreground">
-                    {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}
-                  </p>
-                )}
                 
                 {/* Display scoped tables for selected report */}
                 {(() => {
@@ -458,20 +594,34 @@ export default function QueryPage() {
                   );
                 })()}
                 
-                {/* Display publish date anchor */}
-                {publishDate && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
-                    <span className="font-medium">Date anchor:</span>
+                {/* Display both Today (anchor) and Publish date */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                  <div className="flex items-center gap-2" data-testid="today-anchor-display">
+                    <span className="font-medium">Today:</span>
                     <span className="text-foreground/70">
-                      {publishDate.toLocaleDateString('en-US', { 
+                      {(import.meta.env.PROD ? new Date() : getEffectiveToday()).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'short', 
                         day: 'numeric' 
                       })}
                     </span>
-                    <span className="italic text-xs">(demo publish date)</span>
+                    {!import.meta.env.PROD && (
+                      <span className="italic text-xs">(dev override)</span>
+                    )}
                   </div>
-                )}
+                  {publishDate && (
+                    <div className="flex items-center gap-2" data-testid="publish-date-display">
+                      <span className="font-medium">Publish date:</span>
+                      <span className="text-foreground/70">
+                        {publishDate.toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -515,7 +665,7 @@ export default function QueryPage() {
               
               <Button 
                 type="submit" 
-                disabled={loading || !question.trim()} 
+                disabled={loading || !question.trim() || semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false} 
                 data-testid="button-submit"
                 className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
               >
@@ -629,10 +779,24 @@ export default function QueryPage() {
                 </CardTitle>
                 {submittedQuestion && (
                   <div className="mt-2 space-y-2">
-                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20" data-testid="text-submitted-question">
+                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-between" data-testid="text-submitted-question">
                       <p className="text-base font-medium text-foreground">
                         "{submittedQuestion}"
                       </p>
+                      <button
+                        onClick={() => toggleFavorite(submittedQuestion, selectedMode)}
+                        className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                        title={isFavorite(submittedQuestion, selectedMode) ? "Remove from favorites" : "Add to favorites"}
+                        data-testid="button-toggle-favorite"
+                      >
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isFavorite(submittedQuestion, selectedMode) 
+                              ? 'fill-red-500 text-red-500' 
+                              : 'text-muted-foreground hover:text-red-500'
+                          }`} 
+                        />
+                      </button>
                     </div>
                     {queryWasTransformed && publishDate && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
@@ -673,7 +837,7 @@ export default function QueryPage() {
                   )}
                 </div>
 
-                {result.rows.length > 0 && (
+                {result.rows.length > 0 ? (
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">Data Preview</h3>
@@ -768,6 +932,14 @@ export default function QueryPage() {
                       Showing {showAllRows ? result.rows.length : Math.min(10, result.rows.length)} of {result.rows.length} rows
                     </p>
                   </div>
+                ) : (
+                  <div className="p-6 text-center border border-border/50 rounded-xl bg-muted/30" data-testid="no-results-message">
+                    <div className="text-4xl mb-3">📭</div>
+                    <h3 className="font-semibold text-lg mb-2">No matching records found</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your query ran successfully, but no data matched the criteria. Try adjusting the date range or filters in your question.
+                    </p>
+                  </div>
                 )}
 
                 {/* Feedback Section */}
@@ -828,40 +1000,6 @@ export default function QueryPage() {
             </Card>
           </div>
         )}
-
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground/80">
-            Quick questions for this report
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Production & Planning'})
-            </span>
-          </h2>
-          
-          {faqQuestions.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {faqQuestions.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => executeQuery(q.text)}
-                  disabled={loading}
-                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                  data-testid={`card-sample-question-${idx}`}
-                >
-                  <span className="text-2xl mb-2 block">{q.icon}</span>
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
-                    {q.text}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
-              <p className="text-sm text-muted-foreground italic" data-testid="text-questions-coming-soon">
-                Quick questions: coming soon
-              </p>
-            </div>
-          )}
-        </div>
 
         <footer className="mt-12 pb-6 text-center">
           <p className="text-xs text-muted-foreground" data-testid="text-app-version">

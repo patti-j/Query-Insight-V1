@@ -21,6 +21,13 @@ import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-
 import { validateSqlColumns } from "./sql-column-validator";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { 
+  getDiscoveryStatus, 
+  getScopeAvailability, 
+  isScopeAvailable, 
+  getAvailableTablesForScope,
+  runTableDiscovery 
+} from "./table-discovery";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -81,17 +88,74 @@ export async function registerRoutes(
     res.json(analytics);
   });
 
-  // Get semantic catalog
+  // Get semantic catalog with availability info
   app.get("/api/semantic-catalog", (_req, res) => {
     try {
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
+      
+      // Enrich modes with availability info from table discovery
+      const scopeAvailability = getScopeAvailability() as any[];
+      if (scopeAvailability && scopeAvailability.length > 0) {
+        for (const mode of catalog.modes) {
+          const availability = scopeAvailability.find((a: any) => a.id === mode.id);
+          if (availability) {
+            mode.available = availability.available;
+            mode.tablesFound = availability.tablesFound;
+            mode.tablesExpected = availability.tablesExpected;
+            mode.availableTables = availability.availableTables;
+            mode.missingTables = availability.missingTables;
+            mode.warning = availability.warning;
+          } else {
+            mode.available = true; // Default to available if no discovery data
+          }
+        }
+      }
+      
       res.json(catalog);
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
       res.status(500).json({
         error: 'Failed to load semantic catalog',
+      });
+    }
+  });
+
+  // Table discovery endpoint - lists discovered tables and scope availability
+  app.get("/api/discovered-tables", async (_req, res) => {
+    try {
+      const status = getDiscoveryStatus();
+      res.json(status);
+    } catch (error: any) {
+      log(`Failed to get discovery status: ${error.message}`, 'discovered-tables');
+      res.status(500).json({
+        error: 'Failed to get discovery status',
+      });
+    }
+  });
+
+  // Trigger table re-discovery (admin endpoint)
+  app.post("/api/discovered-tables/refresh", async (req, res) => {
+    // Security: Only allow in development or with valid DIAGNOSTICS_TOKEN
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const diagnosticsToken = process.env.DIAGNOSTICS_TOKEN;
+    const providedToken = req.headers['x-diagnostics-token'];
+
+    if (!isDevelopment && (!diagnosticsToken || providedToken !== diagnosticsToken)) {
+      return res.status(403).json({
+        error: 'Forbidden: Refresh endpoint requires DIAGNOSTICS_TOKEN in production',
+      });
+    }
+
+    try {
+      await runTableDiscovery();
+      const status = getDiscoveryStatus();
+      res.json({ success: true, ...status });
+    } catch (error: any) {
+      log(`Failed to refresh table discovery: ${error.message}`, 'discovered-tables');
+      res.status(500).json({
+        error: 'Failed to refresh table discovery',
       });
     }
   });
@@ -174,9 +238,20 @@ export async function registerRoutes(
     }
   });
 
-  // Get latest publish date from DASHt_Planning
+  // Get latest publish date from DASHt_Planning (or fixed date in dev mode)
   app.get("/api/last-update", async (_req, res) => {
     try {
+      // In development, use fixed date from environment variable if set
+      const fixedDate = process.env.VITE_DEV_FIXED_TODAY;
+      if (process.env.NODE_ENV === 'development' && fixedDate) {
+        log(`Using fixed dev date: ${fixedDate}`, 'last-update');
+        res.json({
+          ok: true,
+          lastUpdate: new Date(`${fixedDate}T00:00:00Z`).toISOString(),
+        });
+        return;
+      }
+      
       const result = await executeQuery(
         'SELECT TOP (1) MAX(PublishDate) as lastUpdate FROM [publish].[DASHt_Planning]'
       );
@@ -300,20 +375,37 @@ export async function registerRoutes(
       });
     }
 
+    // Check if scope is available (has tables in the database)
+    if (!isScopeAvailable(mode)) {
+      const scopeInfo = getScopeAvailability(mode) as any;
+      return res.status(400).json({
+        error: scopeInfo?.warning || `${mode} tables are not available in this environment yet`,
+        scopeUnavailable: true,
+      });
+    }
+
     // Load semantic catalog to get allowed tables for the mode
     let allowedTables: string[] = [];
+    let catalog: any = null;
     try {
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
-      const catalog = JSON.parse(catalogContent);
+      catalog = JSON.parse(catalogContent);
       
-      const selectedMode = catalog.modes.find((m: any) => m.id === mode);
-      if (selectedMode) {
-        allowedTables = selectedMode.tables;
+      // Use only tables that actually exist in the database
+      allowedTables = getAvailableTablesForScope(mode);
+      
+      // Fallback to catalog tables if discovery hasn't run
+      if (allowedTables.length === 0) {
+        const selectedMode = catalog.modes.find((m: any) => m.id === mode);
+        if (selectedMode) {
+          allowedTables = selectedMode.tables;
+        }
       }
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'ask');
-      // Continue with empty allowedTables - will fall back to any DASHt_* table
+      // Continue with available tables from discovery
+      allowedTables = getAvailableTablesForScope(mode);
     }
 
     // Create query log context
@@ -377,58 +469,54 @@ export async function registerRoutes(
           llmMs
         );
         
-        // Detect scope-mismatch: capacity-related question in Production & Planning mode
-        const capacityTerms = [
-          'demand', 'capacity', 'utilization', 'resource load', 'bottleneck',
-          'throughput', 'workload', 'available capacity', 'overload', 'underutilized',
-          'shift', 'planning area'
-        ];
-        const planningTerms = [
-          'job', 'work order', 'operation', 'due date', 'priority', 
-          'manufacturing order', 'scheduled', 'product', 'material', 'bom'
-        ];
+        // Detect scope-mismatch using semantic catalog keywords
         const questionLower = question.toLowerCase();
-        const hasCapacityTerms = capacityTerms.some(term => questionLower.includes(term));
-        const hasPlanningTerms = planningTerms.some(term => questionLower.includes(term));
         
-        if (mode === 'production-planning' && hasCapacityTerms) {
-          // User asking capacity-style question in wrong mode
-          const firstError = columnValidation.errors[0];
-          let errorMessage = `This question looks like it's about capacity planning, but you're currently in "Production & Planning" mode which doesn't have capacity columns.\n\n`;
-          errorMessage += `💡 Try switching to "Capacity Plan" in the Power BI report dropdown and ask again.\n\n`;
-          errorMessage += `Error details: ${firstError.message}`;
-          
-          if (firstError.availableColumns && firstError.availableColumns.length > 0) {
-            errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
+        // Find the best matching scope based on keyword matches
+        let bestMatchScope: string | null = null;
+        let bestMatchCount = 0;
+        let currentScopeMatchCount = 0;
+        
+        if (catalog && catalog.modes) {
+          for (const catalogMode of catalog.modes) {
+            if (!catalogMode.keywords || catalogMode.keywords.length === 0) continue;
+            
+            const matchCount = catalogMode.keywords.filter((kw: string) => 
+              questionLower.includes(kw.toLowerCase())
+            ).length;
+            
+            if (catalogMode.id === mode) {
+              currentScopeMatchCount = matchCount;
+            } else if (matchCount > bestMatchCount) {
+              bestMatchCount = matchCount;
+              bestMatchScope = catalogMode.id;
+            }
           }
           
-          return res.status(400).json({
-            error: errorMessage,
-            sql: finalSql,
-            isMock: false,
-            schemaError: true,
-            invalidColumns: columnValidation.errors.map(e => e.column),
-            suggestMode: 'capacity-plan',
-          });
-        } else if (mode === 'capacity-plan' && hasPlanningTerms) {
-          // User asking planning-style question in wrong mode
-          const firstError = columnValidation.errors[0];
-          let errorMessage = `This question looks like it's about production planning, but you're currently in "Capacity Plan" mode which focuses on resource capacity.\n\n`;
-          errorMessage += `💡 Try switching to "Production & Planning" in the Power BI report dropdown and ask again.\n\n`;
-          errorMessage += `Error details: ${firstError.message}`;
-          
-          if (firstError.availableColumns && firstError.availableColumns.length > 0) {
-            errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
+          // Suggest switching if another scope matches better (2+ keywords) and current scope has fewer matches
+          if (bestMatchScope && bestMatchCount >= 2 && bestMatchCount > currentScopeMatchCount) {
+            const suggestedMode = catalog.modes.find((m: any) => m.id === bestMatchScope);
+            const currentMode = catalog.modes.find((m: any) => m.id === mode);
+            const firstError = columnValidation.errors[0];
+            
+            let errorMessage = `This question seems better suited for "${suggestedMode?.name || bestMatchScope}". `;
+            errorMessage += `You're currently in "${currentMode?.name || mode}".\n\n`;
+            errorMessage += `💡 Try switching scope and ask again.\n\n`;
+            errorMessage += `Error details: ${firstError.message}`;
+            
+            if (firstError.availableColumns && firstError.availableColumns.length > 0) {
+              errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
+            }
+            
+            return res.status(400).json({
+              error: errorMessage,
+              sql: finalSql,
+              isMock: false,
+              schemaError: true,
+              invalidColumns: columnValidation.errors.map(e => e.column),
+              suggestMode: bestMatchScope,
+            });
           }
-          
-          return res.status(400).json({
-            error: errorMessage,
-            sql: finalSql,
-            isMock: false,
-            schemaError: true,
-            invalidColumns: columnValidation.errors.map(e => e.column),
-            suggestMode: 'production-planning',
-          });
         }
         
         // Build helpful error message with fuzzy suggestions
