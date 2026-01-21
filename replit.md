@@ -24,6 +24,9 @@ Preferred communication style: Simple, everyday language.
 
 **Key Design Decisions & Features:**
 - **SQL Safety Guardrails:** Strict validation ensures only `SELECT` statements, single statements, and allowlisted `INNER`/`LEFT`/`RIGHT` `JOIN`s are executed. `CROSS JOIN`s, system procedures, and external data access functions are blocked. All queries are limited to `TOP 100` rows and target `publish.DASHt_*` tables.
+- **Dynamic Table Discovery:** At startup, the system queries Azure SQL (sys.tables + sys.schemas) to discover which DASHt_* tables actually exist. Scope allowlists are built dynamically from discovered tables, and scopes show warnings when tables are missing.
+- **Scope Availability UI:** Scopes with missing tables display amber indicators, warning banners, and disable query submission until required tables are available.
+- **Prompt Slimming:** For each question, 2-4 most relevant tables are selected based on keyword matching to minimize LLM prompt size and improve SQL generation quality.
 - **Mode-Specific Schema Optimization:** To enhance LLM performance and reduce prompt size, schema context sent to OpenAI is dynamically trimmed to include only tables and columns relevant to the current semantic mode (e.g., Planning, Capacity, Dispatch).
 - **Comprehensive Schema Grounding:** The system prefetches and caches database schemas on startup. A SQL Column Validator parses and validates all column references in generated SQL against the cached schema, providing helpful error messages and suggestions for typos.
 - **JOIN Support:** The SQL validator fully supports safe `INNER`/`LEFT`/`RIGHT` `JOIN`s, with all table references validated against mode-specific allowlists.
