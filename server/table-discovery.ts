@@ -45,8 +45,13 @@ let discoveryInProgress = false;
  * Query Azure SQL to discover all existing DASHt_% tables
  */
 async function discoverDashTables(): Promise<DiscoveredTable[]> {
-  // First, check for CapacityPlanning objects using INFORMATION_SCHEMA (more permissive)
+  // Debug: Check what database we're actually connected to
   try {
+    const dbNameQuery = `SELECT DB_NAME() as current_database, @@SERVERNAME as server_name`;
+    const dbResult = await executeQuery(dbNameQuery);
+    log(`Connected to: ${JSON.stringify(dbResult.recordset[0])}`, 'table-discovery');
+    
+    // Check for CapacityPlanning tables
     const debugQuery = `
       SELECT DISTINCT TABLE_SCHEMA, TABLE_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
@@ -55,9 +60,17 @@ async function discoverDashTables(): Promise<DiscoveredTable[]> {
     `;
     const debugResult = await executeQuery(debugQuery);
     if (debugResult.recordset.length > 0) {
-      log(`Found CapacityPlanning tables via INFORMATION_SCHEMA: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
+      log(`Found CapacityPlanning tables: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
     } else {
-      log(`No CapacityPlanning tables found via INFORMATION_SCHEMA`, 'table-discovery');
+      log(`No CapacityPlanning tables found - checking if table exists directly...`, 'table-discovery');
+      // Try to select from the table directly
+      try {
+        const directQuery = `SELECT TOP 1 * FROM publish.DASHt_CapacityPlanning_ResourceActual`;
+        await executeQuery(directQuery);
+        log(`Direct query to DASHt_CapacityPlanning_ResourceActual succeeded!`, 'table-discovery');
+      } catch (e2: any) {
+        log(`Direct query failed: ${e2.message}`, 'table-discovery');
+      }
     }
   } catch (e: any) {
     log(`Debug query failed: ${e.message}`, 'table-discovery');
