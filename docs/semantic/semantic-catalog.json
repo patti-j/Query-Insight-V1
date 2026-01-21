@@ -10,10 +10,20 @@
         "publish.DASHt_CapacityPlanning_ResourceActual",
         "publish.DASHt_CapacityPlanning_ShiftsCombined",
         "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
-        "publish.DASHt_Resources"
+        "publish.DASHt_RecentPublishedScenariosArchive"
       ],
       "default": false,
-      "schemaImplemented": true
+      "schemaImplemented": true,
+      "commonFields": [
+        "ResourceName",
+        "ResourceId",
+        "PlanningAreaName",
+        "ShiftDate",
+        "DemandHours",
+        "CapacityHours",
+        "ActualHours",
+        "ResourceBottleneck"
+      ]
     },
     {
       "id": "production-planning",
@@ -24,15 +34,22 @@
         "publish.DASHt_JobOperationProducts",
         "publish.DASHt_JobOperationAttributes",
         "publish.DASHt_Materials",
-        "publish.DASHt_Resources",
-        "publish.DASHt_Inventories",
-        "publish.DASHt_NetInventoryBalance",
-        "publish.DASHt_SalesOrders",
-        "publish.DASHt_PurchaseOrders",
-        "publish.DASHt_TranLog"
+        "publish.DASHt_RecentPublishedScenariosArchive"
       ],
       "default": true,
-      "schemaImplemented": true
+      "schemaImplemented": true,
+      "commonFields": [
+        "JobName",
+        "JobId",
+        "MOName",
+        "MOId",
+        "OPName",
+        "OPId",
+        "StartDate",
+        "EndDate",
+        "DueDate",
+        "Priority"
+      ]
     },
     {
       "id": "dispatch-list",
@@ -164,6 +181,6 @@
       "schemaImplemented": false
     }
   ],
-  "version": "2.0.0",
-  "lastUpdated": "2026-01-20"
+  "version": "2.1.0",
+  "lastUpdated": "2026-01-21"
 }

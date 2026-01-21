@@ -1,5 +1,5 @@
 import { log } from './index';
-import { getTableSchemas, getTableColumns, columnExists, findClosestColumn, TableSchema } from './schema-introspection';
+import { getTableSchemas, getTableColumns, columnExists, findClosestColumn, findClosestColumns, TableSchema } from './schema-introspection';
 
 export interface ColumnValidationResult {
   valid: boolean;
@@ -22,17 +22,77 @@ export interface ColumnMappingSuggestion {
 }
 
 /**
- * Extract column references from SQL
- * This is a simplified parser - handles common patterns
+ * Extract aliases defined in SELECT clause
+ * These should not be validated against table columns
+ * Handles: explicit AS aliases, implicit aliases, bracketed names
  */
-function extractColumnReferences(sql: string): Array<{ column: string; context: string }> {
-  const references: Array<{ column: string; context: string }> = [];
+function extractSelectAliases(sql: string): Set<string> {
+  const aliases = new Set<string>();
   
   // Remove comments
   let cleanSql = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   
-  // Extract columns from SELECT clause
-  const selectRegex = /SELECT\s+(TOP\s+\(\d+\)\s+)?(.*?)\s+FROM/i;
+  // Extract SELECT clause (use [\s\S] instead of . with s flag for ES2017 compat)
+  const selectRegex = /SELECT\s+(TOP\s+\(\d+\)\s+)?([\s\S]*?)\s+FROM/i;
+  const selectMatch = cleanSql.match(selectRegex);
+  if (selectMatch) {
+    const selectClause = selectMatch[2];
+    
+    // Find explicit "AS AliasName" patterns (with optional brackets/quotes)
+    const explicitAliasRegex = /\bAS\s+\[?\"?(\w+)\"?\]?/gi;
+    let match;
+    while ((match = explicitAliasRegex.exec(selectClause)) !== null) {
+      aliases.add(match[1].toLowerCase());
+    }
+    
+    // Find implicit aliases: expression followed by identifier at end of select item
+    // Pattern: after closing paren, optional spaces, then identifier (not a keyword)
+    const items = selectClause.split(/,(?![^()]*\))/);
+    for (const item of items) {
+      const trimmed = item.trim();
+      // Match: ) followed by space and identifier (implicit alias)
+      const implicitMatch = trimmed.match(/\)\s+([a-zA-Z_]\w*)$/);
+      if (implicitMatch && !isKeyword(implicitMatch[1])) {
+        aliases.add(implicitMatch[1].toLowerCase());
+      }
+    }
+  }
+  
+  return aliases;
+}
+
+/**
+ * Extract column references from inside aggregate/function expressions
+ */
+function extractColumnsFromExpression(expr: string): string[] {
+  const columns: string[] = [];
+  // Match column names inside functions: SUM([Column]) or AVG(table.Column)
+  const columnInFuncRegex = /\[\[?(\w+)\]?\]|\b(?:[\w]+\.)?(\w+)\b/g;
+  let match;
+  while ((match = columnInFuncRegex.exec(expr)) !== null) {
+    const col = match[1] || match[2];
+    if (col && !isKeyword(col) && !col.match(/^\d+$/)) {
+      columns.push(col);
+    }
+  }
+  return columns;
+}
+
+/**
+ * Extract column references from SQL
+ * This is a simplified parser - handles common patterns
+ */
+function extractColumnReferences(sql: string): Array<{ column: string; context: string; isAlias?: boolean }> {
+  const references: Array<{ column: string; context: string; isAlias?: boolean }> = [];
+  
+  // Remove comments
+  let cleanSql = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  
+  // Get aliases so we can skip validating them
+  const selectAliases = extractSelectAliases(sql);
+  
+  // Extract columns from SELECT clause (use [\s\S] instead of . with s flag for ES2017 compat)
+  const selectRegex = /SELECT\s+(TOP\s+\(\d+\)\s+)?([\s\S]*?)\s+FROM/i;
   const selectMatch = cleanSql.match(selectRegex);
   if (selectMatch) {
     const selectClause = selectMatch[2];
@@ -40,6 +100,10 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
     const columns = selectClause.split(/,(?![^()]*\))/);
     for (const col of columns) {
       const trimmed = col.trim();
+      // Skip if this is an aggregate function or expression with alias
+      if (trimmed.match(/^\s*(SUM|COUNT|AVG|MAX|MIN|COALESCE|ISNULL|CASE)\s*\(/i)) {
+        continue; // Skip aggregates - they create aliases, not column refs
+      }
       // Handle "table.column" or "alias.column" or just "column"
       const match = trimmed.match(/(?:[\w]+\.)?(\w+)(?:\s+AS\s+\w+)?/i);
       if (match && match[1] && !isKeyword(match[1])) {
@@ -77,7 +141,7 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
     }
   }
   
-  // Extract columns from ORDER BY
+  // Extract columns from ORDER BY (skip aliases defined in SELECT)
   const orderByRegex = /ORDER BY\s+(.*?)$/i;
   const orderByMatch = cleanSql.match(orderByRegex);
   if (orderByMatch) {
@@ -87,6 +151,10 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
       const trimmed = col.trim();
       const match = trimmed.match(/(?:[\w]+\.)?(\w+)(?:\s+(?:ASC|DESC))?/i);
       if (match && match[1] && !isKeyword(match[1])) {
+        // Skip if this is a SELECT alias
+        if (selectAliases.has(match[1].toLowerCase())) {
+          continue;
+        }
         references.push({ column: match[1], context: 'ORDER BY' });
       }
     }
@@ -193,29 +261,29 @@ export async function validateSqlColumns(
       }
       
       if (!found) {
-        // Column not found - try to find a close match
-        let bestMatch: string | null = null;
+        // Column not found - try to find top 5 closest matches via fuzzy matching
+        let closestMatches: string[] = [];
         let matchTable: string | null = null;
         
         for (const table of tableRefs) {
-          const match = findClosestColumn(ref.column, table, schemas, 3);
-          if (match) {
-            bestMatch = match;
+          const matches = findClosestColumns(ref.column, table, schemas, 5, 5);
+          if (matches.length > 0) {
+            closestMatches = matches;
             matchTable = table;
             break;
           }
         }
         
-        if (bestMatch && matchTable) {
-          // Found a close match - suggest it
-          warnings.push({
-            originalColumn: ref.column,
-            suggestedColumn: bestMatch,
+        if (closestMatches.length > 0 && matchTable) {
+          // Found close matches - add error with fuzzy suggestions
+          errors.push({
+            column: ref.column,
             table: matchTable,
-            confidence: 'medium'
+            message: `Column '${ref.column}' does not exist in table ${matchTable}`,
+            availableColumns: closestMatches
           });
         } else {
-          // No close match - this is an error
+          // No close fuzzy match - add error with first 5 columns from table(s)
           const availableColumns: string[] = [];
           for (const table of tableRefs) {
             const cols = getTableColumns(table, schemas);
@@ -224,8 +292,8 @@ export async function validateSqlColumns(
             }
           }
           
-          // Deduplicate and limit
-          const uniqueColumns = Array.from(new Set(availableColumns)).slice(0, 10);
+          // Deduplicate and limit to top 5
+          const uniqueColumns = Array.from(new Set(availableColumns)).slice(0, 5);
           
           errors.push({
             column: ref.column,

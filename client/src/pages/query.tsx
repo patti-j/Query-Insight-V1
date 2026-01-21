@@ -69,6 +69,7 @@ interface SemanticMode {
   tables: string[];
   default: boolean;
   schemaImplemented?: boolean;
+  commonFields?: string[];
 }
 
 interface SemanticCatalog {
@@ -105,6 +106,8 @@ export default function QueryPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
+  const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
+  const [failedQuestion, setFailedQuestion] = useState<string>('');
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -202,7 +205,7 @@ export default function QueryPage() {
         }),
       });
 
-      // Try to parse JSON, if it fails (HTML response), throw error to trigger fallback
+      // Try to parse JSON, if it fails (HTML response), throw error
       let data;
       try {
         const text = await response.text();
@@ -216,6 +219,23 @@ export default function QueryPage() {
       }
 
       if (!response.ok) {
+        // If this is a schema/column validation error, don't fall back to mock data
+        if (data.schemaError) {
+          setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
+          
+          // Check if backend suggests switching to a different report mode
+          if (data.suggestMode) {
+            setSuggestedMode(data.suggestMode);
+            setFailedQuestion(queryToSend);
+          } else {
+            setSuggestedMode(null);
+            setFailedQuestion('');
+          }
+          
+          setLoading(false);
+          setQuestion('');
+          return;
+        }
         // If server returns explicit error, throw it
         throw new Error(data.error || 'Query failed');
       }
@@ -230,57 +250,36 @@ export default function QueryPage() {
         setDateTimeColumns(new Set());
       }
       
-      // Clear the query box after successful query
+      // Clear the query box and any scope suggestions after successful query
       setQuestion('');
+      setSuggestedMode(null);
+      setFailedQuestion('');
     } catch (err: any) {
       console.error("API Query Failed:", err);
-      // Fallback to mock data if API fails (e.g. secrets not set)
       
-      // Simple mock logic to return different results based on keywords
-      let mockRows = [...MOCK_DATA];
-      let answer = "Showing sample data (Backend connection failed or secrets missing).";
-      let sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs";
-
-      const qLower = q.toLowerCase();
-      if (qLower.includes('plant a')) {
-        mockRows = MOCK_DATA.filter(row => row.plant === 'Plant A');
-        answer = "Found 2 jobs for Plant A (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE plant = 'Plant A'";
-      } else if (qLower.includes('completed')) {
-        mockRows = MOCK_DATA.filter(row => row.status === 'Completed');
-        answer = "Found 1 completed job (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'Completed'";
-      } else if (qLower.includes('hold')) {
-        mockRows = MOCK_DATA.filter(row => row.status === 'On Hold');
-        answer = "Found 1 job on hold (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'On Hold'";
-      }
-
-      const mockResult: QueryResult = {
-        answer,
-        sql,
-        rows: mockRows,
-        rowCount: mockRows.length,
-        isMock: true
-      };
-
-      setResult(mockResult);
-      
-      // Detect date/time columns in mock data
-      if (mockRows.length > 0) {
-        const detectedColumns = detectDateTimeColumns(mockRows);
-        setDateTimeColumns(detectedColumns);
-      } else {
-        setDateTimeColumns(new Set());
-      }
-      // If it was a real error (not just missing backend), maybe show a toast or small indicator?
-      // For now, the "Mock Mode" indicator in result is enough.
-      setError(`Backend Error: ${err.message}. Showing mock data.`);
-      
+      // Show error message without falling back to mock data
+      setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
+      setSuggestedMode(null);
+      setFailedQuestion('');
       setQuestion('');
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleSwitchMode = (newMode: string) => {
+    // Switch to suggested mode and re-run the failed question
+    setSelectedMode(newMode);
+    setSuggestedMode(null);
+    setError(null);
+    
+    // Re-run the failed question after a brief delay to allow mode switch to complete
+    setTimeout(() => {
+      if (failedQuestion) {
+        executeQuery(failedQuestion);
+        setFailedQuestion('');
+      }
+    }, 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -475,14 +474,45 @@ export default function QueryPage() {
                 )}
               </div>
 
-              <Textarea
-                placeholder="What would you like to know about your manufacturing data?"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="min-h-[100px] bg-background/50"
-                data-testid="input-question"
-              />
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="What would you like to know about your manufacturing data?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[100px] bg-background/50"
+                  data-testid="input-question"
+                />
+                
+                {/* Common fields helper */}
+                {(() => {
+                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <div className="space-y-1.5" data-testid="common-fields-display">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Common fields for this report:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedReport.commonFields.map((field) => (
+                          <Badge 
+                            key={field} 
+                            variant="secondary" 
+                            className="text-xs font-mono bg-muted/50 hover:bg-muted/70 cursor-default"
+                            data-testid={`field-chip-${field}`}
+                          >
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
               <Button 
                 type="submit" 
                 disabled={loading || !question.trim()} 
@@ -567,11 +597,24 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                System Notification
+                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p data-testid="text-error">{error}</p>
+            <CardContent className="space-y-3">
+              <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
+              
+              {suggestedMode && semanticCatalog && (
+                <div className="pt-2 border-t border-destructive/20">
+                  <Button
+                    onClick={() => handleSwitchMode(suggestedMode)}
+                    className="bg-primary hover:bg-primary/90"
+                    data-testid="button-switch-mode"
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    Switch to {semanticCatalog.modes.find(m => m.id === suggestedMode)?.name} and Retry
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

@@ -285,6 +285,52 @@ export function findClosestColumn(
 }
 
 /**
+ * Find top N closest matching column names in a table's schema
+ * Returns array of column names sorted by match quality (best first)
+ */
+export function findClosestColumns(
+  targetColumn: string,
+  tableName: string,
+  schemas: Map<string, TableSchema>,
+  topN: number = 5,
+  threshold: number = 5
+): string[] {
+  const tableSchema = schemas.get(tableName);
+  if (!tableSchema) {
+    return [];
+  }
+
+  const targetLower = targetColumn.toLowerCase();
+  const matches: Array<{ column: string; distance: number }> = [];
+
+  for (const col of tableSchema.columns) {
+    const colLower = col.columnName.toLowerCase();
+    
+    // Exact match (case-insensitive)
+    if (colLower === targetLower) {
+      return [col.columnName]; // Return immediately for exact match
+    }
+    
+    // Starts-with match gets priority (lower distance)
+    if (colLower.startsWith(targetLower) || targetLower.startsWith(colLower)) {
+      const distance = Math.abs(colLower.length - targetLower.length);
+      matches.push({ column: col.columnName, distance });
+      continue;
+    }
+    
+    // Levenshtein distance match
+    const distance = levenshteinDistance(targetLower, colLower);
+    if (distance <= threshold) {
+      matches.push({ column: col.columnName, distance });
+    }
+  }
+
+  // Sort by distance (best matches first) and return top N
+  matches.sort((a, b) => a.distance - b.distance);
+  return matches.slice(0, topN).map(m => m.column);
+}
+
+/**
  * Get all column names for a table
  */
 export function getTableColumns(tableName: string, schemas: Map<string, TableSchema>): string[] {
