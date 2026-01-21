@@ -45,21 +45,19 @@ let discoveryInProgress = false;
  * Query Azure SQL to discover all existing DASHt_% tables
  */
 async function discoverDashTables(): Promise<DiscoveredTable[]> {
-  // First, check for CapacityPlanning objects (tables OR views) in any schema for debugging
+  // First, check for CapacityPlanning objects using INFORMATION_SCHEMA (more permissive)
   try {
     const debugQuery = `
-      SELECT s.name as schema_name, o.name as object_name, o.type_desc
-      FROM sys.objects o
-      INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
-      WHERE o.name LIKE '%CapacityPlanning%'
-        AND o.type IN ('U', 'V')
-      ORDER BY s.name, o.name
+      SELECT DISTINCT TABLE_SCHEMA, TABLE_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME LIKE '%CapacityPlanning%'
+      ORDER BY TABLE_SCHEMA, TABLE_NAME
     `;
     const debugResult = await executeQuery(debugQuery);
     if (debugResult.recordset.length > 0) {
-      log(`Found CapacityPlanning objects: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
+      log(`Found CapacityPlanning tables via INFORMATION_SCHEMA: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
     } else {
-      log(`No CapacityPlanning tables or views found in any schema`, 'table-discovery');
+      log(`No CapacityPlanning tables found via INFORMATION_SCHEMA`, 'table-discovery');
     }
   } catch (e: any) {
     log(`Debug query failed: ${e.message}`, 'table-discovery');
