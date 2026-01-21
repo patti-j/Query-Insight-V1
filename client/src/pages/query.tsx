@@ -69,6 +69,7 @@ interface SemanticMode {
   tables: string[];
   default: boolean;
   schemaImplemented?: boolean;
+  commonFields?: string[];
 }
 
 interface SemanticCatalog {
@@ -442,14 +443,45 @@ export default function QueryPage() {
                 )}
               </div>
 
-              <Textarea
-                placeholder="What would you like to know about your manufacturing data?"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="min-h-[100px] bg-background/50"
-                data-testid="input-question"
-              />
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="What would you like to know about your manufacturing data?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[100px] bg-background/50"
+                  data-testid="input-question"
+                />
+                
+                {/* Common fields helper */}
+                {(() => {
+                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
+                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
+                    return null;
+                  }
+                  
+                  return (
+                    <div className="space-y-1.5" data-testid="common-fields-display">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Common fields for this report:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedReport.commonFields.map((field) => (
+                          <Badge 
+                            key={field} 
+                            variant="secondary" 
+                            className="text-xs font-mono bg-muted/50 hover:bg-muted/70 cursor-default"
+                            data-testid={`field-chip-${field}`}
+                          >
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
               <Button 
                 type="submit" 
                 disabled={loading || !question.trim()} 

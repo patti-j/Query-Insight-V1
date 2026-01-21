@@ -13,7 +13,17 @@
         "publish.DASHt_RecentPublishedScenariosArchive"
       ],
       "default": false,
-      "schemaImplemented": true
+      "schemaImplemented": true,
+      "commonFields": [
+        "ResourceName",
+        "ResourceId",
+        "PlanningAreaName",
+        "ShiftDate",
+        "DemandHours",
+        "CapacityHours",
+        "ActualHours",
+        "ResourceBottleneck"
+      ]
     },
     {
       "id": "production-planning",
@@ -27,7 +37,19 @@
         "publish.DASHt_RecentPublishedScenariosArchive"
       ],
       "default": true,
-      "schemaImplemented": true
+      "schemaImplemented": true,
+      "commonFields": [
+        "JobName",
+        "JobId",
+        "MOName",
+        "MOId",
+        "OPName",
+        "OPId",
+        "StartDate",
+        "EndDate",
+        "DueDate",
+        "Priority"
+      ]
     },
     {
       "id": "dispatch-list",
