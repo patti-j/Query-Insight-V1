@@ -202,7 +202,7 @@ export default function QueryPage() {
         }),
       });
 
-      // Try to parse JSON, if it fails (HTML response), throw error to trigger fallback
+      // Try to parse JSON, if it fails (HTML response), throw error
       let data;
       try {
         const text = await response.text();
@@ -216,6 +216,13 @@ export default function QueryPage() {
       }
 
       if (!response.ok) {
+        // If this is a schema/column validation error, don't fall back to mock data
+        if (data.schemaError) {
+          setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
+          setLoading(false);
+          setQuestion('');
+          return;
+        }
         // If server returns explicit error, throw it
         throw new Error(data.error || 'Query failed');
       }
@@ -234,49 +241,9 @@ export default function QueryPage() {
       setQuestion('');
     } catch (err: any) {
       console.error("API Query Failed:", err);
-      // Fallback to mock data if API fails (e.g. secrets not set)
       
-      // Simple mock logic to return different results based on keywords
-      let mockRows = [...MOCK_DATA];
-      let answer = "Showing sample data (Backend connection failed or secrets missing).";
-      let sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs";
-
-      const qLower = q.toLowerCase();
-      if (qLower.includes('plant a')) {
-        mockRows = MOCK_DATA.filter(row => row.plant === 'Plant A');
-        answer = "Found 2 jobs for Plant A (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE plant = 'Plant A'";
-      } else if (qLower.includes('completed')) {
-        mockRows = MOCK_DATA.filter(row => row.status === 'Completed');
-        answer = "Found 1 completed job (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'Completed'";
-      } else if (qLower.includes('hold')) {
-        mockRows = MOCK_DATA.filter(row => row.status === 'On Hold');
-        answer = "Found 1 job on hold (Mock Data).";
-        sql = "-- SQL generation unavailable (Mock Mode)\nSELECT * FROM jobs WHERE status = 'On Hold'";
-      }
-
-      const mockResult: QueryResult = {
-        answer,
-        sql,
-        rows: mockRows,
-        rowCount: mockRows.length,
-        isMock: true
-      };
-
-      setResult(mockResult);
-      
-      // Detect date/time columns in mock data
-      if (mockRows.length > 0) {
-        const detectedColumns = detectDateTimeColumns(mockRows);
-        setDateTimeColumns(detectedColumns);
-      } else {
-        setDateTimeColumns(new Set());
-      }
-      // If it was a real error (not just missing backend), maybe show a toast or small indicator?
-      // For now, the "Mock Mode" indicator in result is enough.
-      setError(`Backend Error: ${err.message}. Showing mock data.`);
-      
+      // Show error message without falling back to mock data
+      setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
       setQuestion('');
     } finally {
       setLoading(false);

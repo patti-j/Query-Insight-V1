@@ -19,13 +19,13 @@ export interface ReportQuickQuestions {
  */
 export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   'capacity-plan': [
-    { text: 'Show resource demand for 7 days from publish date', icon: '📅' },
-    { text: 'Show resource capacity for 7 days from publish date', icon: '📊' },
+    { text: 'Show resource demand for publish week', icon: '📅' },
+    { text: 'Show resource capacity for publish week', icon: '📊' },
     { text: 'Which resources are over capacity in publish week?', icon: '🔴' },
-    { text: 'Show utilization by resource in publish week', icon: '📈' },
-    { text: 'Show demand vs capacity by day', icon: '⚖️' },
-    { text: 'Which resources have the highest utilization?', icon: '🔥' },
-    { text: 'Show unfulfilled demand by resource', icon: '⚠️' },
+    { text: 'Show resource actuals for publish week', icon: '📈' },
+    { text: 'Show demand vs capacity by day (publish week)', icon: '⚖️' },
+    { text: 'Which resources have the highest demand in publish week?', icon: '🔥' },
+    { text: 'Show unfulfilled demand by resource (publish week)', icon: '⚠️' },
   ],
   
   'production-planning': [
