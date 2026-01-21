@@ -493,10 +493,11 @@ export default function QueryPage() {
                   );
                 })()}
                 
-                {/* Display date anchor from VITE_DEV_FIXED_TODAY in dev, publish date in prod */}
+                {/* Display date anchor - from database publish date, fallback to VITE_DEV_FIXED_TODAY in dev */}
                 {(() => {
-                  const effectiveDate = import.meta.env.PROD ? publishDate : getEffectiveToday();
+                  const effectiveDate = publishDate || (!import.meta.env.PROD ? getEffectiveToday() : null);
                   if (!effectiveDate) return null;
+                  const isFromDatabase = !!publishDate;
                   return (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2" data-testid="date-anchor-display">
                       <span className="font-medium">Date anchor:</span>
@@ -508,7 +509,9 @@ export default function QueryPage() {
                         })}
                       </span>
                       {!import.meta.env.PROD && (
-                        <span className="italic text-xs">(from VITE_DEV_FIXED_TODAY)</span>
+                        <span className="italic text-xs">
+                          ({isFromDatabase ? 'from database' : 'from VITE_DEV_FIXED_TODAY'})
+                        </span>
                       )}
                     </div>
                   );
