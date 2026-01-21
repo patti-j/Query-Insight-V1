@@ -106,6 +106,8 @@ export default function QueryPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
+  const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
+  const [failedQuestion, setFailedQuestion] = useState<string>('');
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -220,6 +222,16 @@ export default function QueryPage() {
         // If this is a schema/column validation error, don't fall back to mock data
         if (data.schemaError) {
           setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
+          
+          // Check if backend suggests switching to a different report mode
+          if (data.suggestMode) {
+            setSuggestedMode(data.suggestMode);
+            setFailedQuestion(queryToSend);
+          } else {
+            setSuggestedMode(null);
+            setFailedQuestion('');
+          }
+          
           setLoading(false);
           setQuestion('');
           return;
@@ -238,17 +250,36 @@ export default function QueryPage() {
         setDateTimeColumns(new Set());
       }
       
-      // Clear the query box after successful query
+      // Clear the query box and any scope suggestions after successful query
       setQuestion('');
+      setSuggestedMode(null);
+      setFailedQuestion('');
     } catch (err: any) {
       console.error("API Query Failed:", err);
       
       // Show error message without falling back to mock data
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
+      setSuggestedMode(null);
+      setFailedQuestion('');
       setQuestion('');
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleSwitchMode = (newMode: string) => {
+    // Switch to suggested mode and re-run the failed question
+    setSelectedMode(newMode);
+    setSuggestedMode(null);
+    setError(null);
+    
+    // Re-run the failed question after a brief delay to allow mode switch to complete
+    setTimeout(() => {
+      if (failedQuestion) {
+        executeQuery(failedQuestion);
+        setFailedQuestion('');
+      }
+    }, 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -566,11 +597,24 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                System Notification
+                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p data-testid="text-error">{error}</p>
+            <CardContent className="space-y-3">
+              <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
+              
+              {suggestedMode && semanticCatalog && (
+                <div className="pt-2 border-t border-destructive/20">
+                  <Button
+                    onClick={() => handleSwitchMode(suggestedMode)}
+                    className="bg-primary hover:bg-primary/90"
+                    data-testid="button-switch-mode"
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    Switch to {semanticCatalog.modes.find(m => m.id === suggestedMode)?.name} and Retry
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

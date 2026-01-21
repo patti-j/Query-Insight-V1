@@ -380,10 +380,16 @@ export async function registerRoutes(
         // Detect scope-mismatch: capacity-related question in Production & Planning mode
         const capacityTerms = [
           'demand', 'capacity', 'utilization', 'resource load', 'bottleneck',
-          'throughput', 'workload', 'available capacity', 'overload', 'underutilized'
+          'throughput', 'workload', 'available capacity', 'overload', 'underutilized',
+          'shift', 'planning area'
+        ];
+        const planningTerms = [
+          'job', 'work order', 'operation', 'due date', 'priority', 
+          'manufacturing order', 'scheduled', 'product', 'material', 'bom'
         ];
         const questionLower = question.toLowerCase();
         const hasCapacityTerms = capacityTerms.some(term => questionLower.includes(term));
+        const hasPlanningTerms = planningTerms.some(term => questionLower.includes(term));
         
         if (mode === 'production-planning' && hasCapacityTerms) {
           // User asking capacity-style question in wrong mode
@@ -403,6 +409,25 @@ export async function registerRoutes(
             schemaError: true,
             invalidColumns: columnValidation.errors.map(e => e.column),
             suggestMode: 'capacity-plan',
+          });
+        } else if (mode === 'capacity-plan' && hasPlanningTerms) {
+          // User asking planning-style question in wrong mode
+          const firstError = columnValidation.errors[0];
+          let errorMessage = `This question looks like it's about production planning, but you're currently in "Capacity Plan" mode which focuses on resource capacity.\n\n`;
+          errorMessage += `💡 Try switching to "Production & Planning" in the Power BI report dropdown and ask again.\n\n`;
+          errorMessage += `Error details: ${firstError.message}`;
+          
+          if (firstError.availableColumns && firstError.availableColumns.length > 0) {
+            errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
+          }
+          
+          return res.status(400).json({
+            error: errorMessage,
+            sql: finalSql,
+            isMock: false,
+            schemaError: true,
+            invalidColumns: columnValidation.errors.map(e => e.column),
+            suggestMode: 'production-planning',
           });
         }
         
