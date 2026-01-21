@@ -37,7 +37,9 @@ function getConfig(): sql.config {
   // Option 1: Use DATABASE_URL if available (preferred)
   const databaseUrl = process.env.DATABASE_URL;
   if (databaseUrl) {
-    return parseConnectionString(databaseUrl);
+    const config = parseConnectionString(databaseUrl);
+    console.log(`[db-azure] Connecting to database: ${config.database} on server: ${config.server}`);
+    return config;
   }
 
   // Option 2: Build from discrete environment variables (backward compatible)

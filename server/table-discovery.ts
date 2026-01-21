@@ -45,34 +45,37 @@ let discoveryInProgress = false;
  * Query Azure SQL to discover all existing DASHt_% tables
  */
 async function discoverDashTables(): Promise<DiscoveredTable[]> {
-  // First, check for CapacityPlanning tables in any schema for debugging
+  // First, check for CapacityPlanning objects (tables OR views) in any schema for debugging
   try {
     const debugQuery = `
-      SELECT s.name as schema_name, t.name as table_name
-      FROM sys.tables t
-      INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
-      WHERE t.name LIKE '%CapacityPlanning%'
-      ORDER BY s.name, t.name
+      SELECT s.name as schema_name, o.name as object_name, o.type_desc
+      FROM sys.objects o
+      INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
+      WHERE o.name LIKE '%CapacityPlanning%'
+        AND o.type IN ('U', 'V')
+      ORDER BY s.name, o.name
     `;
     const debugResult = await executeQuery(debugQuery);
     if (debugResult.recordset.length > 0) {
-      log(`Found CapacityPlanning tables: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
+      log(`Found CapacityPlanning objects: ${JSON.stringify(debugResult.recordset)}`, 'table-discovery');
     } else {
-      log(`No CapacityPlanning tables found in any schema`, 'table-discovery');
+      log(`No CapacityPlanning tables or views found in any schema`, 'table-discovery');
     }
   } catch (e: any) {
     log(`Debug query failed: ${e.message}`, 'table-discovery');
   }
 
+  // Query for both tables AND views (some DASHt objects may be views)
   const query = `
     SELECT 
-      t.name as table_name,
+      o.name as table_name,
       s.name as schema_name
-    FROM sys.tables t
-    INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+    FROM sys.objects o
+    INNER JOIN sys.schemas s ON o.schema_id = s.schema_id
     WHERE s.name = 'publish' 
-      AND t.name LIKE 'DASHt[_]%' ESCAPE '\\'
-    ORDER BY t.name
+      AND o.name LIKE 'DASHt[_]%' ESCAPE '\\'
+      AND o.type IN ('U', 'V')
+    ORDER BY o.name
   `;
 
   try {
