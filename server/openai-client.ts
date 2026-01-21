@@ -138,11 +138,21 @@ export async function generateSqlFromQuestion(question: string, options: Generat
   if (mode === 'capacity-plan') {
     modeGuidance = `
 
-CAPACITY PLAN MODE - SYNONYM GUIDANCE:
-- For "utilization" queries: Use existing ResourceUtilization columns if present in the schema (e.g., "ResourceUtilization (Scheduled-Setup)", "ResourceUtilization (Scheduled)", etc.)
-- If ResourceUtilization columns are not available in the schema, calculate as: (Demand / Capacity) * 100
-- DO NOT invent column names like "UtilizationPercentage" - only use columns that exist in the schema above
-- For demand/capacity analysis: Use DemandHours and NormalOnlineHours columns from the ResourceDemand and ResourceCapacity tables`;
+CAPACITY PLAN MODE - CRITICAL TABLE RULES:
+
+TABLE-SPECIFIC COLUMNS (only use columns from the correct table):
+- DASHt_CapacityPlanning_ResourceCapacity: Has capacity data (NormalOnlineHours, OvertimeHours, etc.)
+- DASHt_CapacityPlanning_ResourceDemand: Has demand data (DemandHours, LoadedHours, etc.)
+- DASHt_CapacityPlanning_ShiftsCombined: Has shift data (ShiftName, StartTime, EndTime, etc.)
+- DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish: Has previous publish shift data for comparison
+- DASHt_Resources: Has resource metadata ONLY (ResourceName, WorkcenterName, DepartmentName, PlantName) - NO demand or capacity columns
+
+COMMON MISTAKES TO AVOID:
+- DO NOT use DemandHours, Capacity, or LoadedHours on DASHt_Resources - these columns do not exist there
+- For demand/capacity analysis: JOIN DASHt_Resources with DASHt_CapacityPlanning_ResourceDemand or DASHt_CapacityPlanning_ResourceCapacity
+- For shift comparisons: JOIN DASHt_CapacityPlanning_ShiftsCombined with DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish
+
+ONLY use columns explicitly listed in the schema above for each table.`;
   } else if (mode === 'production-planning') {
     modeGuidance = `
 
