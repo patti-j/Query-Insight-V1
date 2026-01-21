@@ -3,33 +3,30 @@
     {
       "id": "capacity-plan",
       "name": "Capacity Plan",
-      "description": "Resource capacity planning including demand, capacity, actuals, and shift schedules",
+      "description": "Resource capacity and utilization analysis based on scheduled operations",
       "tables": [
-        "publish.DASHt_CapacityPlanning_ResourceDemand",
-        "publish.DASHt_CapacityPlanning_ResourceCapacity",
-        "publish.DASHt_CapacityPlanning_ResourceActual",
-        "publish.DASHt_CapacityPlanning_ShiftsCombined",
-        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
-        "publish.DASHt_RecentPublishedScenariosArchive"
+        "publish.DASHt_Planning",
+        "publish.DASHt_Resources",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_HistoricalKPIs"
       ],
       "default": true,
       "schemaImplemented": true,
       "commonFields": [
+        "BlockResource",
+        "BlockDepartment",
+        "BlockPlant",
+        "BlockScheduledStart",
+        "BlockScheduledEnd",
         "ResourceName",
-        "ResourceId",
-        "PlanningAreaName",
-        "ShiftDate",
-        "DemandHours",
-        "CapacityHours",
-        "ActualHours",
-        "ResourceBottleneck"
+        "ResourceId"
       ],
-      "keywords": ["capacity", "resource", "demand", "shift", "bottleneck", "utilization", "availability", "overload"]
+      "keywords": ["resource", "capacity", "utilization", "department", "bottleneck", "workload", "shift"]
     },
     {
       "id": "production-planning",
       "name": "Production & Planning",
-      "description": "Manufacturing planning and scheduling data including job operations, materials, resources, and inventory",
+      "description": "Manufacturing planning and scheduling data including jobs, operations, and materials",
       "tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_JobOperationProducts",
@@ -37,8 +34,7 @@
         "publish.DASHt_Materials",
         "publish.DASHt_Resources",
         "publish.DASHt_Inventories",
-        "publish.DASHt_SalesOrders",
-        "publish.DASHt_RecentPublishedScenariosArchive"
+        "publish.DASHt_SalesOrders"
       ],
       "default": false,
       "schemaImplemented": true,
@@ -46,9 +42,7 @@
         "JobName",
         "JobId",
         "MOName",
-        "MOId",
         "OPName",
-        "OPId",
         "JobScheduledStartDateTime",
         "JobScheduledEndDateTime",
         "JobNeedDateTime",
@@ -56,32 +50,31 @@
         "JobOnHold",
         "JobOverdue"
       ],
-      "keywords": ["job", "operation", "schedule", "dispatch", "order", "production", "manufacturing", "planning", "overdue", "hold"]
+      "keywords": ["job", "operation", "schedule", "dispatch", "order", "production", "manufacturing", "planning", "overdue", "hold", "priority"]
     },
     {
       "id": "finance",
       "name": "Finance",
-      "description": "Financial reporting including costs, revenue, and work order financials",
+      "description": "Financial data including sales amounts, costs, and inventory values",
       "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_SalesOrders",
         "publish.DASHt_Materials",
-        "publish.DASHt_SalesOrders"
+        "publish.DASHt_Inventories",
+        "publish.DASHt_Planning"
       ],
       "default": false,
       "schemaImplemented": true,
       "commonFields": [
-        "JobName",
         "SalesAmount",
         "UnitPrice",
         "QtyOrdered",
         "QtyShipped",
         "InventoryCost",
-        "ItemCost"
+        "CustomerName"
       ],
-      "keywords": ["cost", "revenue", "price", "amount", "financial", "budget", "profit", "margin", "expense"]
+      "keywords": ["cost", "revenue", "price", "amount", "sales", "financial", "budget", "profit", "margin", "expense", "invoice"]
     }
   ],
-  "version": "3.0.0",
+  "version": "3.0.1",
   "lastUpdated": "2026-01-21"
 }

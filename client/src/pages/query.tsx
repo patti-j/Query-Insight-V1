@@ -70,6 +70,13 @@ interface SemanticMode {
   default: boolean;
   schemaImplemented?: boolean;
   commonFields?: string[];
+  keywords?: string[];
+}
+
+interface ScopeMismatch {
+  detectedScope: string;
+  currentScope: string;
+  question: string;
 }
 
 interface SemanticCatalog {
@@ -100,7 +107,8 @@ export default function QueryPage() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
   const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
-  const [selectedMode, setSelectedMode] = useState('production-planning');
+  const [selectedMode, setSelectedMode] = useState('capacity-plan');
+  const [scopeMismatch, setScopeMismatch] = useState<ScopeMismatch | null>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -164,10 +172,39 @@ export default function QueryPage() {
   useEffect(() => {
     if (selectedMode) {
       setFaqQuestions(getQuickQuestionsForReport(selectedMode));
+      setScopeMismatch(null);
     }
   }, [selectedMode]);
 
-  const executeQuery = async (q: string) => {
+  // Detect if a question belongs to a different scope based on keywords
+  const detectScopeMismatch = (questionText: string): string | null => {
+    if (!semanticCatalog) return null;
+    
+    const lowerQuestion = questionText.toLowerCase();
+    const currentMode = semanticCatalog.modes.find(m => m.id === selectedMode);
+    
+    // Check if question matches keywords of other scopes better than current
+    for (const mode of semanticCatalog.modes) {
+      if (mode.id === selectedMode) continue;
+      if (!mode.keywords || mode.keywords.length === 0) continue;
+      
+      // Count keyword matches for this scope
+      const matchCount = mode.keywords.filter(kw => lowerQuestion.includes(kw.toLowerCase())).length;
+      
+      // If there are 2+ keyword matches for another scope, suggest switching
+      if (matchCount >= 2) {
+        // But first check if current scope also matches well
+        const currentMatches = currentMode?.keywords?.filter(kw => lowerQuestion.includes(kw.toLowerCase())).length || 0;
+        if (matchCount > currentMatches) {
+          return mode.id;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  const executeQuery = async (q: string, skipScopeCheck = false) => {
     if (!q.trim()) return;
 
     // Check if selected report has schema implemented
@@ -177,6 +214,23 @@ export default function QueryPage() {
       return;
     }
 
+    // Check for scope mismatch (soft assist)
+    if (!skipScopeCheck) {
+      const detectedScope = detectScopeMismatch(q);
+      if (detectedScope) {
+        const targetMode = semanticCatalog?.modes.find(m => m.id === detectedScope);
+        const currentMode = semanticCatalog?.modes.find(m => m.id === selectedMode);
+        setScopeMismatch({
+          detectedScope,
+          currentScope: selectedMode,
+          question: q.trim()
+        });
+        setError(`This question seems better suited for ${targetMode?.name || detectedScope}. You're currently in ${currentMode?.name || selectedMode}.`);
+        return;
+      }
+    }
+
+    setScopeMismatch(null);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -384,13 +438,28 @@ export default function QueryPage() {
       <div className="max-w-6xl mx-auto p-8 space-y-8">
         <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
 
+        {/* Scope Tabs */}
+        <div className="flex gap-2" data-testid="scope-tabs">
+          {semanticCatalog?.modes.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setSelectedMode(mode.id)}
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                selectedMode === mode.id
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-card/80 text-foreground/70 hover:bg-card hover:text-foreground border border-border/50'
+              }`}
+              data-testid={`tab-${mode.id}`}
+            >
+              {mode.name}
+            </button>
+          ))}
+        </div>
+
         {/* Quick Questions */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground/80">
-            Quick questions for this report
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({semanticCatalog?.modes.find(m => m.id === selectedMode)?.name || 'Production & Planning'})
-            </span>
+            Quick questions
           </h2>
           
           {faqQuestions.length > 0 ? (
@@ -423,47 +492,17 @@ export default function QueryPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span>Ask a Question</span>
+              <Badge variant="outline" className="font-normal">
+                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name}
+              </Badge>
             </CardTitle>
             <CardDescription>
-              Type a natural language question or click on one of the predefined questions below
+              Type a natural language question about {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name?.toLowerCase() || 'your data'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="report-selector">Power BI report</Label>
-                </div>
-                <Select
-                  value={selectedMode}
-                  onValueChange={setSelectedMode}
-                >
-                  <SelectTrigger id="report-selector" className="w-full" data-testid="select-report">
-                    <SelectValue placeholder="Select a report" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {semanticCatalog?.modes.map((mode) => (
-                      <SelectItem 
-                        key={mode.id} 
-                        value={mode.id}
-                        disabled={mode.schemaImplemented === false}
-                        data-testid={`report-${mode.id}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{mode.name}</span>
-                          {mode.schemaImplemented === false && (
-                            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.description && (
-                  <p className="text-xs text-muted-foreground">
-                    {semanticCatalog.modes.find(m => m.id === selectedMode)?.description}
-                  </p>
-                )}
                 
                 {/* Display scoped tables for selected report */}
                 {(() => {
@@ -646,13 +685,42 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
+                {scopeMismatch ? 'Different Scope Suggested' : suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
               
-              {suggestedMode && semanticCatalog && (
+              {scopeMismatch && semanticCatalog && (
+                <div className="pt-2 border-t border-destructive/20 flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setSelectedMode(scopeMismatch.detectedScope);
+                      setScopeMismatch(null);
+                      setError(null);
+                      setTimeout(() => executeQuery(scopeMismatch.question, true), 100);
+                    }}
+                    className="bg-primary hover:bg-primary/90"
+                    data-testid="button-switch-scope"
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    Switch to {semanticCatalog.modes.find(m => m.id === scopeMismatch.detectedScope)?.name} and Ask
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setScopeMismatch(null);
+                      setError(null);
+                      executeQuery(scopeMismatch.question, true);
+                    }}
+                    data-testid="button-ask-anyway"
+                  >
+                    Ask in {semanticCatalog.modes.find(m => m.id === selectedMode)?.name} Anyway
+                  </Button>
+                </div>
+              )}
+              
+              {suggestedMode && !scopeMismatch && semanticCatalog && (
                 <div className="pt-2 border-t border-destructive/20">
                   <Button
                     onClick={() => handleSwitchMode(suggestedMode)}
