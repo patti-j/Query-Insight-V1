@@ -12,7 +12,7 @@
         "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
         "publish.DASHt_RecentPublishedScenariosArchive"
       ],
-      "default": false,
+      "default": true,
       "schemaImplemented": true,
       "commonFields": [
         "ResourceName",
@@ -23,7 +23,8 @@
         "CapacityHours",
         "ActualHours",
         "ResourceBottleneck"
-      ]
+      ],
+      "keywords": ["capacity", "resource", "demand", "shift", "bottleneck", "utilization", "availability", "overload"]
     },
     {
       "id": "production-planning",
@@ -34,9 +35,12 @@
         "publish.DASHt_JobOperationProducts",
         "publish.DASHt_JobOperationAttributes",
         "publish.DASHt_Materials",
+        "publish.DASHt_Resources",
+        "publish.DASHt_Inventories",
+        "publish.DASHt_SalesOrders",
         "publish.DASHt_RecentPublishedScenariosArchive"
       ],
-      "default": true,
+      "default": false,
       "schemaImplemented": true,
       "commonFields": [
         "JobName",
@@ -45,142 +49,39 @@
         "MOId",
         "OPName",
         "OPId",
-        "StartDate",
-        "EndDate",
-        "DueDate",
-        "Priority"
-      ]
-    },
-    {
-      "id": "dispatch-list",
-      "name": "Dispatch List",
-      "description": "Production dispatch and job operation execution data",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Resources"
+        "JobScheduledStartDateTime",
+        "JobScheduledEndDateTime",
+        "JobNeedDateTime",
+        "Priority",
+        "JobOnHold",
+        "JobOverdue"
       ],
-      "default": false,
-      "schemaImplemented": true
+      "keywords": ["job", "operation", "schedule", "dispatch", "order", "production", "manufacturing", "planning", "overdue", "hold"]
     },
     {
       "id": "finance",
       "name": "Finance",
-      "description": "Financial reporting and analysis (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "customer-analysis",
-      "name": "Customer Analysis",
-      "description": "Customer-focused analytics and insights (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "inventories",
-      "name": "Inventories",
-      "description": "Inventory management and material balances",
+      "description": "Financial reporting including costs, revenue, and work order financials",
       "tables": [
-        "publish.DASHt_Inventories",
-        "publish.DASHt_NetInventoryBalance",
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
         "publish.DASHt_Materials",
-        "publish.DASHt_Planning"
+        "publish.DASHt_SalesOrders"
       ],
       "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "sales-orders",
-      "name": "Sales Orders",
-      "description": "Sales order tracking and fulfillment",
-      "tables": [
-        "publish.DASHt_SalesOrders",
-        "publish.DASHt_Planning",
-        "publish.DASHt_Materials"
+      "schemaImplemented": true,
+      "commonFields": [
+        "JobName",
+        "SalesAmount",
+        "UnitPrice",
+        "QtyOrdered",
+        "QtyShipped",
+        "InventoryCost",
+        "ItemCost"
       ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "schedule-conformance",
-      "name": "Schedule Conformance",
-      "description": "Schedule adherence and conformance metrics",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_Resources"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "audit-log",
-      "name": "AuditLog",
-      "description": "System audit trail and transaction history",
-      "tables": [
-        "publish.DASHt_TranLog"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "new-dispatch-list",
-      "name": "New Dispatch List report",
-      "description": "Enhanced dispatch view with additional operation details",
-      "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Resources"
-      ],
-      "default": false,
-      "schemaImplemented": true
-    },
-    {
-      "id": "custom-kpis",
-      "name": "Custom KPIs",
-      "description": "Custom key performance indicators (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "plant-comparison",
-      "name": "Plant Comparison",
-      "description": "Multi-plant comparison and benchmarking (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "cp1",
-      "name": "CP1",
-      "description": "Custom report CP1 (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "cp2",
-      "name": "CP2",
-      "description": "Custom report CP2 (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
-    },
-    {
-      "id": "analytics-db-explorer",
-      "name": "Analytics DB Explorer",
-      "description": "Explore all available data tables and relationships (schema coming soon)",
-      "tables": [],
-      "default": false,
-      "schemaImplemented": false
+      "keywords": ["cost", "revenue", "price", "amount", "financial", "budget", "profit", "margin", "expense"]
     }
   ],
-  "version": "2.1.0",
+  "version": "3.0.0",
   "lastUpdated": "2026-01-21"
 }
