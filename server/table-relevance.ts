@@ -27,22 +27,25 @@ interface SemanticCatalog {
 }
 
 const TABLE_KEYWORD_MAP: Record<string, string[]> = {
-  'DASHt_Planning': ['job', 'jobs', 'schedule', 'scheduled', 'planning', 'late', 'overdue', 'due', 'priority', 'wip', 'dispatch', 'predecessor', 'otif', 'on-time'],
+  'DASHt_Planning': ['job', 'jobs', 'schedule', 'scheduled', 'planning', 'late', 'overdue', 'due', 'priority', 'wip', 'dispatch', 'predecessor', 'otif', 'on-time', 'bottleneck', 'blocked'],
   'DASHt_JobOperationProducts': ['job', 'operation', 'product', 'part', 'item', 'work order', 'mo', 'op'],
   'DASHt_JobOperationAttributes': ['attribute', 'job', 'operation', 'custom', 'field'],
+  'DASHt_PredecessorOPIds': ['predecessor', 'blocked', 'dependency', 'sequence', 'operation'],
   'DASHt_Resources': ['resource', 'machine', 'equipment', 'workcenter', 'work center', 'department', 'plant', 'labor', 'worker'],
-  'DASHt_CapacityPlanning_ResourceCapacity': ['capacity', 'resource', 'available', 'hours', 'shift', 'utilization', 'load', 'bottleneck'],
-  'DASHt_CapacityPlanning_ResourceCapacity_Union': ['capacity', 'resource', 'combined', 'union', 'all'],
-  'DASHt_CapacityPlanning_ShiftsCombined': ['shift', 'shifts', 'overtime', 'schedule', 'calendar', 'working'],
-  'DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish': ['shift', 'last', 'previous', 'publish', 'compare'],
-  'DASHt_SalesOrders': ['sales', 'order', 'customer', 'revenue', 'so', 'demand', 'ship', 'delivery'],
-  'DASHt_PurchaseOrders': ['purchase', 'po', 'supplier', 'vendor', 'buy', 'procurement', 'receiving'],
+  'DASHt_CapacityPlanning_ResourceActual': ['actual', 'resource', 'capacity', 'real', 'realized'],
+  'DASHt_CapacityPlanning_ResourceCapacity': ['capacity', 'resource', 'available', 'hours', 'shift', 'utilization', 'load', 'bottleneck', 'over capacity', 'constrained'],
+  'DASHt_CapacityPlanning_ResourceDemand': ['demand', 'resource', 'load', 'hours', 'required', 'bottleneck'],
+  'DASHt_CapacityPlanning_ShiftsCombined': ['shift', 'shifts', 'overtime', 'schedule', 'calendar', 'working', 'overloaded', 'idle', 'loaded'],
+  'DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish': ['shift', 'last', 'previous', 'publish', 'compare', 'changed'],
+  'DASHt_SalesOrders': ['sales', 'order', 'customer', 'demand', 'ship', 'delivery', 'overdue', 'scenario', 'what-if', 'production'],
+  'DASHt_PurchaseOrders': ['purchase', 'po', 'supplier', 'vendor', 'buy', 'procurement', 'receiving', 'spend'],
   'DASHt_Inventories': ['inventory', 'stock', 'on-hand', 'warehouse', 'location', 'qty', 'quantity'],
-  'DASHt_InventoryAdjustments': ['adjustment', 'inventory', 'change', 'transaction', 'movement'],
-  'DASHt_NetInventoryBalance': ['net', 'balance', 'inventory', 'projected', 'available'],
-  'DASHt_Materials': ['material', 'bom', 'component', 'raw', 'part', 'ingredient'],
+  'DASHt_InventoryAdjustments': ['adjustment', 'inventory', 'change', 'transaction', 'movement', 'total'],
+  'DASHt_NetInventoryBalance': ['net', 'balance', 'inventory', 'projected', 'available', 'item', 'plant'],
+  'DASHt_Materials': ['material', 'bom', 'component', 'raw', 'part', 'ingredient', 'consumption'],
   'DASHt_HistoricalKPIs': ['kpi', 'metric', 'performance', 'history', 'trend', 'historical'],
-  'DASHt_RecentPublishedScenariosArchive': ['scenario', 'publish', 'archive', 'version', 'snapshot'],
+  'DASHt_TranLog': ['transaction', 'log', 'audit', 'change', 'history'],
+  'DASHt_RecentPublishedScenariosArchive': ['scenario', 'publish', 'archive', 'version', 'snapshot', 'changed', 'compare'],
 };
 
 const COMMON_SYNONYMS: Record<string, string[]> = {

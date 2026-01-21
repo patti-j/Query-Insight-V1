@@ -5,11 +5,11 @@
       "name": "Capacity Plan",
       "description": "Resource capacity and utilization analysis - capacity vs demand, shifts, overtime, constraints",
       "tables": [
+        "publish.DASHt_CapacityPlanning_ResourceActual",
         "publish.DASHt_CapacityPlanning_ResourceCapacity",
-        "publish.DASHt_CapacityPlanning_ResourceCapacity_Union",
+        "publish.DASHt_CapacityPlanning_ResourceDemand",
         "publish.DASHt_CapacityPlanning_ShiftsCombined",
         "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
-        "publish.DASHt_RecentPublishedScenariosArchive",
         "publish.DASHt_Resources"
       ],
       "tier2Tables": [
@@ -43,7 +43,7 @@
         "ShiftName",
         "Bottleneck"
       ],
-      "keywords": ["capacity", "demand", "shift", "overtime", "utilization", "load", "resource", "hours", "workcenter", "constraint"],
+      "keywords": ["capacity", "demand", "shift", "overtime", "utilization", "load", "resource", "hours", "workcenter", "constraint", "bottleneck", "idle", "loaded"],
       "notes": {
         "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
         "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
@@ -54,9 +54,10 @@
       "name": "Production & Planning",
       "description": "Manufacturing planning and scheduling - jobs, operations, due dates, lateness, priorities",
       "tables": [
+        "publish.DASHt_Planning",
         "publish.DASHt_JobOperationAttributes",
         "publish.DASHt_JobOperationProducts",
-        "publish.DASHt_Planning",
+        "publish.DASHt_PredecessorOPIds",
         "publish.DASHt_RecentPublishedScenariosArchive",
         "publish.DASHt_Resources"
       ],
@@ -92,7 +93,7 @@
         "JobOverdue",
         "Lateness"
       ],
-      "keywords": ["job", "operation", "due", "late", "lateness", "schedule", "dispatch", "predecessor", "wip", "priority", "plan", "otif"],
+      "keywords": ["job", "operation", "due", "late", "lateness", "schedule", "dispatch", "predecessor", "wip", "priority", "plan", "otif", "bottleneck", "blocked"],
       "notes": {
         "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
         "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
@@ -101,17 +102,18 @@
     {
       "id": "finance",
       "name": "Finance",
-      "description": "Financial data - sales orders, purchase orders, inventory values, costs, KPIs",
+      "description": "Financial data - sales orders, purchase orders, inventory values, costs, KPIs, scenario-aware",
       "tables": [
-        "publish.DASHt_HistoricalKPIs",
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_PurchaseOrders",
         "publish.DASHt_Inventories",
         "publish.DASHt_InventoryAdjustments",
-        "publish.DASHt_Materials",
         "publish.DASHt_NetInventoryBalance",
-        "publish.DASHt_PurchaseOrders",
-        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Materials",
+        "publish.DASHt_HistoricalKPIs",
+        "publish.DASHt_TranLog",
         "publish.DASHt_Resources",
-        "publish.DASHt_SalesOrders"
+        "publish.DASHt_RecentPublishedScenariosArchive"
       ],
       "tier2Tables": [
         "publish.Customers",
@@ -151,23 +153,28 @@
       "default": false,
       "schemaImplemented": true,
       "commonFields": [
-        "SalesAmount",
-        "UnitPrice",
-        "QtyOrdered",
-        "QtyShipped",
-        "InventoryCost",
+        "OrderQty",
+        "DueDate",
+        "ScenarioType",
+        "ScenarioName",
         "CustomerName",
         "ItemName",
         "NetBalance",
         "AdjustmentQty"
       ],
-      "keywords": ["revenue", "sales", "value", "cost", "spend", "purchase", "inventory", "adjustment", "balance", "transaction", "material"],
+      "keywords": ["sales", "order", "purchase", "inventory", "adjustment", "balance", "material", "kpi", "scenario", "what-if", "production", "demand", "overdue"],
+      "scenarioRules": {
+        "defaultScenarioType": "Production",
+        "whatIfTriggers": ["what-if", "scenario copy", "scenario", "compare scenario"],
+        "notes": "Default to ScenarioType='Production' unless user mentions what-if or scenario comparison"
+      },
       "notes": {
         "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
-        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain.",
+        "scenario_aware": "DASHt_SalesOrders is scenario-aware. Default to ScenarioType='Production'. Allow What-If only when user explicitly mentions scenarios."
       }
     }
   ],
-  "version": "4.0.0",
+  "version": "5.0.0",
   "lastUpdated": "2026-01-21"
 }

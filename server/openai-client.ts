@@ -151,7 +151,22 @@ PRODUCTION & PLANNING MODE - CRITICAL RULES:
 - If totals or aggregates are needed, compute them via SUM(), COUNT(), AVG(), etc. over existing numeric columns listed in the schema above
 - If no suitable numeric columns exist in the schema for the requested calculation, DO NOT guess - instead return an error message
 - For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
-- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_Materials, DASHt_RecentPublishedScenariosArchive`;
+- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive`;
+  } else if (mode === 'finance') {
+    modeGuidance = `
+
+FINANCE MODE - SCENARIO-AWARE RULES:
+- DASHt_SalesOrders is scenario-aware. It contains both Production and What-If scenario data.
+- DEFAULT BEHAVIOR: If user does NOT mention "scenario", "what-if", or "compare", default to filtering by ScenarioType = 'Production'
+- WHAT-IF TRIGGERS: Only include What-If data when user explicitly says "what-if", "scenario", "compare scenarios", or asks for scenario comparison
+- NEVER mix Production + What-If unless user explicitly asks for comparison
+- QUANTITY METRICS (prefer these over revenue):
+  - Orders = COUNT(DISTINCT OrderNumber) or similar identifier
+  - Demand Qty = SUM(OrderQty) or the quantity column
+  - Open Qty = SUM(OrderQty - CompletedQty) if available
+  - Overdue = DueDate < CAST(GETDATE() AS DATE) AND OpenQty > 0
+- If revenue/sales amount is requested but no revenue column exists, respond that revenue is not available and suggest "quantity at risk" as a proxy
+- ONLY use columns explicitly listed in the schema above`;
   }
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
