@@ -19,11 +19,15 @@ import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
-// Columns to hide from results display (system-generated IDs)
-const HIDDEN_COLUMNS = ['jobid', 'job_id', 'id'];
+// Columns to hide from results display (system-generated IDs are not user-friendly)
+const HIDDEN_ID_PATTERNS = [
+  /^id$/i,
+  /id$/i,  // Any column ending in "Id" (ResourceId, JobId, etc.)
+  /_id$/i, // Any column ending in "_id"
+];
 
 function isHiddenColumn(columnName: string): boolean {
-  return HIDDEN_COLUMNS.includes(columnName.toLowerCase());
+  return HIDDEN_ID_PATTERNS.some(pattern => pattern.test(columnName));
 }
 
 // Filter out hidden columns from a row
