@@ -121,12 +121,24 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     }
   }
 
+  // Mode-specific guidance
+  let modeGuidance = '';
+  if (mode === 'capacity-plan') {
+    modeGuidance = `
+
+CAPACITY PLAN MODE - SYNONYM GUIDANCE:
+- For "utilization" queries: Use existing ResourceUtilization columns if present in the schema (e.g., "ResourceUtilization (Scheduled-Setup)", "ResourceUtilization (Scheduled)", etc.)
+- If ResourceUtilization columns are not available in the schema, calculate as: (Demand / Capacity) * 100
+- DO NOT invent column names like "UtilizationPercentage" - only use columns that exist in the schema above
+- For demand/capacity analysis: Use DemandHours and NormalOnlineHours columns from the ResourceDemand and ResourceCapacity tables`;
+  }
+
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
 
 MODE: ${mode.toUpperCase()}
 
 ALLOWED TABLES AND COLUMNS FOR THIS MODE:
-${modeSchema}
+${modeSchema}${modeGuidance}
 
 Generate only the SQL query, no explanation. Do not include markdown formatting or code blocks.`;
 
