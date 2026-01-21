@@ -3,37 +3,79 @@
     {
       "id": "capacity-plan",
       "name": "Capacity Plan",
-      "description": "Resource capacity and utilization analysis",
+      "description": "Resource capacity and utilization analysis - capacity vs demand, shifts, overtime, constraints",
       "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_Resources",
-        "publish.DASHt_HistoricalKPIs"
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity_Union",
+        "publish.DASHt_CapacityPlanning_ShiftsCombined",
+        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
+        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.CapacityIntervalResourceAssignments",
+        "publish.CapacityIntervals",
+        "publish.Departments",
+        "publish.JobOperations",
+        "publish.JobResourceBlockIntervals",
+        "publish.JobResourceBlocks",
+        "publish.JobResources",
+        "publish.Jobs",
+        "publish.ManufacturingOrders",
+        "publish.Plants",
+        "publish.RecurringCapacityIntervalRecurrences",
+        "publish.RecurringCapacityIntervalResourceAssignments",
+        "publish.RecurringCapacityIntervals",
+        "publish.Resources",
+        "publish.Schedules"
       ],
       "default": true,
       "schemaImplemented": true,
       "commonFields": [
         "ResourceName",
         "ResourceId",
-        "BlockResource",
-        "BlockDepartment",
-        "BlockPlant",
-        "Bottleneck",
-        "WorkcenterName"
+        "WorkcenterName",
+        "DepartmentName",
+        "PlantName",
+        "Capacity",
+        "Demand",
+        "Utilization",
+        "ShiftName",
+        "Bottleneck"
       ],
-      "keywords": ["capacity", "overtime", "utilization", "idle", "offline", "resource", "hours", "workcenter", "bottleneck", "shift"]
+      "keywords": ["capacity", "demand", "shift", "overtime", "utilization", "load", "resource", "hours", "workcenter", "constraint"],
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+      }
     },
     {
       "id": "production-planning",
       "name": "Production & Planning",
-      "description": "Manufacturing planning and scheduling data including jobs, operations, and materials",
+      "description": "Manufacturing planning and scheduling - jobs, operations, due dates, lateness, priorities",
       "tables": [
-        "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationProducts",
         "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Materials",
-        "publish.DASHt_Resources",
-        "publish.DASHt_Inventories",
-        "publish.DASHt_SalesOrders"
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_Planning",
+        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.Customers",
+        "publish.Departments",
+        "publish.JobActivities",
+        "publish.JobOperationAttributes",
+        "publish.JobOperations",
+        "publish.JobPathNodes",
+        "publish.JobProducts",
+        "publish.JobResourceBlocks",
+        "publish.Jobs",
+        "publish.ManufacturingOrders",
+        "publish.Plants",
+        "publish.ReportBlocks",
+        "publish.Resources",
+        "publish.Schedules",
+        "publish.items"
       ],
       "default": false,
       "schemaImplemented": true,
@@ -47,19 +89,64 @@
         "JobNeedDateTime",
         "Priority",
         "JobOnHold",
-        "JobOverdue"
+        "JobOverdue",
+        "Lateness"
       ],
-      "keywords": ["job", "jobs", "planning", "overdue", "lateness", "otif", "bottleneck", "operation", "dispatch", "schedule", "makespan", "hold"]
+      "keywords": ["job", "operation", "due", "late", "lateness", "schedule", "dispatch", "predecessor", "wip", "priority", "plan", "otif"],
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+      }
     },
     {
       "id": "finance",
       "name": "Finance",
-      "description": "Financial data including sales amounts, costs, and inventory values",
+      "description": "Financial data - sales orders, purchase orders, inventory values, costs, KPIs",
       "tables": [
-        "publish.DASHt_SalesOrders",
-        "publish.DASHt_Materials",
+        "publish.DASHt_HistoricalKPIs",
         "publish.DASHt_Inventories",
-        "publish.DASHt_Planning"
+        "publish.DASHt_InventoryAdjustments",
+        "publish.DASHt_Materials",
+        "publish.DASHt_NetInventoryBalance",
+        "publish.DASHt_PurchaseOrders",
+        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Resources",
+        "publish.DASHt_SalesOrders"
+      ],
+      "tier2Tables": [
+        "publish.Customers",
+        "publish.Departments",
+        "publish.ForecastShipmentInventoryAdjustments",
+        "publish.Inventories",
+        "publish.Items",
+        "publish.JobActivities",
+        "publish.JobActivityInventoryAdjustments",
+        "publish.JobMaterialSupplyingActivities",
+        "publish.JobMaterials",
+        "publish.JobOperations",
+        "publish.Jobs",
+        "publish.KPIs",
+        "publish.ManufacturingOrders",
+        "publish.PlantWarehouses",
+        "publish.Plants",
+        "publish.PurchaseToStockDeletedDemands",
+        "publish.PurchaseToStockForecastDemands",
+        "publish.PurchaseToStockInventoryAdjustments",
+        "publish.PurchaseToStockSafetyStockDemands",
+        "publish.PurchaseToStockSalesOrderDemands",
+        "publish.PurchaseToStockTransferOrderDemands",
+        "publish.PurchasesToStock",
+        "publish.Resources",
+        "publish.SalesOrderDistributionInventoryAdjustments",
+        "publish.SalesOrderLineDistributions",
+        "publish.SalesOrderLines",
+        "publish.SalesOrders",
+        "publish.Schedules",
+        "publish.StorageAreas",
+        "publish.TransferOrderDistributionInventoryAdjustments",
+        "publish.Warehouse",
+        "publish.Warehouses",
+        "publish.metrics"
       ],
       "default": false,
       "schemaImplemented": true,
@@ -69,11 +156,18 @@
         "QtyOrdered",
         "QtyShipped",
         "InventoryCost",
-        "CustomerName"
+        "CustomerName",
+        "ItemName",
+        "NetBalance",
+        "AdjustmentQty"
       ],
-      "keywords": ["revenue", "cost", "margin", "finance", "yield", "price", "sales", "shipments", "amount", "invoice"]
+      "keywords": ["revenue", "sales", "value", "cost", "spend", "purchase", "inventory", "adjustment", "balance", "transaction", "material"],
+      "notes": {
+        "tier1_default": "Use Tier1 tables for normal chat; they are curated outputs used by Power BI dashboards.",
+        "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain."
+      }
     }
   ],
-  "version": "3.1.0",
+  "version": "4.0.0",
   "lastUpdated": "2026-01-21"
 }
