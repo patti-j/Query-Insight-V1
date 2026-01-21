@@ -382,6 +382,7 @@ export default function QueryPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto p-8 space-y-8">
+        <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
