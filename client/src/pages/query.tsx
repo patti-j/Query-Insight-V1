@@ -176,35 +176,7 @@ export default function QueryPage() {
     }
   }, [selectedMode]);
 
-  // Detect if a question belongs to a different scope based on keywords
-  const detectScopeMismatch = (questionText: string): string | null => {
-    if (!semanticCatalog) return null;
-    
-    const lowerQuestion = questionText.toLowerCase();
-    const currentMode = semanticCatalog.modes.find(m => m.id === selectedMode);
-    
-    // Check if question matches keywords of other scopes better than current
-    for (const mode of semanticCatalog.modes) {
-      if (mode.id === selectedMode) continue;
-      if (!mode.keywords || mode.keywords.length === 0) continue;
-      
-      // Count keyword matches for this scope
-      const matchCount = mode.keywords.filter(kw => lowerQuestion.includes(kw.toLowerCase())).length;
-      
-      // If there are 2+ keyword matches for another scope, suggest switching
-      if (matchCount >= 2) {
-        // But first check if current scope also matches well
-        const currentMatches = currentMode?.keywords?.filter(kw => lowerQuestion.includes(kw.toLowerCase())).length || 0;
-        if (matchCount > currentMatches) {
-          return mode.id;
-        }
-      }
-    }
-    
-    return null;
-  };
-
-  const executeQuery = async (q: string, skipScopeCheck = false) => {
+  const executeQuery = async (q: string) => {
     if (!q.trim()) return;
 
     // Check if selected report has schema implemented
@@ -214,23 +186,10 @@ export default function QueryPage() {
       return;
     }
 
-    // Check for scope mismatch (soft assist)
-    if (!skipScopeCheck) {
-      const detectedScope = detectScopeMismatch(q);
-      if (detectedScope) {
-        const targetMode = semanticCatalog?.modes.find(m => m.id === detectedScope);
-        const currentMode = semanticCatalog?.modes.find(m => m.id === selectedMode);
-        setScopeMismatch({
-          detectedScope,
-          currentScope: selectedMode,
-          question: q.trim()
-        });
-        setError(`This question seems better suited for ${targetMode?.name || detectedScope}. You're currently in ${currentMode?.name || selectedMode}.`);
-        return;
-      }
-    }
-
+    // Clear any previous scope mismatch state
     setScopeMismatch(null);
+    setSuggestedMode(null);
+    setFailedQuestion('');
     setLoading(true);
     setError(null);
     setResult(null);
@@ -685,42 +644,13 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                {scopeMismatch ? 'Different Scope Suggested' : suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
+                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
               
-              {scopeMismatch && semanticCatalog && (
-                <div className="pt-2 border-t border-destructive/20 flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setSelectedMode(scopeMismatch.detectedScope);
-                      setScopeMismatch(null);
-                      setError(null);
-                      setTimeout(() => executeQuery(scopeMismatch.question, true), 100);
-                    }}
-                    className="bg-primary hover:bg-primary/90"
-                    data-testid="button-switch-scope"
-                  >
-                    <Lightbulb className="mr-2 h-4 w-4" />
-                    Switch to {semanticCatalog.modes.find(m => m.id === scopeMismatch.detectedScope)?.name} and Ask
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setScopeMismatch(null);
-                      setError(null);
-                      executeQuery(scopeMismatch.question, true);
-                    }}
-                    data-testid="button-ask-anyway"
-                  >
-                    Ask in {semanticCatalog.modes.find(m => m.id === selectedMode)?.name} Anyway
-                  </Button>
-                </div>
-              )}
-              
-              {suggestedMode && !scopeMismatch && semanticCatalog && (
+              {suggestedMode && semanticCatalog && (
                 <div className="pt-2 border-t border-destructive/20">
                   <Button
                     onClick={() => handleSwitchMode(suggestedMode)}
