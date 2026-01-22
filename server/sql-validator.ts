@@ -148,9 +148,14 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
   let modifiedSql = trimmed;
   const hasCTE = trimmed.match(/^\s*WITH\s+/i);
   
-  if (!hasCTE && !trimmed.match(/SELECT\s+TOP\s*\(\s*\d+\s*\)/i)) {
-    // Add TOP (100) after SELECT (only for non-CTE queries)
-    modifiedSql = trimmed.replace(/SELECT\s+/i, `SELECT TOP (${MAX_ROWS}) `);
+  if (!hasCTE && !trimmed.match(/SELECT\s+(DISTINCT\s+)?TOP\s*\(\s*\d+\s*\)/i)) {
+    // Add TOP (100) after SELECT [DISTINCT] (only for non-CTE queries)
+    // Handle DISTINCT: SELECT DISTINCT -> SELECT DISTINCT TOP (100)
+    if (trimmed.match(/SELECT\s+DISTINCT\s+/i)) {
+      modifiedSql = trimmed.replace(/SELECT\s+DISTINCT\s+/i, `SELECT DISTINCT TOP (${MAX_ROWS}) `);
+    } else {
+      modifiedSql = trimmed.replace(/SELECT\s+/i, `SELECT TOP (${MAX_ROWS}) `);
+    }
   } else if (!hasCTE) {
     // Verify TOP value doesn't exceed limit (non-CTE queries)
     const topMatch = trimmed.match(/TOP\s*\(\s*(\d+)\s*\)/i);
