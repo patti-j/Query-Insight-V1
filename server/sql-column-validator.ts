@@ -104,6 +104,12 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
       if (trimmed.match(/^\s*(SUM|COUNT|AVG|MAX|MIN|COALESCE|ISNULL|CASE)\s*\(/i)) {
         continue; // Skip aggregates - they create aliases, not column refs
       }
+      // Handle bracketed notation: [alias].[Column] or [Column]
+      const bracketMatch = trimmed.match(/(?:\[\w+\]\.)?\[(\w+)\]/i);
+      if (bracketMatch && bracketMatch[1] && !isKeyword(bracketMatch[1])) {
+        references.push({ column: bracketMatch[1], context: 'SELECT' });
+        continue;
+      }
       // Handle "table.column" or "alias.column" or just "column"
       const match = trimmed.match(/(?:[\w]+\.)?(\w+)(?:\s+AS\s+\w+)?/i);
       if (match && match[1] && !isKeyword(match[1])) {
@@ -149,6 +155,14 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
     const columns = orderByClause.split(',');
     for (const col of columns) {
       const trimmed = col.trim();
+      // Handle bracketed notation: [alias].[Column]
+      const bracketMatch = trimmed.match(/(?:\[\w+\]\.)?\[(\w+)\]/i);
+      if (bracketMatch && bracketMatch[1] && !isKeyword(bracketMatch[1])) {
+        if (!selectAliases.has(bracketMatch[1].toLowerCase())) {
+          references.push({ column: bracketMatch[1], context: 'ORDER BY' });
+        }
+        continue;
+      }
       const match = trimmed.match(/(?:[\w]+\.)?(\w+)(?:\s+(?:ASC|DESC))?/i);
       if (match && match[1] && !isKeyword(match[1])) {
         // Skip if this is a SELECT alias
