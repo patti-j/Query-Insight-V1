@@ -167,11 +167,12 @@ PRODUCTION & PLANNING MODE - CRITICAL RULES:
 - For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
 - ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive
 
-SCHEDULED vs UNSCHEDULED JOBS (IMPORTANT):
-- Use JobScheduled = 1 (or JobScheduledStatus if available) to filter for scheduled jobs
-- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter these out using JobScheduled = 1
-- When user asks for "scheduled jobs", "scheduled start", or schedule-related queries: ALWAYS add WHERE JobScheduled = 1
-- When user asks for "unscheduled jobs": use WHERE JobScheduled = 0 or WHERE JobScheduled IS NULL
+SCHEDULED vs UNSCHEDULED JOBS (CRITICAL):
+- JobScheduledStatus column contains: 'Scheduled', 'FailedToSchedule', 'Finished', 'Unscheduled', etc.
+- When user asks for "scheduled jobs": ALWAYS add WHERE JobScheduledStatus = 'Scheduled'
+- When user asks for "unscheduled jobs": use WHERE JobScheduledStatus IN ('FailedToSchedule', 'Unscheduled')
+- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - these should be filtered out
+- DO NOT show jobs with JobScheduledStatus = 'FailedToSchedule' when user asks for scheduled jobs
 
 BEST PRACTICES:
 - When listing jobs or resources, use SELECT DISTINCT to avoid duplicate rows
