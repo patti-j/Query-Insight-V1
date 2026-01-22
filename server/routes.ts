@@ -571,42 +571,39 @@ export async function registerRoutes(
       // Check for empty results and find nearest dates if applicable
       let nearestDates: { before: string | null; after: string | null } | undefined;
       if (result.recordset.length === 0) {
-        // Check if the query involves date filtering - look for date columns in the SQL
-        const dateColumnMatch = finalSql.match(/(\w+)\.(DemandDate|CapacityDate|JobScheduledStartDateTime|PublishDate|RequiredAvailableDate)/i);
+        // Check if the query involves date filtering - look for common date columns
+        const dateColumns = ['DemandDate', 'CapacityDate', 'ShiftDate', 'JobScheduledStartDateTime', 'PublishDate', 'RequiredAvailableDate'];
         const tableMatch = finalSql.match(/FROM\s+(\[?publish\]?\.\[?\w+\]?)/i);
         
-        if (dateColumnMatch && tableMatch) {
-          const dateColumn = dateColumnMatch[2];
+        // Find which date column is used in the query
+        let detectedDateColumn: string | null = null;
+        for (const col of dateColumns) {
+          if (finalSql.toLowerCase().includes(col.toLowerCase())) {
+            detectedDateColumn = col;
+            break;
+          }
+        }
+        
+        if (detectedDateColumn && tableMatch) {
           const tableName = tableMatch[1].replace(/\[/g, '').replace(/\]/g, '');
           
-          // Extract date range from WHERE clause
-          const dateRangeMatch = finalSql.match(new RegExp(`${dateColumn}\\s*>=\\s*'([^']+)'.*${dateColumn}\\s*<\\s*'([^']+)'`, 'i'));
-          
-          if (dateRangeMatch) {
-            const requestedStartDate = dateRangeMatch[1];
+          try {
+            // Get the overall date range available in the table
+            const rangeQuery = `SELECT MIN(${detectedDateColumn}) AS MinDate, MAX(${detectedDateColumn}) AS MaxDate FROM ${tableName}`;
+            const rangeResult = await executeQuery(rangeQuery);
             
-            try {
-              // Find nearest date before the requested range
-              const beforeQuery = `SELECT TOP 1 ${dateColumn} FROM ${tableName} WHERE ${dateColumn} < '${requestedStartDate}' ORDER BY ${dateColumn} DESC`;
-              const beforeResult = await executeQuery(beforeQuery);
-              
-              // Find nearest date after the requested range
-              const afterQuery = `SELECT TOP 1 ${dateColumn} FROM ${tableName} WHERE ${dateColumn} >= '${requestedStartDate}' ORDER BY ${dateColumn} ASC`;
-              const afterResult = await executeQuery(afterQuery);
-              
-              const beforeDate = beforeResult.recordset[0]?.[dateColumn];
-              const afterDate = afterResult.recordset[0]?.[dateColumn];
-              
-              if (beforeDate || afterDate) {
-                nearestDates = {
-                  before: beforeDate ? new Date(beforeDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
-                  after: afterDate ? new Date(afterDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
-                };
-                log(`No data found for requested dates. Nearest dates: before=${nearestDates.before}, after=${nearestDates.after}`, 'ask');
-              }
-            } catch (nearestError: any) {
-              log(`Failed to find nearest dates: ${nearestError.message}`, 'ask');
+            const minDate = rangeResult.recordset[0]?.MinDate;
+            const maxDate = rangeResult.recordset[0]?.MaxDate;
+            
+            if (minDate || maxDate) {
+              nearestDates = {
+                before: minDate ? new Date(minDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+                after: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+              };
+              log(`No data found. Available data range: ${nearestDates.before} to ${nearestDates.after}`, 'ask');
             }
+          } catch (nearestError: any) {
+            log(`Failed to find available date range: ${nearestError.message}`, 'ask');
           }
         }
       }

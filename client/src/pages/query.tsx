@@ -1029,18 +1029,19 @@ export default function QueryPage() {
                     {result.nearestDates && (result.nearestDates.before || result.nearestDates.after) && (
                       <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-left" data-testid="nearest-dates-hint">
                         <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
-                          Data is available on nearby dates:
+                          Available data range:
                         </p>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {result.nearestDates.before && (
-                            <li>• Most recent before: <span className="font-medium text-foreground">{result.nearestDates.before}</span></li>
+                        <p className="text-sm text-muted-foreground">
+                          {result.nearestDates.before && result.nearestDates.after ? (
+                            <>From <span className="font-medium text-foreground">{result.nearestDates.before}</span> to <span className="font-medium text-foreground">{result.nearestDates.after}</span></>
+                          ) : result.nearestDates.before ? (
+                            <>Data starts from <span className="font-medium text-foreground">{result.nearestDates.before}</span></>
+                          ) : (
+                            <>Data available until <span className="font-medium text-foreground">{result.nearestDates.after}</span></>
                           )}
-                          {result.nearestDates.after && (
-                            <li>• Next available: <span className="font-medium text-foreground">{result.nearestDates.after}</span></li>
-                          )}
-                        </ul>
+                        </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Try asking about one of these dates instead.
+                          Try asking about dates within this range.
                         </p>
                       </div>
                     )}
