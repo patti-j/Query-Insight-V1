@@ -148,21 +148,32 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
   let modifiedSql = trimmed;
   const hasCTE = trimmed.match(/^\s*WITH\s+/i);
   
-  if (!hasCTE && !trimmed.match(/SELECT\s+(DISTINCT\s+)?TOP\s*\(\s*\d+\s*\)/i)) {
+  // Fix incorrect syntax: SELECT TOP (n) DISTINCT -> SELECT DISTINCT TOP (n)
+  // T-SQL requires DISTINCT before TOP
+  const badTopDistinct = modifiedSql.match(/SELECT\s+TOP\s*\(\s*(\d+)\s*\)\s+DISTINCT\s+/i);
+  if (badTopDistinct) {
+    const topVal = Math.min(parseInt(badTopDistinct[1], 10), MAX_ROWS);
+    modifiedSql = modifiedSql.replace(
+      /SELECT\s+TOP\s*\(\s*\d+\s*\)\s+DISTINCT\s+/i,
+      `SELECT DISTINCT TOP (${topVal}) `
+    );
+  }
+  
+  if (!hasCTE && !modifiedSql.match(/SELECT\s+(DISTINCT\s+)?TOP\s*\(\s*\d+\s*\)/i)) {
     // Add TOP (100) after SELECT [DISTINCT] (only for non-CTE queries)
     // Handle DISTINCT: SELECT DISTINCT -> SELECT DISTINCT TOP (100)
-    if (trimmed.match(/SELECT\s+DISTINCT\s+/i)) {
-      modifiedSql = trimmed.replace(/SELECT\s+DISTINCT\s+/i, `SELECT DISTINCT TOP (${MAX_ROWS}) `);
+    if (modifiedSql.match(/SELECT\s+DISTINCT\s+/i)) {
+      modifiedSql = modifiedSql.replace(/SELECT\s+DISTINCT\s+/i, `SELECT DISTINCT TOP (${MAX_ROWS}) `);
     } else {
-      modifiedSql = trimmed.replace(/SELECT\s+/i, `SELECT TOP (${MAX_ROWS}) `);
+      modifiedSql = modifiedSql.replace(/SELECT\s+/i, `SELECT TOP (${MAX_ROWS}) `);
     }
   } else if (!hasCTE) {
     // Verify TOP value doesn't exceed limit (non-CTE queries)
-    const topMatch = trimmed.match(/TOP\s*\(\s*(\d+)\s*\)/i);
+    const topMatch = modifiedSql.match(/TOP\s*\(\s*(\d+)\s*\)/i);
     if (topMatch) {
       const topValue = parseInt(topMatch[1], 10);
       if (topValue > MAX_ROWS) {
-        modifiedSql = trimmed.replace(
+        modifiedSql = modifiedSql.replace(
           /TOP\s*\(\s*\d+\s*\)/i,
           `TOP (${MAX_ROWS})`
         );
