@@ -128,9 +128,9 @@ export async function generateSqlFromQuestion(question: string, options: Generat
   try {
     const startTime = Date.now();
     
-    // Fetch schema for matrix-selected tables
+    // Fetch schema for matrix-selected tables with column slimming
     if (relevantTables.length > 0) {
-      modeSchema = await getFormattedSchemaForTables(relevantTables);
+      modeSchema = await getFormattedSchemaForTables(relevantTables, question);
       stats = { tableCount: relevantTables.length, columnCount: 0 };
     } else {
       // Fall back to full mode schema

@@ -9,6 +9,7 @@ import { getTableSchemas, TableSchema, formatSchemaForPrompt } from './schema-in
 import { log } from './index';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { getRelevantColumns } from './matrix-classifier';
 
 interface ModeConfig {
   id: string;
@@ -162,7 +163,7 @@ export async function getModeSchemaStats(mode: string): Promise<{ tableCount: nu
 /**
  * Get formatted schema for specific tables (used for prompt slimming)
  */
-export async function getFormattedSchemaForTables(tableNames: string[]): Promise<string> {
+export async function getFormattedSchemaForTables(tableNames: string[], question?: string): Promise<string> {
   const schemas = await getTableSchemas(tableNames);
   
   const filteredSchemas = new Map<string, TableSchema>();
@@ -173,7 +174,35 @@ export async function getFormattedSchemaForTables(tableNames: string[]): Promise
     }
   }
   
+  if (question) {
+    return formatSchemaWithColumnSlimming(filteredSchemas, question);
+  }
+  
   return formatSchemaForPrompt(filteredSchemas);
+}
+
+/**
+ * Format schema with column slimming based on question relevance
+ */
+function formatSchemaWithColumnSlimming(schemas: Map<string, TableSchema>, question: string): string {
+  const lines: string[] = [];
+  let totalOriginalColumns = 0;
+  let totalSlimmedColumns = 0;
+  
+  for (const [tableName, schema] of Array.from(schemas)) {
+    const allColumnNames = schema.columns.map(c => c.columnName);
+    totalOriginalColumns += allColumnNames.length;
+    
+    const relevantColumns = getRelevantColumns(question, tableName, allColumnNames);
+    totalSlimmedColumns += relevantColumns.length;
+    
+    lines.push(`\n${tableName}:`);
+    lines.push(`  Columns: ${relevantColumns.join(', ')}`);
+  }
+  
+  log('mode-schema-cache', `Column slimming: ${totalOriginalColumns} → ${totalSlimmedColumns} columns (${Math.round((1 - totalSlimmedColumns/totalOriginalColumns) * 100)}% reduction)`);
+  
+  return lines.join('\n');
 }
 
 /**
