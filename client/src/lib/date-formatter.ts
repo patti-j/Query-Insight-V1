@@ -16,6 +16,11 @@ export function isDateTimeColumn(columnName: string): boolean {
     return false;
   }
   
+  // Exclude columns that contain "hours" - these are numeric hour values, not times
+  if (normalizedName.includes('hours')) {
+    return false;
+  }
+  
   const dateTimeKeywords = [
     'date',
     'time',
