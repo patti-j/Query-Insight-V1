@@ -448,12 +448,12 @@ export default function QueryPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Select a scope below (e.g., Capacity, Production) to focus your questions on relevant data, then type your question in plain English.
+            Select a category below to focus your questions on relevant data, then type your question in plain English.
           </p>
         </div>
 
-        {/* Scope Tabs */}
-        <div className="flex gap-2 flex-wrap" data-testid="scope-tabs">
+        {/* Category Tabs */}
+        <div className="flex gap-2 flex-wrap" data-testid="category-tabs">
           {semanticCatalog?.modes.map((mode) => {
             const isUnavailable = mode.available === false;
             return (
@@ -480,12 +480,12 @@ export default function QueryPage() {
           })}
         </div>
 
-        {/* Scope Unavailable Warning */}
+        {/* Category Unavailable Warning */}
         {(() => {
           const selectedModeData = semanticCatalog?.modes.find(m => m.id === selectedMode);
           if (selectedModeData?.available === false) {
             return (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400" data-testid="scope-warning">
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400" data-testid="category-warning">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-5 w-5" />
                   <span className="font-medium">{selectedModeData.warning || `${selectedModeData.name} tables not available in this environment yet`}</span>
@@ -783,7 +783,7 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                {suggestedMode ? 'Wrong Report Scope' : 'System Notification'}
+                {suggestedMode ? 'Try a Different Category' : 'System Notification'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
