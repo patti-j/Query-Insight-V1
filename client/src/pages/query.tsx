@@ -267,7 +267,6 @@ export default function QueryPage() {
       // Handle general (non-data) answers
       if (data.isGeneralAnswer) {
         setGeneralAnswer(data.answer);
-        setQuestion('');
         setLoading(false);
         return;
       }
@@ -287,7 +286,6 @@ export default function QueryPage() {
           }
           
           setLoading(false);
-          setQuestion('');
           return;
         }
         // If server returns explicit error, throw it
@@ -304,8 +302,7 @@ export default function QueryPage() {
         setDateTimeColumns(new Set());
       }
       
-      // Clear the query box and any scope suggestions after successful query
-      setQuestion('');
+      // Clear any scope suggestions after successful query (but keep question for reference)
       setSuggestedMode(null);
       setFailedQuestion('');
     } catch (err: any) {
@@ -315,7 +312,6 @@ export default function QueryPage() {
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
       setSuggestedMode(null);
       setFailedQuestion('');
-      setQuestion('');
     } finally {
       setLoading(false);
     }
@@ -339,6 +335,19 @@ export default function QueryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     executeQuery(question);
+  };
+
+  const handleNewQuestion = () => {
+    setQuestion('');
+    setResult(null);
+    setError(null);
+    setGeneralAnswer(null);
+    setSuggestedMode(null);
+    setFailedQuestion('');
+    setFeedbackGiven(null);
+    setShowAllRows(false);
+    setShowChart(false);
+    setQueryWasTransformed(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -704,15 +713,28 @@ export default function QueryPage() {
                 })()}
               </div>
               
-              <Button 
-                type="submit" 
-                disabled={loading || !question.trim() || semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false} 
-                data-testid="button-submit"
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading ? 'Analyzing...' : 'Submit Question'}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="submit" 
+                  disabled={loading || !question.trim() || semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false} 
+                  data-testid="button-submit"
+                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {loading ? 'Analyzing...' : 'Submit Question'}
+                </Button>
+                {(question.trim() || result || error || generalAnswer) && (
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    onClick={handleNewQuestion}
+                    disabled={loading}
+                    data-testid="button-new-question"
+                  >
+                    New Question
+                  </Button>
+                )}
+              </div>
             </form>
           </CardContent>
         </Card>
