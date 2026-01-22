@@ -356,7 +356,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question, mode = 'production-planning', advancedMode = false } = req.body;
+    const { question, mode = 'production-planning', advancedMode = false, publishDate } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -424,7 +424,7 @@ export async function registerRoutes(
       // Mode-specific schema cache handles table filtering automatically
       // Pass allowedTables as fallback in case schema fetch fails
       llmStartTime = Date.now();
-      generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables });
+      generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables, publishDate });
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
 

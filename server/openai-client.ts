@@ -49,6 +49,7 @@ BUSINESS CONTEXT:
 interface GenerateOptions {
   mode?: string;
   allowedTables?: string[];
+  publishDate?: string; // The effective "today" date for date-relative queries
 }
 
 interface GenerateResult {
@@ -99,7 +100,7 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
 
-  const { mode = 'production-planning', allowedTables = [] } = options;
+  const { mode = 'production-planning', allowedTables = [], publishDate } = options;
 
   // Select 2-4 most relevant tables based on question keywords (prompt slimming)
   const { tables: relevantTables, reasoning } = selectRelevantTables(question, allowedTables.length > 0 ? allowedTables : []);
@@ -213,9 +214,14 @@ BEST PRACTICES:
 ONLY use columns explicitly listed in the schema above.`;
   }
 
+  // Build the effective "today" date context
+  const todayContext = publishDate 
+    ? `\nTODAY'S DATE: ${publishDate}\nWhen the user asks about "today", "this week", "next week", "tomorrow", etc., use ${publishDate} as the reference date (not the actual current date).`
+    : '';
+
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
 
-MODE: ${mode.toUpperCase()}
+MODE: ${mode.toUpperCase()}${todayContext}
 
 ALLOWED TABLES AND COLUMNS FOR THIS MODE:
 ${modeSchema}${modeGuidance}
