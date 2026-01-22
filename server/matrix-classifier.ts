@@ -13,6 +13,7 @@ interface ClassificationResult {
   matchedKeywords: string[];
   matchedTerms: string[];
   isOverride: boolean;
+  confidence: 'high' | 'medium' | 'low' | 'none';
   debugInfo: {
     matrixMatches: MatrixMatch[];
     termMatches: string[];
@@ -136,11 +137,27 @@ export function classifyQuestionWithMatrix(
     }
   }
   
+  // Determine confidence based on match quality
+  let confidence: 'high' | 'medium' | 'low' | 'none';
+  const totalScore = matrixMatches.reduce((sum, m) => sum + m.matchScore, 0);
+  const keywordCount = allMatchedKeywords.length;
+  
+  if (hasOverride || totalScore >= 3 || keywordCount >= 2) {
+    confidence = 'high';
+  } else if (totalScore >= 1 || keywordCount >= 1 || termMatches.length > 0) {
+    confidence = 'medium';
+  } else if (matrixMatches.length > 0) {
+    confidence = 'low';
+  } else {
+    confidence = 'none';
+  }
+  
   const result: ClassificationResult = {
     selectedTables: Array.from(selectedTables),
     matchedKeywords: Array.from(new Set(allMatchedKeywords)),
     matchedTerms: termMatches,
     isOverride: hasOverride,
+    confidence,
     debugInfo: {
       matrixMatches,
       termMatches,
@@ -150,6 +167,7 @@ export function classifyQuestionWithMatrix(
   
   console.log(`[matrix-classifier] Question: "${question}"`);
   console.log(`[matrix-classifier] Matched keywords: ${result.matchedKeywords.join(', ') || 'none'}`);
+  console.log(`[matrix-classifier] Confidence: ${confidence}`);
   console.log(`[matrix-classifier] Selected tables (${result.selectedTables.length}): ${result.selectedTables.join(', ')}`);
   if (termMatches.length > 0) {
     console.log(`[matrix-classifier] Business terms matched: ${termMatches.join(', ')}`);

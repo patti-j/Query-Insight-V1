@@ -266,6 +266,13 @@ export default function QueryPage() {
         return;
       }
 
+      // Handle out-of-scope questions
+      if (data.isOutOfScope) {
+        setGeneralAnswer(data.answer);
+        setLoading(false);
+        return;
+      }
+
       if (!response.ok) {
         // If this is a schema/column validation error, don't fall back to mock data
         if (data.schemaError) {

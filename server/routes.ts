@@ -426,9 +426,30 @@ export async function registerRoutes(
       const sqlGenResult = await generateSqlFromQuestion(question, { mode, allowedTables, publishDate, advancedMode });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
+      const confidence = sqlGenResult.confidence;
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
-      log(`Matrix-selected tables: ${selectedTables.join(', ')}`, 'ask');
+      log(`Matrix-selected tables: ${selectedTables.join(', ')} (confidence: ${confidence})`, 'ask');
+
+      // Handle out-of-scope questions with low/no confidence
+      if (confidence === 'none') {
+        const scopeNames = {
+          'capacity-plan': 'Capacity (resource utilization, demand, shifts)',
+          'production-planning': 'Production (jobs, schedules, due dates, lateness)',
+          'finance': 'Finance (sales orders, inventory, purchase orders)'
+        };
+        const currentScopeName = scopeNames[mode as keyof typeof scopeNames] || mode;
+        
+        return res.json({
+          isOutOfScope: true,
+          answer: `I couldn't find data matching your question in the available reports. The current **${currentScopeName}** scope covers:\n\n` +
+            `- **Capacity**: Resource utilization, demand vs capacity, shifts, overtime\n` +
+            `- **Production**: Jobs, operations, schedules, due dates, lateness, priorities\n` +
+            `- **Finance**: Sales orders, purchase orders, inventory levels, materials\n\n` +
+            `Try rephrasing your question using terms like: jobs, resources, capacity, demand, orders, inventory, schedule, due date, or lateness.`,
+          question,
+        });
+      }
 
       // Validate and modify SQL if needed, using matrix-selected tables for validation
       const validationOptions: ValidationOptions = {

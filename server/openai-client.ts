@@ -97,7 +97,7 @@ export async function generateSuggestions(question: string): Promise<string[]> {
   }
 }
 
-export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<{ sql: string; selectedTables: string[] }> {
+export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<{ sql: string; selectedTables: string[]; confidence: 'high' | 'medium' | 'low' | 'none' }> {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
@@ -295,7 +295,8 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
   
   return {
     sql: cleanedSql,
-    selectedTables: relevantTables
+    selectedTables: relevantTables,
+    confidence: classification.confidence
   };
 }
 
