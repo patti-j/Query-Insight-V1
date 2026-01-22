@@ -161,7 +161,13 @@ PRODUCTION & PLANNING MODE - CRITICAL RULES:
 - If totals or aggregates are needed, compute them via SUM(), COUNT(), AVG(), etc. over existing numeric columns listed in the schema above
 - If no suitable numeric columns exist in the schema for the requested calculation, DO NOT guess - instead return an error message
 - For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
-- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive`;
+- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive
+
+SCHEDULED vs UNSCHEDULED JOBS (IMPORTANT):
+- Use JobScheduled = 1 (or JobScheduledStatus if available) to filter for scheduled jobs
+- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter these out using JobScheduled = 1
+- When user asks for "scheduled jobs", "scheduled start", or schedule-related queries: ALWAYS add WHERE JobScheduled = 1
+- When user asks for "unscheduled jobs": use WHERE JobScheduled = 0 or WHERE JobScheduled IS NULL`;
   } else if (mode === 'finance') {
     modeGuidance = `
 
