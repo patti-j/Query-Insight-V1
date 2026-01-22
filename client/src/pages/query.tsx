@@ -221,11 +221,15 @@ export default function QueryPage() {
     setShowAllRows(false);
     setSubmittedQuestion(q.trim());
 
-    // Transform relative dates to concrete dates if publish date is available
+    // Get the anchor date (effective "today" for queries) from environment secret
+    const anchorDate = getEffectiveToday();
+    const anchorDateStr = anchorDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    // Transform relative dates to concrete dates using anchor date
     let queryToSend = q.trim();
-    const wasTransformed = publishDate && hasRelativeDateLanguage(queryToSend);
+    const wasTransformed = hasRelativeDateLanguage(queryToSend);
     if (wasTransformed) {
-      queryToSend = transformRelativeDates(queryToSend, publishDate);
+      queryToSend = transformRelativeDates(queryToSend, anchorDate);
       setQueryWasTransformed(true);
     } else {
       setQueryWasTransformed(false);
@@ -238,7 +242,8 @@ export default function QueryPage() {
         body: JSON.stringify({ 
           question: queryToSend,
           mode: selectedMode,
-          advancedMode 
+          advancedMode,
+          publishDate: anchorDateStr // Send anchor date to AI for date-relative queries
         }),
       });
 
@@ -606,24 +611,24 @@ export default function QueryPage() {
                   );
                 })()}
                 
-                {/* Display both Today (anchor) and Publish date */}
+                {/* Display both Query Date (anchor) and Data Last Updated (publish date) */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                   <div className="flex items-center gap-2" data-testid="today-anchor-display">
-                    <span className="font-medium">Today:</span>
+                    <span className="font-medium">Query Date:</span>
                     <span className="text-foreground/70">
-                      {(import.meta.env.PROD ? new Date() : getEffectiveToday()).toLocaleDateString('en-US', { 
+                      {getEffectiveToday().toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'short', 
                         day: 'numeric' 
                       })}
                     </span>
                     {!import.meta.env.PROD && (
-                      <span className="italic text-xs">(dev override)</span>
+                      <span className="italic text-xs">(dev)</span>
                     )}
                   </div>
                   {publishDate && (
                     <div className="flex items-center gap-2" data-testid="publish-date-display">
-                      <span className="font-medium">Publish date:</span>
+                      <span className="font-medium">Data Last Updated:</span>
                       <span className="text-foreground/70">
                         {publishDate.toLocaleDateString('en-US', { 
                           year: 'numeric', 
@@ -850,13 +855,13 @@ export default function QueryPage() {
                         />
                       </button>
                     </div>
-                    {queryWasTransformed && publishDate && (
+                    {queryWasTransformed && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
                         <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
                           Anchored
                         </Badge>
                         <span>
-                          Date-relative terms converted to {publishDate.toLocaleDateString('en-US', { 
+                          Date-relative terms converted to {getEffectiveToday().toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'short', 
                             day: 'numeric' 
