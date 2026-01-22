@@ -670,7 +670,7 @@ export default function QueryPage() {
                 className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading ? 'Analyzing...' : 'Submit Query'}
+                {loading ? 'Analyzing...' : 'Submit Question'}
               </Button>
             </form>
           </CardContent>
