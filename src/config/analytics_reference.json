@@ -346,6 +346,19 @@
         "publish.KPIs",
         "publish.metrics"
       ]
+    },
+    {
+      "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making"],
+      "tier1Tables": [
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_Planning",
+        "publish.DASHt_Materials"
+      ],
+      "tier2Tables": [
+        "publish.Items",
+        "publish.JobProducts",
+        "publish.JobMaterials"
+      ]
     }
   ],
   "tableKeywords": {
