@@ -7,6 +7,7 @@ Query Insight is a natural language interface designed to query manufacturing pl
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Code quality expectation: Production-ready, clean code suitable for dev team code review.
 
 ## System Architecture
 
@@ -36,6 +37,32 @@ Preferred communication style: Simple, everyday language.
 - **Export Functionality:** Results can be exported in CSV and Excel formats.
 - **Feedback Mechanism:** Users can provide feedback on query results.
 - **AI-Generated Query Suggestions:** "Did you mean?" functionality offers AI-generated query suggestions.
+
+## Project Structure
+
+```
+├── client/              # React frontend (Vite + TypeScript)
+│   ├── src/pages/       # Page components (query.tsx, dashboard.tsx)
+│   ├── src/components/  # Reusable UI components (shadcn/ui)
+│   └── public/          # Static assets (favicon)
+├── server/              # Express backend
+│   ├── openai-client.ts # LLM integration for SQL generation
+│   ├── matrix-classifier.ts # Keyword-based table selection
+│   ├── sql-validator.ts # SQL safety validation
+│   ├── routes.ts        # API endpoints
+│   └── schema-introspection.ts # Database schema handling
+├── docs/semantic/       # Semantic catalog and static schema
+├── src/config/          # Configuration files (analytics_reference.json)
+├── scripts/             # Utility scripts (generate-schema.ts)
+├── script/              # Build scripts (build.ts) - referenced by package.json
+├── schemas/publish/     # Table documentation (markdown files)
+└── shared/              # Shared types (schema.ts - placeholder for future auth)
+```
+
+**Notes for Dev Team:**
+- `shared/schema.ts` contains placeholder user schema for future auth integration with Blazor app
+- `script/` vs `scripts/`: Both folders exist due to package.json constraints; `script/build.ts` is the production build, `scripts/` contains utilities
+- Future auth will pass credentials from parent Blazor app; permissions will be mode-based with potential executive-only table restrictions
 
 ## External Dependencies
 
