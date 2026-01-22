@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
 import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
-import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion } from "./openai-client";
+import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion, generateNaturalLanguageResponse } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -608,8 +608,15 @@ export async function registerRoutes(
         }
       }
 
+      // Generate natural language response from results
+      const naturalAnswer = await generateNaturalLanguageResponse(
+        question, 
+        result.recordset, 
+        result.recordset.length
+      );
+
       res.json({
-        answer: `Query executed successfully. Retrieved ${result.recordset.length} row(s).`,
+        answer: naturalAnswer,
         sql: finalSql,
         rows: result.recordset,
         rowCount: result.recordset.length,

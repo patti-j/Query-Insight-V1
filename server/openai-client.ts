@@ -374,3 +374,88 @@ export async function answerGeneralQuestion(question: string): Promise<string> {
     return "I encountered an error trying to answer your question. Please try again.";
   }
 }
+
+const NATURAL_LANGUAGE_RESPONSE_PROMPT = `
+You are an AI assistant that summarizes database query results in natural, conversational language.
+
+Given a user's question and the query results, provide a clear, human-readable answer.
+
+FORMATTING RULES:
+- Use bullet points (•) when listing multiple items
+- Keep responses concise but complete
+- Use natural language, not technical jargon
+- Format numbers with commas for readability (e.g., 1,234 not 1234)
+- Round decimals to 2 places maximum
+- If there are many items (>10), summarize the top ones and mention how many total
+- If no results, say so clearly and suggest why (e.g., "No data found for this date range")
+
+EXAMPLES:
+Question: "Which resources are busiest next week?"
+Results: [{"ResourceName": "CNC1", "TotalHours": 45}, {"ResourceName": "Mill 2", "TotalHours": 38}]
+Response: "The busiest resources next week are:
+• CNC1 with 45 hours of scheduled work
+• Mill 2 with 38 hours of scheduled work"
+
+Question: "How many jobs are overdue?"
+Results: [{"OverdueCount": 12}]
+Response: "There are 12 overdue jobs that need attention."
+
+Question: "List unassigned resources in Plant A"
+Results: [{"ResourceName": "Lathe 1"}, {"ResourceName": "Drill 2"}, {"ResourceName": "Press 3"}]
+Response: "Unassigned resources in Plant A are:
+• Lathe 1
+• Drill 2
+• Press 3"
+
+Respond with ONLY the natural language answer, no preamble or explanation.
+`;
+
+export async function generateNaturalLanguageResponse(
+  question: string, 
+  results: any[], 
+  rowCount: number
+): Promise<string> {
+  if (!apiKey) {
+    return `Found ${rowCount} result(s).`;
+  }
+
+  // If no results, return a simple message
+  if (rowCount === 0) {
+    return "No matching data was found for your query. Try adjusting the date range or criteria.";
+  }
+
+  // Limit results sent to LLM to avoid token overflow
+  const limitedResults = results.slice(0, 20);
+  const hasMore = rowCount > 20;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: NATURAL_LANGUAGE_RESPONSE_PROMPT },
+        { 
+          role: 'user', 
+          content: `Question: "${question}"
+Results (${rowCount} total${hasMore ? ', showing first 20' : ''}):
+${JSON.stringify(limitedResults, null, 2)}
+
+Provide a natural language summary of these results.`
+        }
+      ],
+      temperature: 0.3,
+      max_completion_tokens: 500,
+    });
+
+    let answer = response.choices[0]?.message?.content?.trim() || `Found ${rowCount} result(s).`;
+    
+    // Add note about additional results if truncated
+    if (hasMore) {
+      answer += `\n\n(Showing summary of ${rowCount} total results. Click "Show Data" to see all.)`;
+    }
+    
+    return answer;
+  } catch (error) {
+    console.error('[openai-client] Natural language response generation failed:', error);
+    return `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
+  }
+}

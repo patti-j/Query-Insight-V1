@@ -116,7 +116,7 @@ export default function QueryPage() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [faqQuestions, setFaqQuestions] = useState<QuickQuestion[]>([]);
-  const [showAllRows, setShowAllRows] = useState(false);
+  const [showData, setShowData] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
@@ -222,7 +222,7 @@ export default function QueryPage() {
     setResult(null);
     setGeneralAnswer(null);
     setFeedbackGiven(null);
-    setShowAllRows(false);
+    setShowData(false);
     setSubmittedQuestion(q.trim());
 
     // Get the anchor date (effective "today" for queries) from environment secret
@@ -345,7 +345,7 @@ export default function QueryPage() {
     setSuggestedMode(null);
     setFailedQuestion('');
     setFeedbackGiven(null);
-    setShowAllRows(false);
+    setShowData(false);
     setShowChart(false);
     setQueryWasTransformed(false);
   };
@@ -877,106 +877,110 @@ export default function QueryPage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
+                {/* Natural Language Answer - Prominent Display */}
+                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl" data-testid="natural-answer">
+                  <p className="text-base leading-relaxed whitespace-pre-line">
+                    {result.answer}
+                  </p>
+                </div>
+                
+                {/* Action Buttons Row */}
+                {result.rows.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowData(!showData)}
+                      className={`gap-2 ${showData ? 'bg-green-500/20 border-green-500/50' : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
+                      data-testid="button-toggle-data"
+                    >
+                      <Database className="h-4 w-4" />
+                      {showData ? 'Hide Data' : `Show Data (${result.rows.length} rows)`}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowChart(!showChart)}
+                      className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
+                      data-testid="button-toggle-chart"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      {showChart ? 'Hide Chart' : 'Show Chart'}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          data-testid="button-export"
+                        >
+                          <Download className="h-4 w-4" />
+                          Export
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            try {
+                              const exportData = result.rows.map(filterRowColumns);
+                              exportToCSV(exportData, `query-results-${Date.now()}.csv`);
+                            } catch (err: any) {
+                              setError(`Export failed: ${err.message}`);
+                            }
+                          }}
+                          data-testid="menu-export-csv"
+                        >
+                          Export as CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            try {
+                              const exportData = result.rows.map(filterRowColumns);
+                              exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
+                            } catch (err: any) {
+                              setError(`Export failed: ${err.message}`);
+                            }
+                          }}
+                          data-testid="menu-export-excel"
+                        >
+                          Export as Excel
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowSql(!showSql)}
-                      className="gap-2 px-2 h-7"
+                      className="gap-2"
                       data-testid="button-toggle-sql"
                     >
                       {showSql ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 pointer-events-none">SQL Query</Badge>
+                      SQL
                     </Button>
-                    <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30">{result.rowCount} rows</Badge>
                   </div>
-                  {showSql && (
-                    <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
-                      {result.sql}
-                    </pre>
-                  )}
-                </div>
+                )}
+                
+                {/* SQL Query - Collapsible */}
+                {showSql && (
+                  <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
+                    {result.sql}
+                  </pre>
+                )}
+                
+                {/* Chart visualization */}
+                {showChart && result.rows.length > 0 && (
+                  <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+                    <ResultChart 
+                      rows={result.rows.map(filterRowColumns)} 
+                      columns={Object.keys(filterRowColumns(result.rows[0]))} 
+                    />
+                  </div>
+                )}
 
-                {result.rows.length > 0 ? (
+                {/* Data Table - Hidden by default */}
+                {showData && result.rows.length > 0 && (
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Data Preview</h3>
-                      <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                              data-testid="button-export"
-                            >
-                              <Download className="h-4 w-4" />
-                              Export
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                try {
-                                  const exportData = result.rows.map(filterRowColumns);
-                                  exportToCSV(exportData, `query-results-${Date.now()}.csv`);
-                                } catch (err: any) {
-                                  setError(`Export failed: ${err.message}`);
-                                }
-                              }}
-                              data-testid="menu-export-csv"
-                            >
-                              Export as CSV
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                try {
-                                  const exportData = result.rows.map(filterRowColumns);
-                                  exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
-                                } catch (err: any) {
-                                  setError(`Export failed: ${err.message}`);
-                                }
-                              }}
-                              data-testid="menu-export-excel"
-                            >
-                              Export as Excel
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowChart(!showChart)}
-                          className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
-                          data-testid="button-toggle-chart"
-                        >
-                          <BarChart3 className="h-4 w-4" />
-                          {showChart ? 'Hide Chart' : 'Show Chart'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowAllRows(!showAllRows)}
-                          disabled={result.rows.length <= 10}
-                          className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
-                          data-testid="button-toggle-rows"
-                        >
-                          {showAllRows ? `Show First 10` : `Show All ${result.rows.length} Rows`}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Chart visualization */}
-                    {showChart && result.rows.length > 0 && (
-                      <div className="border border-border/50 rounded-xl p-4 bg-card/50">
-                        <ResultChart 
-                          rows={result.rows.map(filterRowColumns)} 
-                          columns={Object.keys(filterRowColumns(result.rows[0]))} 
-                        />
-                      </div>
-                    )}
-                    
                     <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
                       <div className="max-h-[420px] overflow-auto">
                         <table className={`w-full text-sm table-auto ${Object.keys(filterRowColumns(result.rows[0])).length > 5 ? 'min-w-[900px]' : ''}`}>
@@ -990,7 +994,7 @@ export default function QueryPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {(showAllRows ? result.rows : result.rows.slice(0, 10)).map((row, idx) => {
+                            {result.rows.map((row, idx) => {
                               const filteredRow = filterRowColumns(row);
                               return (
                                 <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-result-${idx}`}>
@@ -1011,10 +1015,13 @@ export default function QueryPage() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-3">
-                      Showing {showAllRows ? result.rows.length : Math.min(10, result.rows.length)} of {result.rows.length} rows
+                      Showing {result.rows.length} rows
                     </p>
                   </div>
-                ) : (
+                )}
+
+                {/* No results message */}
+                {result.rows.length === 0 && (
                   <div className="p-6 text-center border border-border/50 rounded-xl bg-muted/30" data-testid="no-results-message">
                     <div className="text-4xl mb-3">📭</div>
                     <h3 className="font-semibold text-lg mb-2">No matching records found</h3>
