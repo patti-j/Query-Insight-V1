@@ -8,6 +8,7 @@ Query Insight is a natural language interface designed to query manufacturing pl
 
 Preferred communication style: Simple, everyday language.
 Code quality expectation: Production-ready, clean code suitable for dev team code review.
+Cleanup approach: Clean up incrementally as features are built, not in large batches at the end.
 
 ## System Architecture
 
