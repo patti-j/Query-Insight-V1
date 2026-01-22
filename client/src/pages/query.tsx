@@ -772,9 +772,23 @@ export default function QueryPage() {
               <CardContent className="space-y-4">
                 {/* Natural Language Answer - Prominent Display */}
                 <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl" data-testid="natural-answer">
-                  <p className="text-base leading-relaxed whitespace-pre-line">
-                    {result.answer}
-                  </p>
+                  <div className="text-base leading-relaxed">
+                    {result.answer.split('\n').map((line, idx) => {
+                      const trimmedLine = line.trim();
+                      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                        return (
+                          <div key={idx} className="flex gap-2 ml-2 my-1">
+                            <span className="flex-shrink-0">{trimmedLine.charAt(0)}</span>
+                            <span>{trimmedLine.slice(1).trim()}</span>
+                          </div>
+                        );
+                      } else if (trimmedLine) {
+                        return <p key={idx} className="my-1">{line}</p>;
+                      } else {
+                        return <div key={idx} className="h-2" />;
+                      }
+                    })}
+                  </div>
                 </div>
                 
                 {/* Action Buttons Row */}
