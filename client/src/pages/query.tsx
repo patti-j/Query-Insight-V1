@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,6 +133,10 @@ export default function QueryPage() {
   const [failedQuestion, setFailedQuestion] = useState<string>('');
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  
+  // Ref for scrolling to results
+  const resultsRef = useRef<HTMLDivElement>(null);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -284,6 +288,11 @@ export default function QueryPage() {
       }
 
       setResult(data);
+      
+      // Scroll to results after a short delay
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
       
       // Detect date/time columns in the result data
       if (data.rows && data.rows.length > 0) {
@@ -439,7 +448,7 @@ export default function QueryPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Ask questions about your manufacturing data in plain English.
+            Ask questions about your manufacturing data using natural language.
           </p>
         </div>
 
@@ -475,55 +484,58 @@ export default function QueryPage() {
           )}
         </div>
 
-        {/* Favorite Queries */}
+        {/* Favorite Queries - Collapsible */}
         {favorites.length > 0 && (
-          <div className="space-y-4" data-testid="favorites-section">
-            <h2 className="text-lg font-semibold text-foreground/80 flex items-center gap-2">
+          <div className="space-y-2" data-testid="favorites-section">
+            <button
+              onClick={() => setShowFavorites(!showFavorites)}
+              className="flex items-center gap-2 text-lg font-semibold text-foreground/80 hover:text-foreground transition-colors"
+            >
+              {showFavorites ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               <Heart className="h-5 w-5 fill-red-500 text-red-500" />
-              Favorite Queries
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {favorites.map((fav) => (
-                <div
-                  key={fav.id}
-                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
-                  data-testid={`favorite-${fav.id}`}
-                >
-                  <button
-                    onClick={() => {
-                      setQuestion(fav.question);
-                      executeQuery(fav.question);
-                    }}
-                    disabled={loading}
-                    className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+              Favorite Queries ({favorites.length})
+            </button>
+            {showFavorites && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                {favorites.map((fav) => (
+                  <div
+                    key={fav.id}
+                    className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+                    data-testid={`favorite-${fav.id}`}
                   >
-                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
-                      {fav.question}
-                    </span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFavorite(fav.id);
-                    }}
-                    className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
-                    title="Remove from favorites"
-                    data-testid={`remove-favorite-${fav.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <button
+                      onClick={() => {
+                        setQuestion(fav.question);
+                        executeQuery(fav.question);
+                      }}
+                      disabled={loading}
+                      className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
+                        {fav.question}
+                      </span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFavorite(fav.id);
+                      }}
+                      className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                      title="Remove from favorites"
+                      data-testid={`remove-favorite-${fav.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle>Ask a Question</CardTitle>
-            <CardDescription>
-              Type a natural language question about your manufacturing data
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">Ask a Question</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -712,7 +724,7 @@ export default function QueryPage() {
         )}
 
         {result && (
-          <div className="space-y-4">
+          <div ref={resultsRef} className="space-y-4">
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
