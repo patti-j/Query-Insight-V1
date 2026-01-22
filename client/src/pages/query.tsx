@@ -127,6 +127,7 @@ export default function QueryPage() {
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
   const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
   const [failedQuestion, setFailedQuestion] = useState<string>('');
+  const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -213,6 +214,7 @@ export default function QueryPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setGeneralAnswer(null);
     setFeedbackGiven(null);
     setShowAllRows(false);
     setSubmittedQuestion(q.trim());
@@ -249,6 +251,14 @@ export default function QueryPage() {
         }
       } catch (e: any) {
         throw new Error(e.message || 'Failed to parse server response');
+      }
+
+      // Handle general (non-data) answers
+      if (data.isGeneralAnswer) {
+        setGeneralAnswer(data.answer);
+        setQuestion('');
+        setLoading(false);
+        return;
       }
 
       if (!response.ok) {
@@ -780,6 +790,31 @@ export default function QueryPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* General Answer (non-data response) */}
+        {generalAnswer && (
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm" data-testid="card-general-answer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Answer
+              </CardTitle>
+              {submittedQuestion && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  "{submittedQuestion}"
+                </p>
+              )}
+            </CardHeader>
+            <CardContent>
+              <p className="text-foreground leading-relaxed" data-testid="text-general-answer">
+                {generalAnswer}
+              </p>
+              <p className="text-xs text-muted-foreground mt-4 italic">
+                This is a general explanation. To query your data, try asking something like "Show me..." or "List all..."
+              </p>
             </CardContent>
           </Card>
         )}

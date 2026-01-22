@@ -250,3 +250,87 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
     .replace(/```\n?/g, '')
     .trim();
 }
+
+const QUESTION_CLASSIFIER_PROMPT = `
+You are a question classifier for a manufacturing analytics system.
+
+Classify the user's question into one of these categories:
+- "data_query" - Questions that require fetching data from the database (e.g., "Show me overdue jobs", "What is our utilization this week?", "List all resources")
+- "general" - Questions about concepts, definitions, help, or general information that don't require data (e.g., "What is utilization?", "How do I use this?", "What does on-hold mean?", "Help me understand capacity planning")
+
+Return ONLY the category string, nothing else.
+`;
+
+export async function classifyQuestion(question: string): Promise<'data_query' | 'general'> {
+  if (!apiKey) {
+    return 'data_query'; // Default to data query if no API key
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: QUESTION_CLASSIFIER_PROMPT },
+        { role: 'user', content: question }
+      ],
+      temperature: 0,
+      max_completion_tokens: 20,
+    });
+
+    const result = response.choices[0]?.message?.content?.trim().toLowerCase() || '';
+    return result.includes('general') ? 'general' : 'data_query';
+  } catch (error) {
+    console.error('[openai-client] Question classification failed:', error);
+    return 'data_query'; // Default to data query on error
+  }
+}
+
+const GENERAL_ANSWER_PROMPT = `
+You are a helpful assistant for a manufacturing analytics system called Query Insight. This system helps users query planning data from PlanetTogether APS (Advanced Planning and Scheduling).
+
+Answer the user's question in a helpful, conversational way. Keep your response concise (2-4 sentences typically).
+
+MANUFACTURING CONTEXT:
+- Resources: Machines, equipment, or labor that perform operations
+- Workcenters: Groups of similar resources in a manufacturing facility
+- Jobs/Work Orders: Production tasks that need to be scheduled
+- Utilization: Percentage of time a resource is being used (demand vs capacity)
+- Capacity: The available production time/capability of a resource
+- Demand: Work that needs to be done, expressed in hours
+- Bottleneck: A resource that limits overall production throughput
+- On Hold: Jobs that are paused and not being scheduled
+- Scheduled: Jobs that have been assigned times and resources
+- Overdue: Jobs past their due date (NeedDateTime)
+- Dispatch List: Prioritized list of operations for shop floor execution
+
+SYSTEM CAPABILITIES:
+- Users can ask questions in plain English to query manufacturing data
+- The system supports three scopes: Capacity Plan (resource planning), Production & Planning (jobs/orders), and Finance (financial analysis)
+- Results can be exported to CSV or Excel
+- Quick questions provide pre-built common queries
+
+If you don't know something specific to their data, suggest they ask a data query instead.
+`;
+
+export async function answerGeneralQuestion(question: string): Promise<string> {
+  if (!apiKey) {
+    return "I'm unable to answer questions at the moment. Please check that the OpenAI API is configured.";
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: GENERAL_ANSWER_PROMPT },
+        { role: 'user', content: question }
+      ],
+      temperature: 0.7,
+      max_completion_tokens: 300,
+    });
+
+    return response.choices[0]?.message?.content?.trim() || "I'm not sure how to answer that. Try asking a question about your data instead.";
+  } catch (error) {
+    console.error('[openai-client] General question answering failed:', error);
+    return "I encountered an error trying to answer your question. Please try again.";
+  }
+}

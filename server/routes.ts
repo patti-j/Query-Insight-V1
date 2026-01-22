@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
 import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
-import { generateSqlFromQuestion, generateSuggestions } from "./openai-client";
+import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -362,6 +362,19 @@ export async function registerRoutes(
     if (!question || typeof question !== 'string') {
       return res.status(400).json({
         error: 'Question is required and must be a string',
+      });
+    }
+
+    // Classify the question: is it a data query or a general/help question?
+    const questionType = await classifyQuestion(question);
+    
+    if (questionType === 'general') {
+      log(`General question detected: ${question}`, 'ask');
+      const answer = await answerGeneralQuestion(question);
+      return res.json({
+        isGeneralAnswer: true,
+        answer,
+        question,
       });
     }
 
