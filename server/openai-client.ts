@@ -157,6 +157,27 @@ BEST PRACTICES:
 - When listing resources, use SELECT DISTINCT to avoid duplicate rows
 - When grouping by resource, always GROUP BY ResourceName (and other relevant columns)
 
+EXAMPLE QUERIES:
+
+Q: "Which resources are the busiest next week?"
+SQL:
+SELECT TOP (100) rd.DemandDate, rd.ResourceName, rd.PlantName, rd.DepartmentName, SUM(rd.DemandHours) AS TotalDemandHours
+FROM publish.DASHt_CapacityPlanning_ResourceDemand rd
+WHERE rd.DemandDate >= '2025-01-06' AND rd.DemandDate < '2025-01-13'
+GROUP BY rd.DemandDate, rd.ResourceName, rd.PlantName, rd.DepartmentName
+ORDER BY TotalDemandHours DESC
+
+Q: "Show capacity utilization by resource"
+SQL:
+SELECT TOP (100) rc.ResourceName, rc.PlantName, rc.DepartmentName, 
+  SUM(rc.NormalOnlineHours) AS TotalCapacityHours, 
+  SUM(rd.DemandHours) AS TotalDemandHours
+FROM publish.DASHt_CapacityPlanning_ResourceCapacity rc
+LEFT JOIN publish.DASHt_CapacityPlanning_ResourceDemand rd 
+  ON rc.ResourceName = rd.ResourceName AND rc.CapacityDate = rd.DemandDate
+GROUP BY rc.ResourceName, rc.PlantName, rc.DepartmentName
+ORDER BY TotalDemandHours DESC
+
 ONLY use columns explicitly listed in the schema above for each table.`;
   } else if (mode === 'production-planning') {
     modeGuidance = `
