@@ -56,6 +56,7 @@ interface GenerateOptions {
 interface GenerateResult {
   sql: string;
   suggestions?: string[];
+  selectedTables?: string[];
 }
 
 const SUGGESTION_PROMPT = `
@@ -96,7 +97,7 @@ export async function generateSuggestions(question: string): Promise<string[]> {
   }
 }
 
-export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<string> {
+export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<{ sql: string; selectedTables: string[] }> {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
@@ -287,10 +288,15 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
   const sqlQuery = response.choices[0]?.message?.content?.trim() || '';
   
   // Remove markdown code blocks if present
-  return sqlQuery
+  const cleanedSql = sqlQuery
     .replace(/```sql\n?/gi, '')
     .replace(/```\n?/g, '')
     .trim();
+  
+  return {
+    sql: cleanedSql,
+    selectedTables: relevantTables
+  };
 }
 
 const QUESTION_CLASSIFIER_PROMPT = `

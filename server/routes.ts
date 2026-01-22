@@ -421,16 +421,18 @@ export async function registerRoutes(
 
     try {
       // Generate SQL from natural language with mode context
-      // Mode-specific schema cache handles table filtering automatically
-      // Pass allowedTables as fallback in case schema fetch fails
+      // Matrix classifier selects relevant tables dynamically
       llmStartTime = Date.now();
-      generatedSql = await generateSqlFromQuestion(question, { mode, allowedTables, publishDate });
+      const sqlGenResult = await generateSqlFromQuestion(question, { mode, allowedTables, publishDate, advancedMode });
+      generatedSql = sqlGenResult.sql;
+      const selectedTables = sqlGenResult.selectedTables;
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
+      log(`Matrix-selected tables: ${selectedTables.join(', ')}`, 'ask');
 
-      // Validate and modify SQL if needed, passing mode-specific options
+      // Validate and modify SQL if needed, using matrix-selected tables for validation
       const validationOptions: ValidationOptions = {
-        allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
+        allowedTables: selectedTables.length > 0 ? selectedTables : (allowedTables.length > 0 ? allowedTables : undefined),
         advancedMode,
       };
       const validation = validateAndModifySql(generatedSql, validationOptions);
@@ -455,8 +457,8 @@ export async function registerRoutes(
 
       const finalSql = validation.modifiedSql || generatedSql;
       
-      // Validate column references against schema
-      const columnValidation = await validateSqlColumns(finalSql, allowedTables);
+      // Validate column references against schema (use matrix-selected tables)
+      const columnValidation = await validateSqlColumns(finalSql, selectedTables.length > 0 ? selectedTables : allowedTables);
       if (!columnValidation.valid) {
         log(`🔴 COLUMN VALIDATION FAILED: ${columnValidation.errors.length} errors found`, 'ask');
         
