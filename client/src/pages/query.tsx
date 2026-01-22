@@ -480,7 +480,7 @@ export default function QueryPage() {
                 return (
                   <button
                     key={idx}
-                    onClick={() => executeQuery(q.text)}
+                    onClick={() => setQuestion(q.text)}
                     disabled={loading || isScopeUnavailable}
                     className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid={`card-sample-question-${idx}`}
