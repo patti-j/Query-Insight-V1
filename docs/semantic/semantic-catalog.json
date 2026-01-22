@@ -2,7 +2,7 @@
   "modes": [
     {
       "id": "capacity-plan",
-      "name": "Capacity Plan",
+      "name": "Capacity",
       "description": "Resource capacity and utilization analysis - capacity vs demand, shifts, overtime, constraints",
       "tables": [
         "publish.DASHt_CapacityPlanning_ResourceActual",
@@ -51,7 +51,7 @@
     },
     {
       "id": "production-planning",
-      "name": "Production & Planning",
+      "name": "Production",
       "description": "Manufacturing planning and scheduling - jobs, operations, due dates, lateness, priorities",
       "tables": [
         "publish.DASHt_Planning",

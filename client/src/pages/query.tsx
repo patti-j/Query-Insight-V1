@@ -600,30 +600,57 @@ export default function QueryPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
+                <Textarea
+                  placeholder="What would you like to know about your manufacturing data?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[100px] bg-background/50"
+                  data-testid="input-question"
+                />
                 
-                {/* Display scoped tables for selected report */}
+                {/* Common terms helper */}
                 {(() => {
                   const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
-                  if (!selectedReport) return null;
-                  
-                  if (selectedReport.schemaImplemented === false || selectedReport.tables.length === 0) {
-                    return (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="tables-display">
-                        <Database className="h-3 w-3" />
-                        <span className="font-medium">Tables:</span>
-                        <span className="italic">Coming soon</span>
-                      </div>
-                    );
+                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
+                    return null;
                   }
                   
-                  const formattedTables = selectedReport.tables.map(formatTableName);
+                  // Convert column names to natural words (e.g., "ResourceName" -> "Resource", "ShiftName" -> "Shift")
+                  const formatFieldName = (field: string) => {
+                    // Remove common suffixes like "Name", "Id"
+                    let formatted = field.replace(/Name$/, '').replace(/Id$/, '');
+                    // Add spaces between camelCase/PascalCase words
+                    formatted = formatted.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+                    return formatted;
+                  };
+                  
+                  // Get scope name for display
+                  const scopeName = selectedReport.name;
+                  
+                  // Filter out ID fields - they contain system-generated integers
+                  const filteredFields = selectedReport.commonFields.filter(
+                    (field) => !field.toLowerCase().endsWith('id')
+                  );
+                  
+                  if (filteredFields.length === 0) return null;
                   
                   return (
-                    <div className="flex items-start gap-2 text-xs" data-testid="tables-display">
-                      <Database className="h-3 w-3 mt-0.5 text-muted-foreground" />
-                      <div className="flex-1">
-                        <span className="font-medium text-muted-foreground">Tables:</span>{' '}
-                        <span className="text-foreground/80">{formattedTables.join(', ')}</span>
+                    <div className="space-y-1.5" data-testid="common-fields-display">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Common terms for {scopeName}:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {filteredFields.map((field) => (
+                          <Badge 
+                            key={field} 
+                            variant="secondary" 
+                            className="text-xs bg-muted/50 hover:bg-muted/70 cursor-default"
+                            data-testid={`field-chip-${field}`}
+                          >
+                            {formatFieldName(field)}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   );
@@ -657,60 +684,6 @@ export default function QueryPage() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <Textarea
-                  placeholder="What would you like to know about your manufacturing data?"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="min-h-[100px] bg-background/50"
-                  data-testid="input-question"
-                />
-                
-                {/* Common terms helper */}
-                {(() => {
-                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
-                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
-                    return null;
-                  }
-                  
-                  // Convert camelCase/PascalCase to readable format (e.g., "ResourceName" -> "Resource Name")
-                  const formatFieldName = (field: string) => {
-                    return field.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
-                  };
-                  
-                  // Get short scope name (e.g., "Capacity Plan" -> "Capacity")
-                  const scopeShortName = selectedReport.name.split(' ')[0];
-                  
-                  // Filter out ID fields - they contain system-generated integers
-                  const filteredFields = selectedReport.commonFields.filter(
-                    (field) => !field.toLowerCase().endsWith('id')
-                  );
-                  
-                  if (filteredFields.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-1.5" data-testid="common-fields-display">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Common terms for {scopeShortName} scope:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {filteredFields.map((field) => (
-                          <Badge 
-                            key={field} 
-                            variant="secondary" 
-                            className="text-xs bg-muted/50 hover:bg-muted/70 cursor-default"
-                            data-testid={`field-chip-${field}`}
-                          >
-                            {formatFieldName(field)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
               
               <div className="flex gap-2">
