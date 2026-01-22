@@ -568,6 +568,26 @@ export async function registerRoutes(
       // Generate "did you mean?" suggestions asynchronously
       const suggestions = await generateSuggestions(question);
 
+      // Get actual total count if results were limited to 100
+      let actualTotalCount: number | undefined;
+      if (result.recordset.length === 100) {
+        try {
+          // Build a count query from the original SQL
+          // Extract the FROM clause and everything after it
+          const fromIndex = finalSql.toUpperCase().indexOf(' FROM ');
+          if (fromIndex > -1) {
+            let countSql = 'SELECT COUNT(*) AS TotalCount' + finalSql.substring(fromIndex);
+            // Remove ORDER BY clause for count query
+            countSql = countSql.replace(/ORDER\s+BY\s+[^;]+/i, '');
+            const countResult = await executeQuery(countSql);
+            actualTotalCount = countResult.recordset[0]?.TotalCount;
+            log(`Actual total count: ${actualTotalCount} (showing first 100)`, 'ask');
+          }
+        } catch (countError: any) {
+          log(`Failed to get total count: ${countError.message}`, 'ask');
+        }
+      }
+
       // Check for empty results and find nearest dates if applicable
       let nearestDates: { before: string | null; after: string | null } | undefined;
       if (result.recordset.length === 0) {
@@ -612,7 +632,8 @@ export async function registerRoutes(
       const naturalAnswer = await generateNaturalLanguageResponse(
         question, 
         result.recordset, 
-        result.recordset.length
+        result.recordset.length,
+        actualTotalCount
       );
 
       res.json({
@@ -620,6 +641,7 @@ export async function registerRoutes(
         sql: finalSql,
         rows: result.recordset,
         rowCount: result.recordset.length,
+        actualTotalCount,
         isMock: false,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
         nearestDates,

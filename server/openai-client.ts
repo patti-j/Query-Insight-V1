@@ -413,7 +413,8 @@ Respond with ONLY the natural language answer, no preamble or explanation.
 export async function generateNaturalLanguageResponse(
   question: string, 
   results: any[], 
-  rowCount: number
+  rowCount: number,
+  actualTotalCount?: number
 ): Promise<string> {
   if (!apiKey) {
     return `Found ${rowCount} result(s).`;
@@ -427,8 +428,16 @@ export async function generateNaturalLanguageResponse(
   // Limit results sent to LLM to avoid token overflow
   const limitedResults = results.slice(0, 20);
   const hasMore = rowCount > 20;
+  
+  // Determine if results were truncated by TOP 100
+  const wasLimited = actualTotalCount && actualTotalCount > rowCount;
+  const totalToReport = actualTotalCount || rowCount;
 
   try {
+    const limitNote = wasLimited 
+      ? `\nIMPORTANT: Results are limited to first ${rowCount} rows. The actual total is ${actualTotalCount}. Mention this in your response, e.g. "Here are the first 100 of ${actualTotalCount} total..."`
+      : '';
+      
     const response = await openai.chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
@@ -436,8 +445,8 @@ export async function generateNaturalLanguageResponse(
         { 
           role: 'user', 
           content: `Question: "${question}"
-Results (${rowCount} total${hasMore ? ', showing first 20' : ''}):
-${JSON.stringify(limitedResults, null, 2)}
+Results (${rowCount} returned${wasLimited ? `, ${actualTotalCount} total in database` : ''}${hasMore ? ', showing first 20 for summary' : ''}):
+${JSON.stringify(limitedResults, null, 2)}${limitNote}
 
 Provide a natural language summary of these results.`
         }
@@ -446,16 +455,18 @@ Provide a natural language summary of these results.`
       max_completion_tokens: 500,
     });
 
-    let answer = response.choices[0]?.message?.content?.trim() || `Found ${rowCount} result(s).`;
+    let answer = response.choices[0]?.message?.content?.trim() || `Found ${totalToReport} result(s).`;
     
     // Add note about additional results if truncated
-    if (hasMore) {
+    if (hasMore && !wasLimited) {
       answer += `\n\n(Showing summary of ${rowCount} total results. Click "Show Data" to see all.)`;
     }
     
     return answer;
   } catch (error) {
     console.error('[openai-client] Natural language response generation failed:', error);
-    return `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
+    return wasLimited 
+      ? `Found ${actualTotalCount} total results (showing first ${rowCount}). Click "Show Data" to view the details.`
+      : `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
   }
 }

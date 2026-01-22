@@ -486,21 +486,21 @@ export default function QueryPage() {
 
         {/* Favorite Queries - Collapsible */}
         {favorites.length > 0 && (
-          <div className="space-y-2" data-testid="favorites-section">
+          <div className="space-y-1" data-testid="favorites-section">
             <button
               onClick={() => setShowFavorites(!showFavorites)}
-              className="flex items-center gap-2 text-lg font-semibold text-foreground/80 hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              {showFavorites ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              <Heart className="h-5 w-5 fill-red-500 text-red-500" />
-              Favorite Queries ({favorites.length})
+              {showFavorites ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" />
+              Favorites ({favorites.length})
             </button>
             {showFavorites && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+              <div className="flex flex-wrap gap-2 pt-1">
                 {favorites.map((fav) => (
                   <div
                     key={fav.id}
-                    className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
+                    className="group relative px-3 py-1.5 rounded-full border border-border/50 bg-card/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-200"
                     data-testid={`favorite-${fav.id}`}
                   >
                     <button
@@ -509,9 +509,9 @@ export default function QueryPage() {
                         executeQuery(fav.question);
                       }}
                       disabled={loading}
-                      className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
+                      <span className="text-xs text-foreground/70 group-hover:text-foreground">
                         {fav.question}
                       </span>
                     </button>
@@ -520,11 +520,11 @@ export default function QueryPage() {
                         e.stopPropagation();
                         removeFavorite(fav.id);
                       }}
-                      className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                      className="absolute -top-1 -right-1 p-0.5 rounded-full bg-background border border-border opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
                       title="Remove from favorites"
                       data-testid={`remove-favorite-${fav.id}`}
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <XCircle className="h-3 w-3 text-destructive" />
                     </button>
                   </div>
                 ))}
