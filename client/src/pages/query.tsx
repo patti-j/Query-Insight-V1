@@ -649,13 +649,20 @@ export default function QueryPage() {
                   // Get short scope name (e.g., "Capacity Plan" -> "Capacity")
                   const scopeShortName = selectedReport.name.split(' ')[0];
                   
+                  // Filter out ID fields - they contain system-generated integers
+                  const filteredFields = selectedReport.commonFields.filter(
+                    (field) => !field.toLowerCase().endsWith('id')
+                  );
+                  
+                  if (filteredFields.length === 0) return null;
+                  
                   return (
                     <div className="space-y-1.5" data-testid="common-fields-display">
                       <p className="text-xs font-medium text-muted-foreground">
-                        Common terms for {scopeShortName}:
+                        Common terms for {scopeShortName} scope:
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {selectedReport.commonFields.map((field) => (
+                        {filteredFields.map((field) => (
                           <Badge 
                             key={field} 
                             variant="secondary" 
