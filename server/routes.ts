@@ -442,11 +442,11 @@ export async function registerRoutes(
         
         return res.json({
           isOutOfScope: true,
-          answer: `I couldn't find data matching your question in the available reports. The current **${currentScopeName}** scope covers:\n\n` +
+          answer: `I couldn't find data matching your question in the available PowerBI reports. The current **${currentScopeName}** scope covers:\n\n` +
             `- **Capacity**: Resource utilization, demand vs capacity, shifts, overtime\n` +
             `- **Production**: Jobs, operations, schedules, due dates, lateness, priorities\n` +
             `- **Finance**: Sales orders, purchase orders, inventory levels, materials\n\n` +
-            `Try rephrasing your question using terms like: jobs, resources, capacity, demand, orders, inventory, schedule, due date, or lateness.`,
+            `. Try rephrasing your question using terms like: jobs, resources, capacity, demand, orders, inventory, schedule, due date, or lateness.`,
           question,
         });
       }
