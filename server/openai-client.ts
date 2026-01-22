@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { getFormattedSchemaForMode, getModeSchemaStats, getFormattedSchemaForTables } from './mode-schema-cache';
-import { selectRelevantTables } from './table-relevance';
+import { classifyQuestionWithMatrix, getBusinessTermContext } from './matrix-classifier';
 
 // Gracefully handle missing OpenAI credentials
 const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
@@ -50,6 +50,7 @@ interface GenerateOptions {
   mode?: string;
   allowedTables?: string[];
   publishDate?: string; // The effective "today" date for date-relative queries
+  advancedMode?: boolean; // Enable Tier 2 tables
 }
 
 interface GenerateResult {
@@ -100,10 +101,25 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
 
-  const { mode = 'production-planning', allowedTables = [], publishDate } = options;
+  const { mode = 'production-planning', allowedTables = [], publishDate, advancedMode = false } = options;
 
-  // Select 2-4 most relevant tables based on question keywords (prompt slimming)
-  const { tables: relevantTables, reasoning } = selectRelevantTables(question, allowedTables.length > 0 ? allowedTables : []);
+  // Use matrix-driven table selection (3-4 tables default, max 6)
+  const classification = classifyQuestionWithMatrix(question, advancedMode);
+  
+  // Get business term context if any terms matched
+  const businessTermContext = getBusinessTermContext(classification.matchedTerms);
+  
+  // Filter selected tables to only those that exist in allowedTables (if provided)
+  let relevantTables = classification.selectedTables;
+  if (allowedTables.length > 0) {
+    relevantTables = classification.selectedTables.filter(t => 
+      allowedTables.some(allowed => allowed.toLowerCase() === t.toLowerCase())
+    );
+    // If no tables match, use the matrix selection as-is (they might be Tier 1 tables)
+    if (relevantTables.length === 0) {
+      relevantTables = classification.selectedTables;
+    }
+  }
   
   // Fetch schema for relevant tables only
   let modeSchema = '';
@@ -112,11 +128,10 @@ export async function generateSqlFromQuestion(question: string, options: Generat
   try {
     const startTime = Date.now();
     
-    // If we have relevant tables, fetch only those schemas
-    if (relevantTables.length > 0 && relevantTables.length < allowedTables.length) {
+    // Fetch schema for matrix-selected tables
+    if (relevantTables.length > 0) {
       modeSchema = await getFormattedSchemaForTables(relevantTables);
       stats = { tableCount: relevantTables.length, columnCount: 0 };
-      console.log(`[openai-client] Prompt slimming: ${reasoning}`);
     } else {
       // Fall back to full mode schema
       modeSchema = await getFormattedSchemaForMode(mode);
@@ -124,9 +139,9 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     }
     
     const schemaFetchTime = Date.now() - startTime;
-    console.log(`[openai-client] Using ${mode} mode schema: ${stats.tableCount} tables (fetched in ${schemaFetchTime}ms)`);
+    console.log(`[openai-client] Matrix-selected ${stats.tableCount} tables (fetched in ${schemaFetchTime}ms)`);
   } catch (error: any) {
-    console.error(`[openai-client] Failed to fetch mode schema: ${error.message}. Using fallback.`);
+    console.error(`[openai-client] Failed to fetch schema: ${error.message}. Using fallback.`);
     if (allowedTables.length > 0) {
       modeSchema = `Tables: ${allowedTables.join(', ')}`;
     } else {
@@ -243,7 +258,7 @@ ONLY use columns explicitly listed in the schema above.`;
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
 
 MODE: ${mode.toUpperCase()}${todayContext}
-
+${businessTermContext}
 ALLOWED TABLES AND COLUMNS FOR THIS MODE:
 ${modeSchema}${modeGuidance}
 

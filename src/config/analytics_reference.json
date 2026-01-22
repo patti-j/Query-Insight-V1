@@ -1,0 +1,383 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-22",
+  "terms": [
+    {
+      "name": "All Activities",
+      "type": "measure",
+      "description": "Count of distinct activities",
+      "computation": "DISTINCTCOUNT(Planning[ActivityId])",
+      "tables": ["DASHt_Planning"],
+      "columns": ["ActivityId"]
+    },
+    {
+      "name": "All Jobs",
+      "type": "measure",
+      "description": "Count of distinct jobs",
+      "computation": "DISTINCTCOUNT(Planning[JobId])",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId"]
+    },
+    {
+      "name": "Average Overdue",
+      "type": "measure",
+      "description": "Average overdue days for jobs that are overdue",
+      "computation": "AVERAGE(Jobs[JobOverdueDays]) WHERE JobOverdue = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobOverdueDays", "JobOverdue"]
+    },
+    {
+      "name": "Bottleneck Operations",
+      "type": "measure",
+      "description": "Count of operations flagged as bottlenecks",
+      "computation": "DISTINCTCOUNT(Planning[OPId]) WHERE OPBottleneck = TRUE AND JobScheduled = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["OPId", "OPBottleneck", "JobScheduled"]
+    },
+    {
+      "name": "Bottlenecked Revenue",
+      "type": "measure",
+      "description": "Total revenue from scheduled and late manufacturing orders",
+      "computation": "SUM(Planning[JobRevenue]) WHERE MOScheduled = TRUE AND MOLate = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobRevenue", "MOScheduled", "MOLate"]
+    },
+    {
+      "name": "Bottlenecked Units",
+      "type": "measure",
+      "description": "Required quantity from scheduled and late manufacturing orders",
+      "computation": "SUM(Planning[MORequiredQty]) WHERE MOScheduled = TRUE AND MOLate = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["MORequiredQty", "MOScheduled", "MOLate"]
+    },
+    {
+      "name": "Conformance to Schedule %",
+      "type": "measure",
+      "description": "Percentage of operations that conform to schedule",
+      "computation": "COUNT(Planning[OPId]) WHERE ConformanceToSchedule = 1 / COUNT WHERE BlockProductionStatus = 'Started'",
+      "tables": ["DASHt_Planning"],
+      "columns": ["OPId", "ConformanceToSchedule", "BlockProductionStatus"]
+    },
+    {
+      "name": "Job Throughput",
+      "type": "measure",
+      "description": "Sum of job throughput values",
+      "computation": "SUM(Jobs[JobThroughput])",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobThroughput"]
+    },
+    {
+      "name": "Jobs On-Hold",
+      "type": "measure",
+      "description": "Count of jobs not in Released status",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobOnHold != 'Released'",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobOnHold"]
+    },
+    {
+      "name": "Jobs at Risk of Being Late",
+      "type": "measure",
+      "description": "Count of scheduled jobs that are flagged as late",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobScheduled = TRUE AND JobLate = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobScheduled", "JobLate"]
+    },
+    {
+      "name": "New Jobs Awaiting Scheduling",
+      "type": "measure",
+      "description": "Count of new jobs waiting to be scheduled",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobScheduledStatus = 'New' AND JobDoNotSchedule = FALSE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobScheduledStatus", "JobDoNotSchedule"]
+    },
+    {
+      "name": "Overdue Jobs Count",
+      "type": "measure",
+      "description": "Count of unfinished jobs that are overdue",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobFinished = FALSE AND JobOverdue = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobFinished", "JobOverdue"]
+    },
+    {
+      "name": "Overdue Jobs Revenue",
+      "type": "measure",
+      "description": "Revenue from unfinished overdue jobs",
+      "computation": "SUM(Jobs[JobRevenue]) WHERE JobFinished = FALSE AND JobOverdue = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobRevenue", "JobFinished", "JobOverdue"]
+    },
+    {
+      "name": "Predicted Late Revenue",
+      "type": "measure",
+      "description": "Revenue from scheduled jobs predicted to be late",
+      "computation": "SUM(Jobs[JobRevenue]) WHERE JobScheduled = TRUE AND JobLate = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobRevenue", "JobScheduled", "JobLate"]
+    },
+    {
+      "name": "Predicted On-Time Completion",
+      "type": "measure",
+      "description": "Percentage of scheduled jobs not flagged as late",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobLate = FALSE AND JobScheduled = TRUE / COUNT WHERE JobScheduled = TRUE",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobLate", "JobScheduled"]
+    },
+    {
+      "name": "WIP Activities Count",
+      "type": "measure",
+      "description": "Count of work-in-progress activities",
+      "computation": "COUNT(Planning[ActivityId]) WHERE BlockScheduled = TRUE AND currently running",
+      "tables": ["DASHt_Planning"],
+      "columns": ["ActivityId", "BlockScheduled", "BlockScheduledStart", "BlockScheduledEnd"]
+    },
+    {
+      "name": "WIP Jobs Count",
+      "type": "measure",
+      "description": "Count of work-in-progress jobs",
+      "computation": "COUNT(Jobs[JobId]) WHERE JobScheduled = TRUE AND currently running",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "JobScheduled", "JobScheduledStartDateTime", "JobScheduledEndDateTime"]
+    },
+    {
+      "name": "Resource Utilization",
+      "type": "measure",
+      "description": "Average resource utilization percentage",
+      "computation": "AVERAGE(ResourceUtilization)",
+      "tables": ["DASHt_CapacityPlanning_ResourceCapacity", "DASHt_CapacityPlanning_ResourceDemand"],
+      "columns": ["ResourceUtilization", "Capacity", "Demand"]
+    },
+    {
+      "name": "Yield Loss %",
+      "type": "measure",
+      "description": "Percentage of expected scrap vs required start quantity",
+      "computation": "SUM(Planning[ActivityExpectedScrapQty]) / SUM(Planning[ActivityRequiredStartQty])",
+      "tables": ["DASHt_Planning"],
+      "columns": ["ActivityExpectedScrapQty", "ActivityRequiredStartQty"]
+    }
+  ],
+  "matrix": [
+    {
+      "keywords": ["job", "jobs", "work order", "work orders", "operation", "operations", "mo", "manufacturing order"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_PredecessorOPIds"
+      ],
+      "tier2Tables": [
+        "publish.Jobs",
+        "publish.JobOperations",
+        "publish.JobProducts",
+        "publish.JobOperationAttributes",
+        "publish.JobActivities"
+      ]
+    },
+    {
+      "keywords": ["resource", "resources", "workcenter", "workcenters", "work center", "work centers", "department", "departments", "plant", "plants", "machine", "machines"],
+      "tier1Tables": [
+        "publish.DASHt_Resources",
+        "publish.DASHt_Planning",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ShiftsCombined"
+      ],
+      "tier2Tables": [
+        "publish.Resources",
+        "publish.Departments",
+        "publish.Plants"
+      ]
+    },
+    {
+      "keywords": ["capacity", "demand", "overtime", "idle", "offline", "shift", "shifts", "load", "loaded", "hours"],
+      "tier1Tables": [
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceDemand",
+        "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_CapacityPlanning_ShiftsCombined",
+        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish"
+      ],
+      "tier2Tables": [
+        "publish.CapacityIntervals",
+        "publish.CapacityIntervalResourceAssignments",
+        "publish.RecurringCapacityIntervals",
+        "publish.JobResources",
+        "publish.JobResourceBlocks"
+      ]
+    },
+    {
+      "keywords": ["utilization", "utilized", "usage"],
+      "tier1Tables": [
+        "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.CapacityIntervals",
+        "publish.Resources"
+      ]
+    },
+    {
+      "keywords": ["late", "lateness", "overdue", "otif", "on-time", "on time", "delay", "delayed"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_HistoricalKPIs"
+      ],
+      "tier2Tables": [
+        "publish.ManufacturingOrders",
+        "publish.SalesOrders",
+        "publish.SalesOrderLines"
+      ]
+    },
+    {
+      "keywords": ["bottleneck", "bottlenecks", "constraint", "constraints", "blocked", "blocking"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.JobOperations",
+        "publish.JobResourceBlocks"
+      ]
+    },
+    {
+      "keywords": ["predecessor", "predecessors", "dependency", "dependencies", "blocked by", "previous op", "previous operation", "sequence"],
+      "tier1Tables": [
+        "publish.DASHt_PredecessorOPIds",
+        "publish.DASHt_Planning"
+      ],
+      "tier2Tables": [
+        "publish.JobOperations",
+        "publish.JobPathNodes"
+      ],
+      "override": true
+    },
+    {
+      "keywords": ["sales", "sales order", "sales orders", "shipment", "shipments", "customer", "customers", "revenue"],
+      "tier1Tables": [
+        "publish.DASHt_SalesOrders"
+      ],
+      "tier2Tables": [
+        "publish.SalesOrders",
+        "publish.SalesOrderLines",
+        "publish.SalesOrderLineDistributions",
+        "publish.Customers"
+      ]
+    },
+    {
+      "keywords": ["purchase", "purchase order", "purchase orders", "receipt", "receipts", "vendor", "vendors", "supplier", "suppliers"],
+      "tier1Tables": [
+        "publish.DASHt_PurchaseOrders"
+      ],
+      "tier2Tables": [
+        "publish.PurchasesToStock",
+        "publish.Warehouses",
+        "publish.Items"
+      ]
+    },
+    {
+      "keywords": ["inventory", "inventories", "on hand", "on-hand", "stock", "adjustment", "adjustments", "balance", "net balance"],
+      "tier1Tables": [
+        "publish.DASHt_Inventories",
+        "publish.DASHt_InventoryAdjustments",
+        "publish.DASHt_NetInventoryBalance"
+      ],
+      "tier2Tables": [
+        "publish.Inventories",
+        "publish.StorageAreas",
+        "publish.PlantWarehouses",
+        "publish.JobActivityInventoryAdjustments"
+      ]
+    },
+    {
+      "keywords": ["material", "materials", "shortage", "shortages", "bom", "bill of materials"],
+      "tier1Tables": [
+        "publish.DASHt_Materials",
+        "publish.DASHt_Planning"
+      ],
+      "tier2Tables": [
+        "publish.JobMaterials",
+        "publish.JobMaterialSupplyingActivities",
+        "publish.JobActivities"
+      ]
+    },
+    {
+      "keywords": ["scenario", "scenarios", "publish", "what-if", "what if", "production", "compare", "comparison"],
+      "tier1Tables": [
+        "publish.DASHt_RecentPublishedScenariosArchive",
+        "publish.DASHt_Planning",
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_PurchaseOrders",
+        "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish"
+      ],
+      "tier2Tables": [
+        "publish.Schedules"
+      ]
+    },
+    {
+      "keywords": ["wip", "work in progress", "work-in-progress", "in progress", "current", "active"],
+      "tier1Tables": [
+        "publish.DASHt_Planning"
+      ],
+      "tier2Tables": [
+        "publish.Jobs",
+        "publish.JobOperations"
+      ]
+    },
+    {
+      "keywords": ["dispatch", "dispatch list", "schedule", "scheduled", "scheduling"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.Jobs",
+        "publish.JobOperations",
+        "publish.Resources"
+      ]
+    },
+    {
+      "keywords": ["kpi", "kpis", "metric", "metrics", "performance", "historical"],
+      "tier1Tables": [
+        "publish.DASHt_HistoricalKPIs",
+        "publish.DASHt_Planning"
+      ],
+      "tier2Tables": [
+        "publish.KPIs",
+        "publish.metrics"
+      ]
+    }
+  ],
+  "tableKeywords": {
+    "publish.DASHt_Planning": ["job", "operation", "activity", "schedule", "late", "overdue", "bottleneck", "wip", "priority", "due", "start", "end"],
+    "publish.DASHt_Resources": ["resource", "workcenter", "department", "plant", "machine", "capacity", "bottleneck"],
+    "publish.DASHt_CapacityPlanning_ResourceCapacity": ["capacity", "available", "hours", "shift", "resource"],
+    "publish.DASHt_CapacityPlanning_ResourceDemand": ["demand", "load", "required", "hours", "resource"],
+    "publish.DASHt_CapacityPlanning_ResourceActual": ["actual", "utilization", "scheduled", "job", "resource", "start", "end"],
+    "publish.DASHt_CapacityPlanning_ShiftsCombined": ["shift", "schedule", "capacity", "resource", "hours"],
+    "publish.DASHt_SalesOrders": ["sales", "order", "customer", "due", "quantity", "revenue", "scenario"],
+    "publish.DASHt_PurchaseOrders": ["purchase", "order", "vendor", "receipt", "quantity"],
+    "publish.DASHt_Inventories": ["inventory", "on-hand", "stock", "quantity", "warehouse"],
+    "publish.DASHt_InventoryAdjustments": ["adjustment", "inventory", "quantity", "date"],
+    "publish.DASHt_NetInventoryBalance": ["balance", "net", "inventory", "quantity"],
+    "publish.DASHt_Materials": ["material", "item", "shortage", "supply"],
+    "publish.DASHt_JobOperationAttributes": ["attribute", "operation", "job", "custom"],
+    "publish.DASHt_JobOperationProducts": ["product", "operation", "job", "quantity"],
+    "publish.DASHt_PredecessorOPIds": ["predecessor", "dependency", "operation", "sequence", "blocked"],
+    "publish.DASHt_HistoricalKPIs": ["kpi", "metric", "historical", "trend", "performance"],
+    "publish.DASHt_RecentPublishedScenariosArchive": ["scenario", "publish", "archive", "what-if"]
+  },
+  "promptTrimming": {
+    "defaultTableCount": 4,
+    "maxTableCount": 6,
+    "maxColumnsPerTable": 25,
+    "alwaysIncludeColumns": ["Id", "Name", "Date", "DateTime", "ScenarioType", "ScenarioName", "PlantName", "DepartmentName"]
+  },
+  "overrideRules": [
+    {
+      "triggers": ["predecessor", "predecessors", "dependency", "dependencies", "blocked by previous", "previous op", "previous operation"],
+      "requiredTables": ["publish.DASHt_PredecessorOPIds", "publish.DASHt_Planning"],
+      "description": "Predecessor questions always require PredecessorOPIds + Planning tables"
+    }
+  ]
+}
