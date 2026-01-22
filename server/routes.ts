@@ -238,25 +238,15 @@ export async function registerRoutes(
     }
   });
 
-  // Get latest publish date from DASHt_Planning (or fixed date in dev mode)
+  // Get latest publish date from DASHt_Planning
   app.get("/api/last-update", async (_req, res) => {
     try {
-      // In development, use fixed date from environment variable if set
-      const fixedDate = process.env.VITE_DEV_FIXED_TODAY;
-      if (process.env.NODE_ENV === 'development' && fixedDate) {
-        log(`Using fixed dev date: ${fixedDate}`, 'last-update');
-        res.json({
-          ok: true,
-          lastUpdate: new Date(`${fixedDate}T00:00:00Z`).toISOString(),
-        });
-        return;
-      }
-      
       const result = await executeQuery(
         'SELECT TOP (1) MAX(PublishDate) as lastUpdate FROM [publish].[DASHt_Planning]'
       );
       
       const lastUpdate = result.recordset[0]?.lastUpdate || null;
+      log(`PublishDate from database: ${lastUpdate}`, 'last-update');
       
       res.json({
         ok: true,
