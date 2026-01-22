@@ -432,7 +432,12 @@ export default function QueryPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto p-8 space-y-8">
-        <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
+          <p className="text-sm text-muted-foreground">
+            Select a scope below (e.g., Capacity, Production) to focus your questions on relevant data, then type your question in plain English.
+          </p>
+        </div>
 
         {/* Scope Tabs */}
         <div className="flex gap-2 flex-wrap" data-testid="scope-tabs">
