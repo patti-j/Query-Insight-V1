@@ -13,7 +13,9 @@ import {
   XCircle,
   ArrowLeft,
   Database,
-  Zap
+  Zap,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 
 interface AnalyticsData {
@@ -38,10 +40,21 @@ interface AnalyticsData {
   }>;
 }
 
+interface FeedbackStats {
+  total: number;
+  positive: number;
+  negative: number;
+}
+
 export default function Dashboard() {
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['/api/analytics'],
     refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  const { data: feedbackStats } = useQuery<FeedbackStats>({
+    queryKey: ['/api/feedback/stats'],
+    refetchInterval: 10000,
   });
 
   if (isLoading) {
@@ -140,6 +153,29 @@ export default function Dashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{summary.failedQueries}</div>
               <p className="text-xs text-muted-foreground">Validation or execution errors</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">User Feedback</CardTitle>
+              <div className="flex gap-1">
+                <ThumbsUp className="h-4 w-4 text-green-500" />
+                <ThumbsDown className="h-4 w-4 text-red-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <ThumbsUp className="h-4 w-4 text-green-500" />
+                  <span className="text-xl font-bold text-green-600">{feedbackStats?.positive || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ThumbsDown className="h-4 w-4 text-red-500" />
+                  <span className="text-xl font-bold text-red-600">{feedbackStats?.negative || 0}</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{feedbackStats?.total || 0} total responses</p>
             </CardContent>
           </Card>
         </div>
