@@ -348,11 +348,12 @@
       ]
     },
     {
-      "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making"],
+      "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making", "item type", "item group", "raw material", "raw materials", "subassembly", "subassemblies", "sub assembly", "sub assemblies", "intermediate", "intermediates", "fg", "int", "raw", "sub"],
       "tier1Tables": [
         "publish.DASHt_JobOperationProducts",
         "publish.DASHt_Planning",
-        "publish.DASHt_Materials"
+        "publish.DASHt_Materials",
+        "publish.DASHt_Inventories"
       ],
       "tier2Tables": [
         "publish.Items",
@@ -370,7 +371,7 @@
     "publish.DASHt_CapacityPlanning_ShiftsCombined": ["shift", "schedule", "capacity", "resource", "hours"],
     "publish.DASHt_SalesOrders": ["sales", "order", "customer", "due", "quantity", "revenue", "scenario"],
     "publish.DASHt_PurchaseOrders": ["purchase", "order", "vendor", "receipt", "quantity"],
-    "publish.DASHt_Inventories": ["inventory", "on-hand", "stock", "quantity", "warehouse"],
+    "publish.DASHt_Inventories": ["inventory", "on-hand", "stock", "quantity", "warehouse", "item type", "item group", "finished good", "raw material", "subassembly", "intermediate", "fg", "int", "raw", "sub"],
     "publish.DASHt_InventoryAdjustments": ["adjustment", "inventory", "quantity", "date"],
     "publish.DASHt_NetInventoryBalance": ["balance", "net", "inventory", "quantity"],
     "publish.DASHt_Materials": ["material", "item", "shortage", "supply"],
