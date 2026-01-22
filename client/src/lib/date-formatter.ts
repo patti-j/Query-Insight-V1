@@ -197,6 +197,11 @@ export function formatCellValue(
     return formatDateTime(value);
   }
   
+  // Round decimal numbers to 2 decimal places
+  if (typeof value === 'number' && !Number.isInteger(value)) {
+    return value.toFixed(2);
+  }
+  
   // Otherwise return string representation
   return String(value);
 }
