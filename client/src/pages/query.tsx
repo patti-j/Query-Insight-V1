@@ -634,27 +634,35 @@ export default function QueryPage() {
                   data-testid="input-question"
                 />
                 
-                {/* Common fields helper */}
+                {/* Common terms helper */}
                 {(() => {
                   const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
                   if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
                     return null;
                   }
                   
+                  // Convert camelCase/PascalCase to readable format (e.g., "ResourceName" -> "Resource Name")
+                  const formatFieldName = (field: string) => {
+                    return field.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+                  };
+                  
+                  // Get short scope name (e.g., "Capacity Plan" -> "Capacity")
+                  const scopeShortName = selectedReport.name.split(' ')[0];
+                  
                   return (
                     <div className="space-y-1.5" data-testid="common-fields-display">
                       <p className="text-xs font-medium text-muted-foreground">
-                        Common fields for this report:
+                        Common terms for {scopeShortName}:
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedReport.commonFields.map((field) => (
                           <Badge 
                             key={field} 
                             variant="secondary" 
-                            className="text-xs font-mono bg-muted/50 hover:bg-muted/70 cursor-default"
+                            className="text-xs bg-muted/50 hover:bg-muted/70 cursor-default"
                             data-testid={`field-chip-${field}`}
                           >
-                            {field}
+                            {formatFieldName(field)}
                           </Badge>
                         ))}
                       </div>
