@@ -568,6 +568,49 @@ export async function registerRoutes(
       // Generate "did you mean?" suggestions asynchronously
       const suggestions = await generateSuggestions(question);
 
+      // Check for empty results and find nearest dates if applicable
+      let nearestDates: { before: string | null; after: string | null } | undefined;
+      if (result.recordset.length === 0) {
+        // Check if the query involves date filtering - look for date columns in the SQL
+        const dateColumnMatch = finalSql.match(/(\w+)\.(DemandDate|CapacityDate|JobScheduledStartDateTime|PublishDate|RequiredAvailableDate)/i);
+        const tableMatch = finalSql.match(/FROM\s+(\[?publish\]?\.\[?\w+\]?)/i);
+        
+        if (dateColumnMatch && tableMatch) {
+          const dateColumn = dateColumnMatch[2];
+          const tableName = tableMatch[1].replace(/\[/g, '').replace(/\]/g, '');
+          
+          // Extract date range from WHERE clause
+          const dateRangeMatch = finalSql.match(new RegExp(`${dateColumn}\\s*>=\\s*'([^']+)'.*${dateColumn}\\s*<\\s*'([^']+)'`, 'i'));
+          
+          if (dateRangeMatch) {
+            const requestedStartDate = dateRangeMatch[1];
+            
+            try {
+              // Find nearest date before the requested range
+              const beforeQuery = `SELECT TOP 1 ${dateColumn} FROM ${tableName} WHERE ${dateColumn} < '${requestedStartDate}' ORDER BY ${dateColumn} DESC`;
+              const beforeResult = await executeQuery(beforeQuery);
+              
+              // Find nearest date after the requested range
+              const afterQuery = `SELECT TOP 1 ${dateColumn} FROM ${tableName} WHERE ${dateColumn} >= '${requestedStartDate}' ORDER BY ${dateColumn} ASC`;
+              const afterResult = await executeQuery(afterQuery);
+              
+              const beforeDate = beforeResult.recordset[0]?.[dateColumn];
+              const afterDate = afterResult.recordset[0]?.[dateColumn];
+              
+              if (beforeDate || afterDate) {
+                nearestDates = {
+                  before: beforeDate ? new Date(beforeDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+                  after: afterDate ? new Date(afterDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+                };
+                log(`No data found for requested dates. Nearest dates: before=${nearestDates.before}, after=${nearestDates.after}`, 'ask');
+              }
+            } catch (nearestError: any) {
+              log(`Failed to find nearest dates: ${nearestError.message}`, 'ask');
+            }
+          }
+        }
+      }
+
       res.json({
         answer: `Query executed successfully. Retrieved ${result.recordset.length} row(s).`,
         sql: finalSql,
@@ -575,6 +618,7 @@ export async function registerRoutes(
         rowCount: result.recordset.length,
         isMock: false,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
+        nearestDates,
       });
 
     } catch (error: any) {

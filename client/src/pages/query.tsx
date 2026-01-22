@@ -54,6 +54,10 @@ interface QueryResult {
   rowCount: number;
   isMock: boolean;
   suggestions?: string[];
+  nearestDates?: {
+    before: string | null;
+    after: string | null;
+  };
 }
 
 interface DiagnosticsResult {
@@ -1020,8 +1024,31 @@ export default function QueryPage() {
                     <div className="text-4xl mb-3">📭</div>
                     <h3 className="font-semibold text-lg mb-2">No matching records found</h3>
                     <p className="text-sm text-muted-foreground">
-                      Your query ran successfully, but no data matched the criteria. Try adjusting the date range or filters in your question.
+                      Your query ran successfully, but no data matched the criteria.
                     </p>
+                    {result.nearestDates && (result.nearestDates.before || result.nearestDates.after) && (
+                      <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-left" data-testid="nearest-dates-hint">
+                        <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
+                          Data is available on nearby dates:
+                        </p>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          {result.nearestDates.before && (
+                            <li>• Most recent before: <span className="font-medium text-foreground">{result.nearestDates.before}</span></li>
+                          )}
+                          {result.nearestDates.after && (
+                            <li>• Next available: <span className="font-medium text-foreground">{result.nearestDates.after}</span></li>
+                          )}
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Try asking about one of these dates instead.
+                        </p>
+                      </div>
+                    )}
+                    {!result.nearestDates && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Try adjusting the date range or filters in your question.
+                      </p>
+                    )}
                   </div>
                 )}
 
