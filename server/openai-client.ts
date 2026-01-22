@@ -152,6 +152,10 @@ COMMON MISTAKES TO AVOID:
 - For demand/capacity analysis: JOIN DASHt_Resources with DASHt_CapacityPlanning_ResourceDemand or DASHt_CapacityPlanning_ResourceCapacity
 - For shift comparisons: JOIN DASHt_CapacityPlanning_ShiftsCombined with DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish
 
+BEST PRACTICES:
+- When listing resources, use SELECT DISTINCT to avoid duplicate rows
+- When grouping by resource, always GROUP BY ResourceName (and other relevant columns)
+
 ONLY use columns explicitly listed in the schema above for each table.`;
   } else if (mode === 'production-planning') {
     modeGuidance = `
@@ -167,7 +171,11 @@ SCHEDULED vs UNSCHEDULED JOBS (IMPORTANT):
 - Use JobScheduled = 1 (or JobScheduledStatus if available) to filter for scheduled jobs
 - Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter these out using JobScheduled = 1
 - When user asks for "scheduled jobs", "scheduled start", or schedule-related queries: ALWAYS add WHERE JobScheduled = 1
-- When user asks for "unscheduled jobs": use WHERE JobScheduled = 0 or WHERE JobScheduled IS NULL`;
+- When user asks for "unscheduled jobs": use WHERE JobScheduled = 0 or WHERE JobScheduled IS NULL
+
+BEST PRACTICES:
+- When listing jobs or resources, use SELECT DISTINCT to avoid duplicate rows
+- When grouping, always GROUP BY the appropriate columns`;
   } else if (mode === 'finance') {
     modeGuidance = `
 
@@ -196,6 +204,10 @@ KEY COLUMNS FOR DASHt_SalesOrders:
 - Financial: UnitPrice, SalesAmount
 - Status: Cancelled, Hold, HoldReason, Priority
 - Scenario: ScenarioId, NewScenarioId, ScenarioName, ScenarioType
+
+BEST PRACTICES:
+- When listing orders, customers, or items, use SELECT DISTINCT to avoid duplicate rows
+- When grouping, always GROUP BY the appropriate columns
 
 ONLY use columns explicitly listed in the schema above.`;
   }
