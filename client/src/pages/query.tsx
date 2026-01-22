@@ -1118,7 +1118,10 @@ export default function QueryPage() {
                           key={idx}
                           variant="outline"
                           size="sm"
-                          onClick={() => executeQuery(suggestion)}
+                          onClick={() => {
+                            setQuestion(suggestion);
+                            executeQuery(suggestion);
+                          }}
                           disabled={loading}
                           data-testid={`button-suggestion-${idx}`}
                           className="text-xs bg-yellow-500/5 border-yellow-500/30 hover:bg-yellow-500/10"
