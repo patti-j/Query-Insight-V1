@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3, Heart, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ResultChart } from '@/components/result-chart';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -128,6 +129,7 @@ export default function QueryPage() {
   const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
   const [failedQuestion, setFailedQuestion] = useState<string>('');
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
+  const [showChart, setShowChart] = useState(false);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -936,6 +938,16 @@ export default function QueryPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => setShowChart(!showChart)}
+                          className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
+                          data-testid="button-toggle-chart"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                          {showChart ? 'Hide Chart' : 'Show Chart'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setShowAllRows(!showAllRows)}
                           disabled={result.rows.length <= 10}
                           className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 disabled:opacity-50"
@@ -945,6 +957,17 @@ export default function QueryPage() {
                         </Button>
                       </div>
                     </div>
+                    
+                    {/* Chart visualization */}
+                    {showChart && result.rows.length > 0 && (
+                      <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+                        <ResultChart 
+                          rows={result.rows.map(filterRowColumns)} 
+                          columns={Object.keys(filterRowColumns(result.rows[0]))} 
+                        />
+                      </div>
+                    )}
+                    
                     <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
                       <div className="max-h-[420px] overflow-auto">
                         <table className="min-w-[900px] w-full text-sm table-auto">

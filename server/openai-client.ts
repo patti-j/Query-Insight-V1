@@ -255,8 +255,21 @@ const QUESTION_CLASSIFIER_PROMPT = `
 You are a question classifier for a manufacturing analytics system.
 
 Classify the user's question into one of these categories:
-- "data_query" - Questions that require fetching data from the database (e.g., "Show me overdue jobs", "What is our utilization this week?", "List all resources")
-- "general" - Questions about concepts, definitions, help, or general information that don't require data (e.g., "What is utilization?", "How do I use this?", "What does on-hold mean?", "Help me understand capacity planning")
+- "data_query" - Questions that require fetching data from the database. This includes:
+  * Questions with numbers, counts, totals, sums (e.g., "How many hours of backlog?", "What's our total demand?")
+  * Questions about specific resources, jobs, workcenters (e.g., "Which resources are busiest?", "Show overdue jobs")
+  * Questions with time frames (e.g., "next week", "today", "this month")
+  * Questions starting with "Show me", "List", "What are the", "How many", "Which"
+  * Any question that implies looking at actual production/planning data
+  
+- "general" - ONLY questions about concepts, definitions, or system help that don't reference any actual data. Examples:
+  * "What is utilization?" (asking for a definition)
+  * "How do I use this system?" (asking for help)
+  * "What does on-hold mean?" (asking for a term definition)
+  * "Explain capacity planning" (asking for a concept explanation)
+
+IMPORTANT: If the question could be answered with data from the database, classify as "data_query".
+Only use "general" for pure definitions, concepts, or system help questions.
 
 Return ONLY the category string, nothing else.
 `;
