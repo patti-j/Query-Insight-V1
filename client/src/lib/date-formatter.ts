@@ -54,6 +54,22 @@ export function isValidDate(value: any): boolean {
 }
 
 /**
+ * Checks if a date is a sentinel/placeholder value indicating "unscheduled"
+ * Common sentinel dates: 9000-01-01, 1800-01-01, 1900-01-01, 1753-01-01 (SQL Server min)
+ */
+export function isSentinelDate(value: any): boolean {
+  if (!isValidDate(value)) {
+    return false;
+  }
+  
+  const date = new Date(value);
+  const year = date.getFullYear();
+  
+  // Dates before 1900 or after 2200 are likely sentinel values
+  return year < 1900 || year > 2200;
+}
+
+/**
  * Determines if a date value should display time component
  * Returns false if time is midnight (00:00:00), suggesting it's a date-only field
  */
@@ -174,6 +190,10 @@ export function formatCellValue(
   
   // If this is a date/time column, format it
   if (dateTimeColumns.has(columnName) && isValidDate(value)) {
+    // Check for sentinel dates (unscheduled jobs)
+    if (isSentinelDate(value)) {
+      return 'Unscheduled';
+    }
     return formatDateTime(value);
   }
   
