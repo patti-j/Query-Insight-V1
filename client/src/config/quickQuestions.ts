@@ -20,30 +20,27 @@ export interface ReportQuickQuestions {
  */
 export const REPORT_QUICK_QUESTIONS: Record<string, QuickQuestion[]> = {
   'capacity-plan': [
-    { text: 'Where are we over capacity by resource?', icon: '📊' },
-    { text: 'Top 10 constrained resources (demand > capacity)', icon: '🚧' },
-    { text: 'Show capacity vs demand by resource', icon: '📈' },
-    { text: 'Which shifts are most overloaded?', icon: '⚙️' },
-    { text: 'Idle vs loaded hours by resource', icon: '⏱️' },
-    { text: 'Compare current shifts vs last publish shifts', icon: '🔄' },
+    { text: 'List all resources with their capacity hours', icon: '📊' },
+    { text: 'Show demand hours by resource', icon: '📈' },
+    { text: 'Total demand hours by department', icon: '🏭' },
+    { text: 'List resources by workcenter', icon: '⚙️' },
+    { text: 'Show resources by plant', icon: '🏢' },
   ],
   
   'production-planning': [
-    { text: 'Which jobs are predicted late this month?', icon: '🔴' },
-    { text: 'Top bottleneck operations by resource/workcenter', icon: '🚧' },
-    { text: 'Overdue jobs count by plant and priority', icon: '📊' },
-    { text: 'Show jobs with longest predicted lateness', icon: '⏰' },
-    { text: 'Which operations are blocked by predecessors?', icon: '🔗' },
-    { text: 'What changed between last publish and current plan?', icon: '🔄' },
+    { text: 'List overdue jobs', icon: '🔴' },
+    { text: 'Show jobs by priority', icon: '📊' },
+    { text: 'Count jobs by plant', icon: '🏭' },
+    { text: 'List jobs on hold', icon: '⏸️' },
+    { text: 'Show late jobs by customer', icon: '👥' },
   ],
   
   'finance': [
-    { text: 'Total sales order revenue this month (Production)', icon: '💰' },
-    { text: 'Open demand quantity by customer', icon: '📦' },
-    { text: 'What sales orders are overdue?', icon: '⚠️' },
-    { text: 'Revenue at risk (overdue open orders)', icon: '🔥' },
-    { text: 'Compare Production vs What-If demand next 30 days', icon: '🔄' },
-    { text: 'Orders on hold and hold reasons', icon: '⏸️' },
+    { text: 'List open sales orders', icon: '📦' },
+    { text: 'Show sales orders by customer', icon: '👥' },
+    { text: 'Total ordered quantity by item', icon: '📊' },
+    { text: 'List overdue sales orders', icon: '⚠️' },
+    { text: 'Show purchase orders by supplier', icon: '🚚' },
   ],
 };
 
