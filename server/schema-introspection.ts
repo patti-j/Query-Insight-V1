@@ -1,4 +1,5 @@
-import { executeQuery } from './db-azure';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { log } from './index';
 
 /**
@@ -15,137 +16,57 @@ export interface ColumnMetadata {
   isNullable: boolean;
 }
 
-/**
- * Schema cache entry with TTL
- */
-interface SchemaCacheEntry {
-  data: Map<string, TableSchema>;
-  timestamp: number;
-}
-
-// In-memory cache with 10-minute TTL
-const SCHEMA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-let schemaCache: SchemaCacheEntry | null = null;
+// Static schema loaded from pre-compiled JSON file
+let staticSchema: Map<string, TableSchema> | null = null;
 
 /**
- * Query INFORMATION_SCHEMA.COLUMNS for the given tables
+ * Load static schema from pre-compiled JSON file
  */
-async function fetchSchemaFromDatabase(tableNames: string[]): Promise<Map<string, TableSchema>> {
-  const tableSchemas = new Map<string, TableSchema>();
+function loadStaticSchema(): Map<string, TableSchema> {
+  if (staticSchema) {
+    return staticSchema;
+  }
   
-  if (tableNames.length === 0) {
-    return tableSchemas;
+  const schemaPath = join(process.cwd(), 'docs', 'semantic', 'static-schema.json');
+  
+  if (!existsSync(schemaPath)) {
+    log('schema-introspection', `Static schema file not found at ${schemaPath}. Run 'npx tsx scripts/generate-schema.ts' to generate it.`);
+    return new Map();
   }
-
-  // Parse schema and table names
-  const tableFilters = tableNames.map(fullName => {
-    const parts = fullName.split('.');
-    if (parts.length !== 2) {
-      throw new Error(`Invalid table name format: ${fullName}. Expected format: schema.table`);
-    }
-    return {
-      schema: parts[0],
-      table: parts[1],
-      fullName
-    };
-  });
-
-  // Build WHERE clause for multiple tables
-  const whereConditions = tableFilters.map(t => 
-    `(TABLE_SCHEMA = '${t.schema}' AND TABLE_NAME = '${t.table}')`
-  ).join(' OR ');
-
-  const query = `
-    SELECT 
-      TABLE_SCHEMA,
-      TABLE_NAME,
-      COLUMN_NAME,
-      DATA_TYPE,
-      IS_NULLABLE
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE ${whereConditions}
-    ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
-  `;
-
+  
   try {
-    const result = await executeQuery(query);
+    const content = readFileSync(schemaPath, 'utf-8');
+    const data = JSON.parse(content);
     
-    // Group columns by table
-    for (const row of result.recordset) {
-      const fullTableName = `${row.TABLE_SCHEMA}.${row.TABLE_NAME}`;
-      
-      if (!tableSchemas.has(fullTableName)) {
-        tableSchemas.set(fullTableName, {
-          tableName: fullTableName,
-          columns: []
-        });
-      }
-      
-      tableSchemas.get(fullTableName)!.columns.push({
-        columnName: row.COLUMN_NAME,
-        dataType: row.DATA_TYPE,
-        isNullable: row.IS_NULLABLE === 'YES'
-      });
+    staticSchema = new Map<string, TableSchema>();
+    for (const [tableName, schema] of Object.entries(data.tables)) {
+      staticSchema.set(tableName, schema as TableSchema);
     }
-
-    // Log results
-    log('schema-introspection', `Fetched schema for ${tableSchemas.size} tables with ${result.recordset.length} total columns`);
     
-    return tableSchemas;
+    log('schema-introspection', `Loaded static schema: ${staticSchema.size} tables from ${schemaPath}`);
+    return staticSchema;
   } catch (error) {
-    log('schema-introspection', `Error fetching schema: ${error}`);
-    throw error;
+    log('schema-introspection', `Error loading static schema: ${error}`);
+    return new Map();
   }
 }
 
 /**
- * Get schema for the given tables, using cache if available
+ * Get schema for the given tables from static file
  */
 export async function getTableSchemas(tableNames: string[]): Promise<Map<string, TableSchema>> {
-  const now = Date.now();
+  const allSchemas = loadStaticSchema();
   
-  // Check if cache is valid and contains all requested tables
-  if (schemaCache && (now - schemaCache.timestamp) < SCHEMA_CACHE_TTL_MS) {
-    const missingTables = tableNames.filter(t => !schemaCache!.data.has(t));
-    
-    if (missingTables.length === 0) {
-      // All requested tables are in cache
-      log('schema-introspection', `Using cached schema (age: ${Math.round((now - schemaCache.timestamp) / 1000)}s)`);
-      
-      // Filter and return only the requested tables
-      const filteredSchemas = new Map<string, TableSchema>();
-      for (const tableName of tableNames) {
-        const schema = schemaCache.data.get(tableName);
-        if (schema) {
-          filteredSchemas.set(tableName, schema);
-        }
-      }
-      return filteredSchemas;
-    } else {
-      // Some tables are missing from cache - need to fetch
-      log('schema-introspection', `Cache partial miss. Missing ${missingTables.length} tables: ${missingTables.join(', ')}`);
+  // Filter to only requested tables
+  const filteredSchemas = new Map<string, TableSchema>();
+  for (const tableName of tableNames) {
+    const schema = allSchemas.get(tableName);
+    if (schema) {
+      filteredSchemas.set(tableName, schema);
     }
   }
-
-  // Fetch fresh data for requested tables
-  log('schema-introspection', `Cache miss or expired. Fetching schema for ${tableNames.length} tables...`);
-  const schemas = await fetchSchemaFromDatabase(tableNames);
   
-  // Merge with existing cache (if still valid) to accumulate all table schemas
-  if (schemaCache && (now - schemaCache.timestamp) < SCHEMA_CACHE_TTL_MS) {
-    for (const [tableName, schema] of Array.from(schemas)) {
-      schemaCache.data.set(tableName, schema);
-    }
-    log('schema-introspection', `Merged new schemas into cache. Total tables in cache: ${schemaCache.data.size}`);
-  } else {
-    // Replace cache with fresh data
-    schemaCache = {
-      data: schemas,
-      timestamp: now
-    };
-  }
-  
-  return schemas;
+  return filteredSchemas;
 }
 
 /**
@@ -174,37 +95,16 @@ export function formatSchemaForPrompt(schemas: Map<string, TableSchema>): string
  * Clear the schema cache (useful for testing)
  */
 export function clearSchemaCache(): void {
-  schemaCache = null;
+  staticSchema = null;
   log('schema-introspection', 'Schema cache cleared');
 }
 
 /**
- * Prefetch schemas for all modes on startup
+ * Load static schemas on startup (no database fetch needed)
  */
-export async function prefetchAllModeSchemas(catalogPath: string): Promise<void> {
-  const { readFileSync } = await import('fs');
-  const { join } = await import('path');
-  
-  try {
-    const catalogContent = readFileSync(catalogPath, 'utf-8');
-    const catalog = JSON.parse(catalogContent);
-    
-    const allTables = new Set<string>();
-    for (const mode of catalog.modes) {
-      for (const table of mode.tables) {
-        allTables.add(table);
-      }
-    }
-    
-    const tableList = Array.from(allTables);
-    log('schema-introspection', `Prefetching schemas for ${tableList.length} unique tables across all modes...`);
-    
-    await getTableSchemas(tableList);
-    log('schema-introspection', `Schema prefetch completed successfully`);
-  } catch (error: any) {
-    log('schema-introspection', `Schema prefetch failed: ${error.message}`);
-    throw error;
-  }
+export async function prefetchAllModeSchemas(_catalogPath: string): Promise<void> {
+  const schemas = loadStaticSchema();
+  log('schema-introspection', `Static schema loaded: ${schemas.size} tables`);
 }
 
 /**

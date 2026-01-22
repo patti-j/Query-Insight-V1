@@ -1,0 +1,2601 @@
+{
+  "generatedAt": "2026-01-22T13:57:50.587Z",
+  "description": "Pre-compiled database schema for AI Analytics query generation",
+  "tables": {
+    "publish.DASHt_CapacityPlanning_ResourceActual": {
+      "tableName": "publish.DASHt_CapacityPlanning_ResourceActual",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Workcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "StartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "EndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScheduleDate",
+          "dataType": "date",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScheduleHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SetupHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PostProcessingHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "NbrOfPeople",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "DayStartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "DayEndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobMOName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_CapacityPlanning_ResourceCapacity": {
+      "tableName": "publish.DASHt_CapacityPlanning_ResourceCapacity",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Workcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceBottleneck",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDrum",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "CapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ShiftDate",
+          "dataType": "date",
+          "isNullable": true
+        },
+        {
+          "columnName": "NormalOnlineHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OvertimeHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PotentialOvertimeHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OfflineHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "CleanoutHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_CapacityPlanning_ResourceDemand": {
+      "tableName": "publish.DASHt_CapacityPlanning_ResourceDemand",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Workcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "StartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "EndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "DemandDate",
+          "dataType": "date",
+          "isNullable": true
+        },
+        {
+          "columnName": "DemandHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "NbrOfPeople",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "DayStartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "DayEndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobMOName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_CapacityPlanning_ShiftsCombined": {
+      "tableName": "publish.DASHt_CapacityPlanning_ShiftsCombined",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Workcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "StartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "EndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "NbrOfPeople",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "CapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Active",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceBottleneck",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDrum",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish": {
+      "tableName": "publish.DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Workcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "StartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "EndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "IntervalType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "NbrOfPeople",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "CapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Active",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceBottleneck",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDrum",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_HistoricalKPIs": {
+      "tableName": "publish.DASHt_HistoricalKPIs",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlanningAreaId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CalculatorName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CurrentValue",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "CalculatorId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_Inventories": {
+      "tableName": "publish.DASHt_Inventories",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InitialOnHandQty",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "MinOrderQtyRoundupLimit",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "Cost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryCost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemSource",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemGroup",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_InventoryAdjustments": {
+      "tableName": "publish.DASHt_InventoryAdjustments",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentTypeId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentQty",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentReason",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_JobOperationAttributes": {
+      "tableName": "publish.DASHt_JobOperationAttributes",
+      "columns": [
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ManufacturingOrderId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OperationId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "AttributesExternalIds",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "AttributesColorCodes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_JobOperationProducts": {
+      "tableName": "publish.DASHt_JobOperationProducts",
+      "columns": [
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ManufacturingOrderId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OperationId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ProductIds",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ProductGroups",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "LotCodes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_Materials": {
+      "tableName": "publish.DASHt_Materials",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobScheduledStatus",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MaterialName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MaterialDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ConstraintType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MaterialAvailableDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "TotalCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "TotalRequiredQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "UOM",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingJobName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingJobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingMOName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingMOId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingOPName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingOPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingActivityExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyingActivityId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SuppliedQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "SupplyBomLevel",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_NetInventoryBalance": {
+      "tableName": "publish.DASHt_NetInventoryBalance",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InitialOnHandQty",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentQty",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OnHandQtyAfterAdjustmentDate",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "CumulativeAdjustments",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "FinalOnHandQty",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentTypeId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "AdjustmentReason",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Cost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryCost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemSource",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemGroup",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_Planning": {
+      "tableName": "publish.DASHt_Planning",
+      "columns": [
+        {
+          "columnName": "JobName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "LinkPredecessorOPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "LinkSuccessorOPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityTiming",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityPercentFinished",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "SuccessorBlockId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "LinkRelationType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "LinkDirection",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPNeedDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPRequiredFinishQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockScheduledStart",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockScheduledEnd",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockPlant",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockDepartment",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockResource",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockWorkcenter",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockLocked",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockSequence",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockRunNbr",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockDurationHrs",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPTrasnferHrs",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPCarryingCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityLaborCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityMachineCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivitySetupCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityTotalCleanCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockScheduled",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPDesc",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPOnHold",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPHoldReason",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPLate",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPBottleneck",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPBatchCode",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPProductsList",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPMaterialsList",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPMaterialStatus",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPCommitStartDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPCommitEndDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPEndOfResourceTransferTimeDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPCurrentBufferWarningLevel",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPProjectedBufferWarningLevel",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPUOM",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PredecessorOPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SuccessorOPId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobColorCode",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOProductColorCode",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOProduct",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPSetupColorCode",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPAttributesExternalIds",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPAttributesSummary",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPAttributesColorCodes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPProductIds",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPProductGroups",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPLotCodes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobNeedDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobScheduledStartDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobScheduledEndDateTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobScheduled",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobDoNotSchedule",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobScheduledStatus",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobEntryDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobStarted",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobFinished",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobLate",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobLatenessDays",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobOverdue",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobOverdueDays",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobProduct",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobProductDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobRevenue",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobLatePenaltyCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobLaborCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobMachineCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobMaterialCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobShippingCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobExpectedLatePenaltyCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobSubcontractCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobTotalCost",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobCommitment",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobOnHold",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobHoldReason",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobThroughput",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobNotes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "MORequiredQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOScheduled",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "MOLate",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityReportedStartDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityReportedFinishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityReportedGoodQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityRequiredFinishQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityRequiredStartQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityExpectedScrapQty",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "CustomerName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CustomerExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Priority",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "OtherResourcesUsed",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockSetupHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockRunHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockPostProcessingHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "OPStoragePostProcessingHours",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivityJitStartDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActivitySlackDays",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "BlockProductionStatus",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_PredecessorOPIds": {
+      "tableName": "publish.DASHt_PredecessorOPIds",
+      "columns": [
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "JobId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ManufacturingOrderId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "OperationId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PredecessorOperationIds",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_PurchaseOrders": {
+      "tableName": "publish.DASHt_PurchaseOrders",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PurchaseToStockId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "PurchaseToStockName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PurchaseToStockDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "InventoryId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "WarehouseName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "QtyOrdered",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "QtyReceived",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "AvailableDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScheduledReceiptDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ActualReceiptDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "UnloadEndDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "UnloadHrs",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "TransferHrs",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "VendorExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "BuyerExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Notes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Firm",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "Closed",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "MaintenanceMethod",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DbrReceivingBufferHrs",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "DbrReceiptDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "DbrCurrentPenetrationPercent",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "DeletedDemand",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ForecastDemand",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "SafetyStockDemand",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderDemand",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "TransferOrderDemand",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "DateDeleted",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "DeletedDemandId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "ForecastShipmentId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderDistributionId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "TransferOrderDistributionId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_RecentPublishedScenariosArchive": {
+      "tableName": "publish.DASHt_RecentPublishedScenariosArchive",
+      "columns": [
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "LastSchedulePublished",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewPublishDateForBI",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlanningAreaId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlanningAreaVersion",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "TimeZone",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_Resources": {
+      "tableName": "publish.DASHt_Resources",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "DepartmentName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "WorkcenterName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CellName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceExcludeFromGantts",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceNotes",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceCapacityType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Bottleneck",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "Drum",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceImageFileName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceNormalOptimizeRule",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceIsTank",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceOvertimeHourlyCost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "ResourceStandardHourlyCost",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantDailyOperatingExpense",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PlantInvestedCapital",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_SalesOrders": {
+      "tableName": "publish.DASHt_SalesOrders",
+      "columns": [
+        {
+          "columnName": "PlanningAreaName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "Cancelled",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "CustomerName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "CustomerExternalId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ExpirationDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesAmount",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "LineDescription",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ItemId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "LineNumber",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "SalesOrderLineId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "UnitPrice",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "Hold",
+          "dataType": "bit",
+          "isNullable": true
+        },
+        {
+          "columnName": "HoldReason",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Priority",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "QtyOrdered",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "QtyShipped",
+          "dataType": "float",
+          "isNullable": true
+        },
+        {
+          "columnName": "RequiredAvailableDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublishDate",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "PublisherUserId",
+          "dataType": "int",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioId",
+          "dataType": "bigint",
+          "isNullable": true
+        },
+        {
+          "columnName": "NewScenarioId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "ScenarioType",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    },
+    "publish.DASHt_TranLog": {
+      "tableName": "publish.DASHt_TranLog",
+      "columns": [
+        {
+          "columnName": "TLDate",
+          "dataType": "datetime",
+          "isNullable": false
+        },
+        {
+          "columnName": "TLEntry",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Summary_Duration",
+          "dataType": "decimal",
+          "isNullable": true
+        },
+        {
+          "columnName": "Summary_SPName",
+          "dataType": "nvarchar",
+          "isNullable": true
+        },
+        {
+          "columnName": "Summary_StartTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "Summary_EndTime",
+          "dataType": "datetime",
+          "isNullable": true
+        },
+        {
+          "columnName": "Summary_FullRunId",
+          "dataType": "nvarchar",
+          "isNullable": true
+        }
+      ]
+    }
+  }
+}
