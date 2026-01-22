@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
-import { getQuickQuestionsForReport, type QuickQuestion } from '@/config/quickQuestions';
+import { getQuickQuestions, type QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
 import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
 import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
@@ -89,9 +89,9 @@ interface SemanticMode {
   warning?: string;
 }
 
-interface ScopeMismatch {
-  detectedScope: string;
-  currentScope: string;
+interface ModeSuggestion {
+  detectedMode: string;
+  currentMode: string;
   question: string;
 }
 
@@ -124,7 +124,6 @@ export default function QueryPage() {
   const [isDevelopment, setIsDevelopment] = useState(true);
   const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
   const [selectedMode, setSelectedMode] = useState('capacity-plan');
-  const [scopeMismatch, setScopeMismatch] = useState<ScopeMismatch | null>(null);
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -182,20 +181,13 @@ export default function QueryPage() {
         const defaultMode = data.modes.find((m: SemanticMode) => m.default);
         if (defaultMode) {
           setSelectedMode(defaultMode.id);
-          // Load quick questions for default mode from static config
-          setFaqQuestions(getQuickQuestionsForReport(defaultMode.id));
         }
+        // Load universal quick questions
+        setFaqQuestions(getQuickQuestions());
       })
       .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
 
-  // Update quick questions when report selection changes
-  useEffect(() => {
-    if (selectedMode) {
-      setFaqQuestions(getQuickQuestionsForReport(selectedMode));
-      setScopeMismatch(null);
-    }
-  }, [selectedMode]);
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
@@ -214,7 +206,6 @@ export default function QueryPage() {
     }
 
     // Clear any previous scope mismatch state
-    setScopeMismatch(null);
     setSuggestedMode(null);
     setFailedQuestion('');
     setLoading(true);
@@ -448,59 +439,9 @@ export default function QueryPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Select a category below to focus your questions on relevant data, then type your question in plain English.
+            Ask questions about your manufacturing data in plain English.
           </p>
         </div>
-
-        {/* Category Tabs */}
-        <div className="flex gap-2 flex-wrap" data-testid="category-tabs">
-          {semanticCatalog?.modes.map((mode) => {
-            const isUnavailable = mode.available === false;
-            return (
-              <button
-                key={mode.id}
-                onClick={() => setSelectedMode(mode.id)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 relative ${
-                  selectedMode === mode.id
-                    ? isUnavailable 
-                      ? 'bg-amber-600/80 text-amber-100 shadow-md'
-                      : 'bg-primary text-primary-foreground shadow-md'
-                    : isUnavailable
-                      ? 'bg-card/50 text-foreground/40 border border-amber-500/30'
-                      : 'bg-card/80 text-foreground/70 hover:bg-card hover:text-foreground border border-border/50'
-                }`}
-                data-testid={`tab-${mode.id}`}
-              >
-                {mode.name}
-                {isUnavailable && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full" title="Tables not available" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Category Unavailable Warning */}
-        {(() => {
-          const selectedModeData = semanticCatalog?.modes.find(m => m.id === selectedMode);
-          if (selectedModeData?.available === false) {
-            return (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400" data-testid="category-warning">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="font-medium">{selectedModeData.warning || `${selectedModeData.name} tables not available in this environment yet`}</span>
-                </div>
-                {selectedModeData.missingTables && selectedModeData.missingTables.length > 0 && (
-                  <p className="mt-2 text-sm opacity-80">
-                    Missing: {selectedModeData.missingTables.slice(0, 3).map(t => t.replace('publish.', '')).join(', ')}
-                    {selectedModeData.missingTables.length > 3 && ` and ${selectedModeData.missingTables.length - 3} more`}
-                  </p>
-                )}
-              </div>
-            );
-          }
-          return null;
-        })()}
 
         {/* Quick Questions */}
         <div className="space-y-4">
@@ -510,23 +451,20 @@ export default function QueryPage() {
           
           {faqQuestions.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              {faqQuestions.map((q, idx) => {
-                const isScopeUnavailable = semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => { setQuestion(q.text); executeQuery(q.text); }}
-                    disabled={loading || isScopeUnavailable}
-                    className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                    data-testid={`card-sample-question-${idx}`}
-                  >
-                    <span className="text-2xl mb-2 block">{q.icon}</span>
-                    <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
-                      {q.text}
-                    </span>
-                  </button>
-                );
-              })}
+              {faqQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { setQuestion(q.text); executeQuery(q.text); }}
+                  disabled={loading}
+                  className="group relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm hover:bg-primary/10 hover:border-primary/50 transition-all duration-200 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid={`card-sample-question-${idx}`}
+                >
+                  <span className="text-2xl mb-2 block">{q.icon}</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                    {q.text}
+                  </span>
+                </button>
+              ))}
             </div>
           ) : (
             <div className="p-8 text-center border border-border/50 rounded-xl bg-card/50 backdrop-blur-sm">
@@ -553,10 +491,8 @@ export default function QueryPage() {
                 >
                   <button
                     onClick={() => {
-                      if (fav.mode !== selectedMode) {
-                        setSelectedMode(fav.mode);
-                      }
-                      setTimeout(() => executeQuery(fav.question), fav.mode !== selectedMode ? 100 : 0);
+                      setQuestion(fav.question);
+                      executeQuery(fav.question);
                     }}
                     disabled={loading}
                     className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
@@ -564,9 +500,6 @@ export default function QueryPage() {
                     <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground line-clamp-2">
                       {fav.question}
                     </span>
-                    <Badge variant="secondary" className="mt-2 text-xs">
-                      {semanticCatalog?.modes.find(m => m.id === fav.mode)?.name || fav.mode}
-                    </Badge>
                   </button>
                   <button
                     onClick={(e) => {
@@ -587,14 +520,9 @@ export default function QueryPage() {
 
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>Ask a Question</span>
-              <Badge variant="outline" className="font-normal">
-                {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name}
-              </Badge>
-            </CardTitle>
+            <CardTitle>Ask a Question</CardTitle>
             <CardDescription>
-              Type a natural language question about {semanticCatalog?.modes.find(m => m.id === selectedMode)?.name?.toLowerCase() || 'your data'}
+              Type a natural language question about your manufacturing data
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -608,53 +536,6 @@ export default function QueryPage() {
                   className="min-h-[100px] bg-background/50"
                   data-testid="input-question"
                 />
-                
-                {/* Common terms helper */}
-                {(() => {
-                  const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
-                  if (!selectedReport || !selectedReport.commonFields || selectedReport.commonFields.length === 0) {
-                    return null;
-                  }
-                  
-                  // Convert column names to natural words (e.g., "ResourceName" -> "Resource", "ShiftName" -> "Shift")
-                  const formatFieldName = (field: string) => {
-                    // Remove common suffixes like "Name", "Id"
-                    let formatted = field.replace(/Name$/, '').replace(/Id$/, '');
-                    // Add spaces between camelCase/PascalCase words
-                    formatted = formatted.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
-                    return formatted;
-                  };
-                  
-                  // Get scope name for display
-                  const scopeName = selectedReport.name;
-                  
-                  // Filter out ID fields - they contain system-generated integers
-                  const filteredFields = selectedReport.commonFields.filter(
-                    (field) => !field.toLowerCase().endsWith('id')
-                  );
-                  
-                  if (filteredFields.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-1.5" data-testid="common-fields-display">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Common terms for {scopeName}:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {filteredFields.map((field) => (
-                          <Badge 
-                            key={field} 
-                            variant="secondary" 
-                            className="text-xs bg-muted/50 hover:bg-muted/70 cursor-default"
-                            data-testid={`field-chip-${field}`}
-                          >
-                            {formatFieldName(field)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
                 
                 {/* Display both Query Date (anchor) and Data Last Updated (publish date) */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
