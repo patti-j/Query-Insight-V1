@@ -122,20 +122,25 @@ export function transformRelativeDates(query: string, anchorDate: Date): string 
   return transformed;
 }
 export function getEffectiveToday(): Date {
-  // Vite exposes PROD boolean at build time
-  if (import.meta.env.PROD) return new Date();
-
-  const fixed = (import.meta.env.VITE_DEV_FIXED_TODAY as string) || "2024-01-01";
-  // Parse as local midnight (not UTC) to avoid timezone display issues
-  const [year, month, day] = fixed.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  // Check for fixed date override in both dev and production
+  const fixed = import.meta.env.VITE_DEV_FIXED_TODAY as string;
+  
+  if (fixed) {
+    // Parse as local midnight to avoid timezone display issues
+    const [year, month, day] = fixed.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  
+  // Fallback to actual current date if no override set
+  return new Date();
 }
 
 export function formatEffectiveTodayLabel(): string {
-  if (import.meta.env.PROD) return "";
+  const fixed = import.meta.env.VITE_DEV_FIXED_TODAY as string;
+  if (!fixed) return "";
   const d = getEffectiveToday();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  return `Effective Today = ${yyyy}-${mm}-${dd} (dev override)`;
+  return `Effective Today = ${yyyy}-${mm}-${dd} (anchor date)`;
 }
