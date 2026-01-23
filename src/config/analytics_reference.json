@@ -153,6 +153,15 @@
       "computation": "SUM(Planning[ActivityExpectedScrapQty]) / SUM(Planning[ActivityRequiredStartQty])",
       "tables": ["DASHt_Planning"],
       "columns": ["ActivityExpectedScrapQty", "ActivityRequiredStartQty"]
+    },
+    {
+      "name": "Where Used / When Used",
+      "type": "query pattern",
+      "description": "Shows which jobs/operations consume a product or item as a component material. 'Where used' shows the consuming jobs, 'when used' shows when those jobs are scheduled.",
+      "computation": "JOIN Jobs->JobOperations->JobProducts->Items (producing side) with JobMaterials (consuming side) to find where an item is used as a component",
+      "tables": ["Jobs", "JobOperations", "JobProducts", "JobMaterials", "Items"],
+      "columns": ["ExternalId", "ItemId", "ScheduledStart", "Scheduled", "Template"],
+      "notes": "Filter: Scheduled=1 AND Template=0. Join on PublishDate, JobId, ManufacturingOrderId, OperationId. For consuming side, join JobMaterials.ExternalId = Items.ExternalId"
     }
   ],
   "matrix": [
@@ -301,6 +310,21 @@
         "publish.JobMaterialSupplyingActivities",
         "publish.JobActivities"
       ]
+    },
+    {
+      "keywords": ["where used", "when used", "where-used", "component usage", "used in", "consumed by", "consumed in", "uses this", "part usage"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts"
+      ],
+      "tier2Tables": [
+        "publish.Jobs",
+        "publish.JobOperations",
+        "publish.JobProducts",
+        "publish.JobMaterials",
+        "publish.Items"
+      ],
+      "contextHint": "For where-used queries: Join Jobs->JobOperations->JobProducts->Items to find which product is made, then join JobMaterials to find which jobs consume that item as a component. Filter on Scheduled=1 and Template=0. Use ScheduledStart from JobOperations for 'when used' timing."
     },
     {
       "keywords": ["scenario", "scenarios", "publish", "what-if", "what if", "production", "compare", "comparison"],
