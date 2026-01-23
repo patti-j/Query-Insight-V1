@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 const FAQ_FILE = path.join(process.cwd(), 'data', 'popular-queries.json');
+const QUERY_LOG_FILE = path.join(process.cwd(), 'data', 'query-logs.json');
 
 interface QueryFrequencyData {
   count: number;
@@ -50,9 +51,36 @@ interface FeedbackEntry {
 }
 const feedbackStore: FeedbackEntry[] = [];
 
-// In-memory store for detailed query logs (for analytics dashboard)
-const queryLogs: QueryLogEntry[] = [];
-const MAX_LOG_ENTRIES = 1000; // Keep last 1000 entries
+// Load query logs from file on startup
+function loadQueryLogs(): QueryLogEntry[] {
+  try {
+    if (fs.existsSync(QUERY_LOG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(QUERY_LOG_FILE, 'utf-8'));
+      console.log(`[query-logger] Loaded ${data.length} query logs from file`);
+      return data;
+    }
+  } catch (err) {
+    console.error('[query-logger] Failed to load query logs:', err);
+  }
+  return [];
+}
+
+// Save query logs to file
+function saveQueryLogs(logs: QueryLogEntry[]): void {
+  try {
+    const dir = path.dirname(QUERY_LOG_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(QUERY_LOG_FILE, JSON.stringify(logs, null, 2));
+  } catch (err) {
+    console.error('[query-logger] Failed to save query logs:', err);
+  }
+}
+
+// In-memory store for detailed query logs (for analytics dashboard) - loaded from file
+const queryLogs: QueryLogEntry[] = loadQueryLogs();
+const MAX_LOG_ENTRIES = 500; // Keep last 500 entries
 
 /**
  * Store feedback for a query result
@@ -349,6 +377,9 @@ export function logQuery(context: QueryLogContext, result: QueryLogResult): void
   if (queryLogs.length > MAX_LOG_ENTRIES) {
     queryLogs.shift(); // Remove oldest entry
   }
+  
+  // Persist to file
+  saveQueryLogs(queryLogs);
 }
 
 /**
@@ -553,4 +584,29 @@ export function getAnalytics(timeRangeMinutes: number = 60): {
     topErrors,
     recentQueries,
   };
+}
+
+/**
+ * Get failed queries for analysis (includes full SQL and error details)
+ */
+export function getFailedQueries(limit: number = 50): Array<{
+  timestamp: string;
+  question: string;
+  generatedSql: string | null;
+  errorStage: string;
+  errorMessage: string;
+  llmMs: number | null;
+}> {
+  return queryLogs
+    .filter(log => log.error)
+    .slice(-limit)
+    .reverse()
+    .map(log => ({
+      timestamp: log.timestamp,
+      question: log.question,
+      generatedSql: log.generatedSql,
+      errorStage: log.error!.stage,
+      errorMessage: log.error!.message,
+      llmMs: log.timings.llmMs,
+    }));
 }

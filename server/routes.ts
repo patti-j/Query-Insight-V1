@@ -15,6 +15,7 @@ import {
   storeFeedback,
   getFeedbackStats,
   getAnalytics,
+  getFailedQueries,
 } from "./query-logger";
 import { getValidatedQuickQuestions } from "./quick-questions";
 import { getSchemasForMode, formatSchemaForPrompt, TableSchema } from "./schema-introspection";
@@ -83,6 +84,13 @@ export async function registerRoutes(
     const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string, 10) : 1440; // 24 hours
     const analytics = getAnalytics(timeRange);
     res.json(analytics);
+  });
+
+  // Get failed queries for analysis (includes full SQL and error details)
+  app.get("/api/analytics/failed-queries", (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const failedQueries = getFailedQueries(limit);
+    res.json(failedQueries);
   });
 
   // Get semantic catalog with availability info
