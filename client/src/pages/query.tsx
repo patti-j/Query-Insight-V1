@@ -811,69 +811,73 @@ export default function QueryPage() {
                 </div>
                 
                 {/* Action Buttons Row */}
-                {result.rows.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowData(!showData)}
-                      className={`gap-2 ${showData ? 'bg-green-500/20 border-green-500/50' : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
-                      data-testid="button-toggle-data"
-                    >
-                      <Database className="h-4 w-4" />
-                      {showData ? 'Hide Data' : `Show Data (${result.rows.length} rows)`}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowChart(!showChart)}
-                      className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
-                      data-testid="button-toggle-chart"
-                    >
-                      <BarChart3 className="h-4 w-4" />
-                      {showChart ? 'Hide Chart' : 'Show Chart'}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
-                          data-testid="button-export"
-                        >
-                          <Download className="h-4 w-4" />
-                          Export
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            try {
-                              const exportData = result.rows.map(filterRowColumns);
-                              exportToCSV(exportData, `query-results-${Date.now()}.csv`);
-                            } catch (err: any) {
-                              setError(`Export failed: ${err.message}`);
-                            }
-                          }}
-                          data-testid="menu-export-csv"
-                        >
-                          Export as CSV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            try {
-                              const exportData = result.rows.map(filterRowColumns);
-                              exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
-                            } catch (err: any) {
-                              setError(`Export failed: ${err.message}`);
-                            }
-                          }}
-                          data-testid="menu-export-excel"
-                        >
-                          Export as Excel
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                <div className="flex flex-wrap items-center gap-2">
+                  {result.rows.length > 0 && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowData(!showData)}
+                        className={`gap-2 ${showData ? 'bg-green-500/20 border-green-500/50' : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
+                        data-testid="button-toggle-data"
+                      >
+                        <Database className="h-4 w-4" />
+                        {showData ? 'Hide Data' : `Show Data (${result.rows.length} rows)`}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowChart(!showChart)}
+                        className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
+                        data-testid="button-toggle-chart"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        {showChart ? 'Hide Chart' : 'Show Chart'}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            data-testid="button-export"
+                          >
+                            <Download className="h-4 w-4" />
+                            Export
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              try {
+                                const exportData = result.rows.map(filterRowColumns);
+                                exportToCSV(exportData, `query-results-${Date.now()}.csv`);
+                              } catch (err: any) {
+                                setError(`Export failed: ${err.message}`);
+                              }
+                            }}
+                            data-testid="menu-export-csv"
+                          >
+                            Export as CSV
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              try {
+                                const exportData = result.rows.map(filterRowColumns);
+                                exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
+                              } catch (err: any) {
+                                setError(`Export failed: ${err.message}`);
+                              }
+                            }}
+                            data-testid="menu-export-excel"
+                          >
+                            Export as Excel
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                  {result.sql && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -884,8 +888,8 @@ export default function QueryPage() {
                       {showSql ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       SQL
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
                 
                 {/* SQL Query - Collapsible */}
                 {showSql && (
