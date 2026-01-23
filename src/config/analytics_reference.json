@@ -300,20 +300,23 @@
       ]
     },
     {
-      "keywords": ["material", "materials", "shortage", "shortages", "bom", "bill of materials"],
+      "keywords": ["material", "materials", "shortage", "shortages", "bom", "bill of materials", "item", "items", "part", "parts", "component", "components"],
       "tier1Tables": [
         "publish.DASHt_Materials",
-        "publish.DASHt_Planning"
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts"
       ],
       "tier2Tables": [
         "publish.JobMaterials",
         "publish.JobMaterialSupplyingActivities",
-        "publish.JobActivities"
+        "publish.JobActivities",
+        "publish.Items"
       ]
     },
     {
-      "keywords": ["where used", "when used", "where-used", "component usage", "used in", "consumed by", "consumed in", "uses this", "part usage"],
+      "keywords": ["where used", "when used", "where-used", "is used", "it is used", "component usage", "used in", "consumed by", "consumed in", "uses this", "part usage", "used as"],
       "tier1Tables": [
+        "publish.DASHt_Materials",
         "publish.DASHt_Planning",
         "publish.DASHt_JobOperationProducts"
       ],
