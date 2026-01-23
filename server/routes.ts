@@ -381,19 +381,6 @@ export async function registerRoutes(
       });
     }
 
-    // Load semantic catalog to get allowed tables
-    let allowedTables: string[] = [];
-    try {
-      const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
-      const catalogContent = readFileSync(catalogPath, 'utf-8');
-      const catalog = JSON.parse(catalogContent);
-      
-      // Use Tier1 tables (curated DASHt_* tables)
-      allowedTables = catalog.tables?.tier1 || [];
-    } catch (error: any) {
-      log(`Failed to load semantic catalog: ${error.message}`, 'ask');
-    }
-
     // Create query log context
     const logContext = createQueryLogContext(req, question);
     log(`Processing question: ${question}`, 'ask');
@@ -406,7 +393,7 @@ export async function registerRoutes(
       // Generate SQL from natural language
       // Matrix classifier selects relevant tables dynamically
       llmStartTime = Date.now();
-      const sqlGenResult = await generateSqlFromQuestion(question, { allowedTables, publishDate });
+      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
       const confidence = sqlGenResult.confidence;
@@ -427,10 +414,8 @@ export async function registerRoutes(
         });
       }
 
-      // Validate and modify SQL if needed, using matrix-selected tables for validation
-      const validationOptions: ValidationOptions = {
-        allowedTables: selectedTables.length > 0 ? selectedTables : (allowedTables.length > 0 ? allowedTables : undefined),
-      };
+      // Validate and modify SQL if needed (no table allowlist - all publish.* tables are allowed)
+      const validationOptions: ValidationOptions = {};
       const validation = validateAndModifySql(generatedSql, validationOptions);
       
       if (!validation.valid) {
@@ -454,7 +439,7 @@ export async function registerRoutes(
       const finalSql = validation.modifiedSql || generatedSql;
       
       // Validate column references against schema (use matrix-selected tables)
-      const columnValidation = await validateSqlColumns(finalSql, selectedTables.length > 0 ? selectedTables : allowedTables);
+      const columnValidation = await validateSqlColumns(finalSql, selectedTables);
       if (!columnValidation.valid) {
         log(`🔴 COLUMN VALIDATION FAILED: ${columnValidation.errors.length} errors found`, 'ask');
         
@@ -604,9 +589,7 @@ export async function registerRoutes(
       // Determine error stage and log appropriately
       if (generatedSql) {
         // Error during SQL execution (use validated SQL if available)
-        const validationOptions: ValidationOptions = {
-          allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
-        };
+        const validationOptions: ValidationOptions = {};
         const validation = validateAndModifySql(generatedSql, validationOptions);
         const failedSql = validation.modifiedSql || generatedSql;
         
