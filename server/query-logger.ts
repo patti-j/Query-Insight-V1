@@ -63,20 +63,26 @@ function normalizeQuestion(question: string): string {
 
 /**
  * Track a query for FAQ frequency analysis
+ * Only tracks queries that returned results (rowCount > 0)
  */
-export function trackQueryForFAQ(question: string, successful: boolean): void {
+export function trackQueryForFAQ(question: string, rowCount: number): void {
+  // Only track queries that returned actual results
+  if (rowCount <= 0) {
+    return;
+  }
+  
   const normalized = normalizeQuestion(question);
   const existing = queryFrequency.get(normalized);
   
   if (existing) {
     existing.count += 1;
     existing.lastUsed = new Date();
-    if (successful) existing.successful = true;
+    existing.successful = true;
   } else {
     queryFrequency.set(normalized, {
       count: 1,
       lastUsed: new Date(),
-      successful,
+      successful: true,
     });
   }
 }

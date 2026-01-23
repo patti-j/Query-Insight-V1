@@ -161,11 +161,38 @@ export async function registerRoutes(
   });
 
   // Get validated quick questions for a report/mode
+  // Popular queries (with results) are shown first, then static questions fill remaining slots
   app.get("/api/quick-questions/:reportId", async (req, res) => {
     try {
       const reportId = req.params.reportId;
-      const questions = await getValidatedQuickQuestions(reportId);
-      res.json({ questions, reportId });
+      const maxQuestions = 8;
+      
+      // Get popular questions (queries run multiple times with results)
+      const popularQueries = getPopularQuestions(maxQuestions);
+      const popularAsQuestions = popularQueries.map(q => ({
+        text: q.question,
+        icon: '🔥', // Fire icon for popular/frequently asked
+        isPopular: true,
+        runCount: q.count
+      }));
+      
+      // Get static quick questions validated against schema
+      const staticQuestions = await getValidatedQuickQuestions(reportId);
+      
+      // Merge: popular first, then fill with static (avoiding duplicates)
+      const popularTexts = new Set(popularQueries.map(q => q.question.toLowerCase()));
+      const filteredStatic = staticQuestions.filter(
+        q => !popularTexts.has(q.text.toLowerCase())
+      );
+      
+      // Combine: popular queries first, then static to fill remaining slots
+      const combined = [
+        ...popularAsQuestions,
+        ...filteredStatic.slice(0, maxQuestions - popularAsQuestions.length)
+      ].slice(0, maxQuestions);
+      
+      log(`Quick questions for ${reportId}: ${popularAsQuestions.length} popular + ${combined.length - popularAsQuestions.length} static`, 'quick-questions');
+      res.json({ questions: combined, reportId });
     } catch (error: any) {
       log(`Failed to get quick questions for report ${req.params.reportId}: ${error.message}`, 'quick-questions');
       res.status(500).json({
@@ -585,8 +612,8 @@ export async function registerRoutes(
         sqlMs
       );
 
-      // Track for FAQ popularity
-      trackQueryForFAQ(question, true);
+      // Track for FAQ popularity (only queries with results)
+      trackQueryForFAQ(question, result.recordset.length);
 
       // Generate "did you mean?" suggestions asynchronously
       const suggestions = await generateSuggestions(question);
