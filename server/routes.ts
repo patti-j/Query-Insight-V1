@@ -169,10 +169,10 @@ export async function registerRoutes(
       
       // Get popular questions (queries run multiple times with results)
       const popularQueries = getPopularQuestions(maxQuestions);
-      const popularIcons = ['📊', '📈', '🔍', '💡', '⚡', '🎯', '📋', '✨'];
+      const variedIcons = ['📊', '📈', '🔍', '💡', '⚡', '🎯', '📋', '✨'];
       const popularAsQuestions = popularQueries.map((q, idx) => ({
         text: q.question,
-        icon: popularIcons[idx % popularIcons.length],
+        icon: idx === 0 ? '🔥' : variedIcons[(idx - 1) % variedIcons.length],
         isPopular: true,
         runCount: q.count
       }));
