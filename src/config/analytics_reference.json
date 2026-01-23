@@ -353,7 +353,7 @@
       ]
     },
     {
-      "keywords": ["dispatch", "dispatch list", "schedule", "scheduled", "scheduling"],
+      "keywords": ["dispatch", "dispatch list", "schedule", "scheduled", "scheduling", "this week", "next week", "today", "tomorrow", "this month", "next month"],
       "tier1Tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_Resources"
@@ -376,7 +376,7 @@
       ]
     },
     {
-      "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making", "item type", "item group", "raw material", "raw materials", "subassembly", "subassemblies", "sub assembly", "sub assemblies", "intermediate", "intermediates", "fg", "int", "raw", "sub"],
+      "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making", "producing", "produce", "manufactured", "manufacturing", "item type", "item group", "raw material", "raw materials", "subassembly", "subassemblies", "sub assembly", "sub assemblies", "intermediate", "intermediates", "fg", "int", "raw", "sub"],
       "tier1Tables": [
         "publish.DASHt_Inventories",
         "publish.DASHt_Planning",
