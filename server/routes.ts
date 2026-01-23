@@ -7,6 +7,7 @@ import { log } from "./index";
 import {
   createQueryLogContext,
   logSuccess,
+  getNegativeFeedback,
   logValidationFailure,
   logExecutionFailure,
   logGenerationFailure,
@@ -77,6 +78,13 @@ export async function registerRoutes(
   app.get("/api/feedback/stats", (_req, res) => {
     const stats = getFeedbackStats();
     res.json(stats);
+  });
+
+  // Get negative feedback (thumbs down) for analysis
+  app.get("/api/feedback/negative", (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const negativeFeedback = getNegativeFeedback(limit);
+    res.json({ feedback: negativeFeedback, count: negativeFeedback.length });
   });
 
   // Get analytics data for dashboard

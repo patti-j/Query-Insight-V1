@@ -88,6 +88,8 @@ export default function QueryPage() {
   const [showSql, setShowSql] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [showFeedbackComment, setShowFeedbackComment] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState('');
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
@@ -104,7 +106,11 @@ export default function QueryPage() {
   // Favorite queries
   const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
 
-  const submitFeedback = async (feedback: 'up' | 'down') => {
+  const handleThumbsDown = () => {
+    setShowFeedbackComment(true);
+  };
+
+  const submitFeedback = async (feedback: 'up' | 'down', comment?: string) => {
     if (!result || feedbackGiven) return;
     
     setFeedbackLoading(true);
@@ -116,10 +122,13 @@ export default function QueryPage() {
           question: submittedQuestion,
           sql: result.sql,
           feedback,
+          comment: comment || undefined,
         }),
       });
       if (response.ok) {
         setFeedbackGiven(feedback);
+        setShowFeedbackComment(false);
+        setFeedbackComment('');
       } else {
         console.error('Failed to submit feedback:', response.statusText);
       }
@@ -750,26 +759,26 @@ export default function QueryPage() {
                 )}
 
                 {/* Feedback Section */}
-                <div className="flex items-center justify-between pt-4 border-t border-border/30">
+                <div className="pt-4 border-t border-border/30 space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Was this helpful?</span>
                     <Button
                       variant={feedbackGiven === 'up' ? "default" : "outline"}
                       size="sm"
                       onClick={() => submitFeedback('up')}
-                      disabled={feedbackLoading || feedbackGiven !== null}
+                      disabled={feedbackLoading || feedbackGiven !== null || showFeedbackComment}
                       data-testid="button-feedback-up"
                       className={feedbackGiven === 'up' ? "bg-green-500 hover:bg-green-600" : ""}
                     >
                       <ThumbsUp className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={feedbackGiven === 'down' ? "default" : "outline"}
+                      variant={feedbackGiven === 'down' || showFeedbackComment ? "default" : "outline"}
                       size="sm"
-                      onClick={() => submitFeedback('down')}
+                      onClick={handleThumbsDown}
                       disabled={feedbackLoading || feedbackGiven !== null}
                       data-testid="button-feedback-down"
-                      className={feedbackGiven === 'down' ? "bg-red-500 hover:bg-red-600" : ""}
+                      className={feedbackGiven === 'down' || showFeedbackComment ? "bg-red-500 hover:bg-red-600" : ""}
                     >
                       <ThumbsDown className="h-4 w-4" />
                     </Button>
@@ -777,6 +786,40 @@ export default function QueryPage() {
                       <span className="text-sm text-muted-foreground ml-2">Thanks for your feedback!</span>
                     )}
                   </div>
+                  {showFeedbackComment && !feedbackGiven && (
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="What went wrong? (optional)"
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          className="min-h-[60px] text-sm"
+                          data-testid="input-feedback-comment"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowFeedbackComment(false);
+                            setFeedbackComment('');
+                          }}
+                          disabled={feedbackLoading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => submitFeedback('down', feedbackComment)}
+                          disabled={feedbackLoading}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          {feedbackLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Did you mean? Suggestions */}

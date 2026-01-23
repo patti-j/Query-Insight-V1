@@ -141,6 +141,16 @@ export function getRecentFeedback(limit: number = 50): FeedbackEntry[] {
 }
 
 /**
+ * Get negative feedback entries (thumbs down)
+ */
+export function getNegativeFeedback(limit: number = 50): FeedbackEntry[] {
+  return feedbackStore
+    .filter(f => f.feedback === 'down')
+    .slice(-limit)
+    .reverse();
+}
+
+/**
  * Get feedback statistics
  */
 export function getFeedbackStats(): { total: number; positive: number; negative: number } {
