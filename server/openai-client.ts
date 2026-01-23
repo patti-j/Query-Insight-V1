@@ -342,7 +342,8 @@ FORMATTING RULES:
 - Use natural language, not technical jargon
 - Format numbers with commas for readability (e.g., 1,234 not 1234)
 - Round decimals to 2 places maximum
-- If there are many items (>10), summarize the top ones and mention how many total
+- IMPORTANT: If the user asked for a specific number (e.g., "top 10", "first 20"), list ALL of those items, not just a subset
+- If there are more than 15 items and user didn't specify a count, summarize the top 10 and mention how many total
 - If no results, say so clearly and suggest why (e.g., "No data found for this date range")
 
 EXAMPLES:
@@ -408,7 +409,7 @@ Provide a natural language summary of these results.`
         }
       ],
       temperature: 0.3,
-      max_completion_tokens: 500,
+      max_completion_tokens: 800,
     });
 
     let answer = response.choices[0]?.message?.content?.trim() || `Found ${totalToReport} result(s).`;
