@@ -5,6 +5,7 @@ import path from 'path';
 
 const FAQ_FILE = path.join(process.cwd(), 'data', 'popular-queries.json');
 const QUERY_LOG_FILE = path.join(process.cwd(), 'data', 'query-logs.json');
+const FEEDBACK_FILE = path.join(process.cwd(), 'data', 'feedback.json');
 
 interface QueryFrequencyData {
   count: number;
@@ -41,15 +42,44 @@ function saveFAQData(data: Map<string, QueryFrequencyData>): void {
 // In-memory store for tracking query frequency (for FAQ feature) - loaded from file
 const queryFrequency: Map<string, QueryFrequencyData> = loadFAQData();
 
-// In-memory store for feedback (thumbs up/down)
+// Feedback entry interface
 interface FeedbackEntry {
   question: string;
   sql: string;
   feedback: 'up' | 'down';
-  timestamp: Date;
+  timestamp: string;
   comment?: string;
 }
-const feedbackStore: FeedbackEntry[] = [];
+
+// Load feedback from file on startup
+function loadFeedback(): FeedbackEntry[] {
+  try {
+    if (fs.existsSync(FEEDBACK_FILE)) {
+      const data = JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf-8'));
+      console.log(`[query-logger] Loaded ${data.length} feedback entries from file`);
+      return data;
+    }
+  } catch (err) {
+    console.error('[query-logger] Failed to load feedback:', err);
+  }
+  return [];
+}
+
+// Save feedback to file
+function saveFeedback(entries: FeedbackEntry[]): void {
+  try {
+    const dir = path.dirname(FEEDBACK_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(entries, null, 2));
+  } catch (err) {
+    console.error('[query-logger] Failed to save feedback:', err);
+  }
+}
+
+// In-memory store for feedback (thumbs up/down) - loaded from file
+const feedbackStore: FeedbackEntry[] = loadFeedback();
 
 // Load query logs from file on startup
 function loadQueryLogs(): QueryLogEntry[] {
@@ -95,9 +125,12 @@ export function storeFeedback(
     question,
     sql,
     feedback,
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     comment,
   });
+  
+  // Persist to file
+  saveFeedback(feedbackStore);
 }
 
 /**
