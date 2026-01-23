@@ -165,7 +165,7 @@ export async function registerRoutes(
   app.get("/api/quick-questions/:reportId", async (req, res) => {
     try {
       const reportId = req.params.reportId;
-      const maxQuestions = 8;
+      const maxQuestions = 5;
       
       // Get popular questions (queries run multiple times with results)
       const popularQueries = getPopularQuestions(maxQuestions);
