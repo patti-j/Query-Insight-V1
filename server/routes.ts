@@ -670,7 +670,7 @@ export async function registerRoutes(
                 before: minDate ? new Date(minDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
                 after: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
               };
-              log(`No data found. Available data range: ${nearestDates.before} to ${nearestDates.after}`, 'ask');
+              log(`No data found. Earliest: ${nearestDates.before}, Latest: ${nearestDates.after}`, 'ask');
             }
           } catch (nearestError: any) {
             log(`Failed to find available date range: ${nearestError.message}`, 'ask');

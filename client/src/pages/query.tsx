@@ -957,19 +957,18 @@ export default function QueryPage() {
                     {result.nearestDates && (result.nearestDates.before || result.nearestDates.after) && (
                       <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg text-left" data-testid="nearest-dates-hint">
                         <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
-                          Available data range:
+                          Data availability:
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {result.nearestDates.before && result.nearestDates.after ? (
-                            <>From <span className="font-medium text-foreground">{result.nearestDates.before}</span> to <span className="font-medium text-foreground">{result.nearestDates.after}</span></>
-                          ) : result.nearestDates.before ? (
-                            <>Data starts from <span className="font-medium text-foreground">{result.nearestDates.before}</span></>
-                          ) : (
-                            <>Data available until <span className="font-medium text-foreground">{result.nearestDates.after}</span></>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          {result.nearestDates.before && (
+                            <p>Earliest date: <span className="font-medium text-foreground">{result.nearestDates.before}</span></p>
                           )}
-                        </p>
+                          {result.nearestDates.after && (
+                            <p>Latest date: <span className="font-medium text-foreground">{result.nearestDates.after}</span></p>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Try asking about dates within this range.
+                          Note: Data may have gaps between these dates.
                         </p>
                       </div>
                     )}
