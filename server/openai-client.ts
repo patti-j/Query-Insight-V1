@@ -173,6 +173,9 @@ PRODUCTION PLANNING TABLES:
 - When user asks for "scheduled jobs": ALWAYS add WHERE JobScheduledStatus = 'Scheduled'
 - When user asks for "unscheduled jobs": use WHERE JobScheduledStatus IN ('FailedToSchedule', 'Unscheduled')
 - Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter them out
+- JobOnHold values: 'OnHold', 'Released' - IMPORTANT: "on hold" is NOT the same as "unscheduled"
+- When user asks for "jobs on hold" or "held jobs": use WHERE JobOnHold = 'OnHold'
+- To include hold reasons: SELECT JobHoldReason column (may be NULL if no reason specified)
 
 FINANCE/SCENARIO-AWARE TABLES (DASHt_SalesOrders):
 - If user does NOT mention scenario, ALWAYS add: WHERE ScenarioType = 'Production'
