@@ -232,8 +232,9 @@
       "keywords": ["bottleneck", "bottlenecks", "constraint", "constraints", "blocked", "blocking"],
       "tier1Tables": [
         "publish.DASHt_Planning",
-        "publish.DASHt_JobOperationAttributes",
-        "publish.DASHt_Resources"
+        "publish.DASHt_Resources",
+        "publish.DASHt_CapacityPlanning_ResourceCapacity",
+        "publish.DASHt_CapacityPlanning_ResourceDemand"
       ],
       "tier2Tables": [
         "publish.JobOperations",
