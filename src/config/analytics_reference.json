@@ -166,7 +166,7 @@
   ],
   "matrix": [
     {
-      "keywords": ["job", "jobs", "work order", "work orders", "operation", "operations", "mo", "manufacturing order"],
+      "keywords": ["job", "jobs", "work order", "work orders", "w/o", "wo", "operation", "operations", "op", "step", "steps", "mo", "manufacturing order", "mfg order", "routing"],
       "tier1Tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_JobOperationAttributes",
@@ -196,7 +196,7 @@
       ]
     },
     {
-      "keywords": ["capacity", "demand", "overtime", "idle", "offline", "shift", "shifts", "load", "loaded", "hours"],
+      "keywords": ["capacity", "demand", "overtime", "idle", "offline", "shift", "shifts", "load", "loaded", "hours", "capacity vs demand", "load vs capacity", "available hours", "resource load"],
       "tier1Tables": [
         "publish.DASHt_CapacityPlanning_ResourceCapacity",
         "publish.DASHt_CapacityPlanning_ResourceDemand",
@@ -225,7 +225,7 @@
       ]
     },
     {
-      "keywords": ["late", "lateness", "overdue", "otif", "on-time", "on time", "delay", "delayed"],
+      "keywords": ["late", "lateness", "overdue", "otif", "on-time", "on time", "delay", "delayed", "past due", "behind schedule", "at risk"],
       "tier1Tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_SalesOrders",
@@ -238,7 +238,7 @@
       ]
     },
     {
-      "keywords": ["bottleneck", "bottlenecks", "constraint", "constraints", "blocked", "blocking"],
+      "keywords": ["bottleneck", "bottlenecks", "constraint", "constraints", "blocked", "blocking", "most loaded", "overloaded", "capacity constraint"],
       "tier1Tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_Resources",
@@ -343,7 +343,7 @@
       ]
     },
     {
-      "keywords": ["wip", "work in progress", "work-in-progress", "in progress", "current", "active"],
+      "keywords": ["wip", "work in progress", "work-in-progress", "in progress", "current", "active", "jobs in progress", "currently running", "in queue", "in process", "percent complete", "job status", "operation status", "job progress"],
       "tier1Tables": [
         "publish.DASHt_Planning"
       ],
@@ -353,7 +353,7 @@
       ]
     },
     {
-      "keywords": ["dispatch", "dispatch list", "schedule", "scheduled", "scheduling", "this week", "next week", "today", "tomorrow", "this month", "next month"],
+      "keywords": ["dispatch", "dispatch list", "schedule", "scheduled", "scheduling", "this week", "next week", "today", "tomorrow", "this month", "next month", "upcoming", "due this week", "shipping this week", "next 7 days", "timeline", "gantt"],
       "tier1Tables": [
         "publish.DASHt_Planning",
         "publish.DASHt_Resources"
@@ -389,6 +389,68 @@
         "publish.JobMaterials"
       ],
       "contextHint": "For inventory/stock questions use DASHt_Inventories (has ItemName, ItemType, ItemGroup, InitialOnHandQty). For job/production questions use DASHt_Planning (has JobProduct, MOProduct, MORequiredQty). For materials/BOM use DASHt_Materials (has MaterialName, TotalRequiredQty). Note: ItemType values are FinishedGood, RawMaterial, SubAssembly. ItemGroup values are FG, INT, RAW, SUB."
+    },
+    {
+      "keywords": ["setup time", "run time", "cycle time", "duration", "standard time", "processing time", "lead time"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_CapacityPlanning_ResourceActual",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.JobOperations",
+        "publish.Jobs"
+      ]
+    },
+    {
+      "keywords": ["throughput", "output", "completions", "produced", "completed", "shipped", "yield"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_HistoricalKPIs"
+      ],
+      "tier2Tables": [
+        "publish.JobProducts",
+        "publish.Jobs"
+      ]
+    },
+    {
+      "keywords": ["traveler", "travelers", "routing steps", "operation list", "job traveler", "work instructions"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_JobOperationAttributes",
+        "publish.DASHt_Resources"
+      ],
+      "tier2Tables": [
+        "publish.Jobs",
+        "publish.JobOperations"
+      ],
+      "contextHint": "Job travelers show the sequence of operations for a job. Use DASHt_Planning grouped by JobName with OPSequence ordering."
+    },
+    {
+      "keywords": ["customer order", "customer orders", "customer demand", "customer jobs", "jobs for customer", "order for"],
+      "tier1Tables": [
+        "publish.DASHt_SalesOrders",
+        "publish.DASHt_Planning"
+      ],
+      "tier2Tables": [
+        "publish.SalesOrders",
+        "publish.Customers",
+        "publish.Jobs"
+      ]
+    },
+    {
+      "keywords": ["resource schedule", "who is working", "resource timeline", "what is running on", "assigned to"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_Resources",
+        "publish.DASHt_CapacityPlanning_ResourceActual"
+      ],
+      "tier2Tables": [
+        "publish.JobOperations",
+        "publish.Resources"
+      ],
+      "contextHint": "For resource schedule questions, filter DASHt_Planning by ResourceName and order by scheduled start time."
     }
   ],
   "tableKeywords": {
