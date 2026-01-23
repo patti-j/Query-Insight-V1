@@ -1,8 +1,7 @@
 /**
- * Mode-Specific Schema Cache
+ * Schema Cache
  * 
- * Maintains separate schema caches for each semantic mode (Planning, Capacity, Dispatch)
- * to minimize LLM prompt size and improve generation latency.
+ * Maintains schema caches to minimize LLM prompt size and improve generation latency.
  */
 
 import { getTableSchemas, TableSchema, formatSchemaForPrompt } from './schema-introspection';
@@ -11,23 +10,16 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { getRelevantColumns } from './matrix-classifier';
 
-interface ModeConfig {
-  id: string;
-  name: string;
-  description: string;
-  tables: string[];
-}
-
 interface SemanticCatalog {
-  modes: ModeConfig[];
+  tables: {
+    tier1: string[];
+    tier2: string[];
+  };
   version: string;
   lastUpdated: string;
 }
 
-/**
- * Mode-specific schema cache entry
- */
-interface ModeSchemaCacheEntry {
+interface SchemaCacheEntry {
   schemas: Map<string, TableSchema>;
   formattedPrompt: string;
   tableCount: number;
@@ -35,9 +27,9 @@ interface ModeSchemaCacheEntry {
   timestamp: number;
 }
 
-// Cache for each mode with 10-minute TTL
-const MODE_SCHEMA_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const modeSchemaCache = new Map<string, ModeSchemaCacheEntry>();
+// Cache with 10-minute TTL
+const SCHEMA_CACHE_TTL_MS = 10 * 60 * 1000;
+const schemaCache = new Map<string, SchemaCacheEntry>();
 
 // Catalog cache (loaded once)
 let catalogCache: SemanticCatalog | null = null;
@@ -58,106 +50,43 @@ function loadSemanticCatalog(): SemanticCatalog {
 }
 
 /**
- * Get tables allowed for a specific mode
+ * Get all tier1 tables
  */
-export function getTablesForMode(mode: string): string[] {
+export function getTier1Tables(): string[] {
   const catalog = loadSemanticCatalog();
-  const modeConfig = catalog.modes.find(m => m.id === mode);
-  
-  if (!modeConfig) {
-    throw new Error(`Unknown semantic mode: ${mode}`);
-  }
-  
-  return modeConfig.tables;
+  return catalog.tables?.tier1 || [];
 }
 
 /**
- * Get cached schema for a mode, or fetch if cache is expired
+ * Get all tables (tier1 + tier2)
  */
-export async function getModeSchema(mode: string): Promise<ModeSchemaCacheEntry> {
-  const now = Date.now();
-  const cached = modeSchemaCache.get(mode);
-  
-  // Return cached entry if valid
-  if (cached && (now - cached.timestamp) < MODE_SCHEMA_CACHE_TTL_MS) {
-    const age = Math.round((now - cached.timestamp) / 1000);
-    log('mode-schema-cache', `Using cached schema for mode '${mode}' (age: ${age}s, ${cached.tableCount} tables, ${cached.columnCount} columns)`);
-    return cached;
-  }
-  
-  // Fetch fresh schema for this mode's tables
-  const tables = getTablesForMode(mode);
-  log('mode-schema-cache', `Fetching schema for mode '${mode}' (${tables.length} tables)...`);
-  
-  const allSchemas = await getTableSchemas(tables);
-  
-  // Filter to only include requested tables (schema-introspection may return more from cache)
-  const schemas = new Map<string, TableSchema>();
-  for (const tableName of tables) {
-    const schema = allSchemas.get(tableName);
-    if (schema) {
-      schemas.set(tableName, schema);
-    }
-  }
-  
-  const formattedPrompt = formatSchemaForPrompt(schemas);
-  
-  // Count total columns from mode-specific tables only
-  let columnCount = 0;
-  for (const schema of Array.from(schemas.values())) {
-    columnCount += schema.columns.length;
-  }
-  
-  const entry: ModeSchemaCacheEntry = {
-    schemas,
-    formattedPrompt,
-    tableCount: tables.length,
-    columnCount,
-    timestamp: now
-  };
-  
-  modeSchemaCache.set(mode, entry);
-  log('mode-schema-cache', `Cached schema for mode '${mode}': ${entry.tableCount} tables, ${entry.columnCount} columns`);
-  
-  return entry;
+export function getAllTables(): string[] {
+  const catalog = loadSemanticCatalog();
+  return [
+    ...(catalog.tables?.tier1 || []),
+    ...(catalog.tables?.tier2 || [])
+  ];
 }
 
 /**
- * Prefetch schemas for all modes on startup
+ * Prefetch schemas for tier1 tables on startup
  */
 export async function prefetchAllModeSchemas(): Promise<void> {
-  const catalog = loadSemanticCatalog();
+  const tables = getTier1Tables();
   
-  log('mode-schema-cache', `Prefetching schemas for ${catalog.modes.length} modes...`);
-  
-  for (const mode of catalog.modes) {
-    try {
-      await getModeSchema(mode.id);
-    } catch (error: any) {
-      log('mode-schema-cache', `Failed to prefetch schema for mode '${mode.id}': ${error.message}`);
-    }
+  if (tables.length === 0) {
+    log('schema-cache', 'No tier1 tables found in catalog, skipping prefetch');
+    return;
   }
   
-  log('mode-schema-cache', `Schema prefetch completed for all modes`);
-}
-
-/**
- * Get formatted schema prompt for a specific mode
- */
-export async function getFormattedSchemaForMode(mode: string): Promise<string> {
-  const entry = await getModeSchema(mode);
-  return entry.formattedPrompt;
-}
-
-/**
- * Get schema statistics for a mode (useful for monitoring)
- */
-export async function getModeSchemaStats(mode: string): Promise<{ tableCount: number; columnCount: number }> {
-  const entry = await getModeSchema(mode);
-  return {
-    tableCount: entry.tableCount,
-    columnCount: entry.columnCount
-  };
+  log('schema-cache', `Prefetching schemas for ${tables.length} tier1 tables...`);
+  
+  try {
+    await getTableSchemas(tables);
+    log('schema-cache', `Schema prefetch completed for ${tables.length} tables`);
+  } catch (error: any) {
+    log('schema-cache', `Failed to prefetch schemas: ${error.message}`);
+  }
 }
 
 /**
@@ -200,20 +129,22 @@ function formatSchemaWithColumnSlimming(schemas: Map<string, TableSchema>, quest
     lines.push(`  Columns: ${relevantColumns.join(', ')}`);
   }
   
-  log('mode-schema-cache', `Column slimming: ${totalOriginalColumns} → ${totalSlimmedColumns} columns (${Math.round((1 - totalSlimmedColumns/totalOriginalColumns) * 100)}% reduction)`);
+  if (totalOriginalColumns > 0) {
+    log('schema-cache', `Column slimming: ${totalOriginalColumns} → ${totalSlimmedColumns} columns (${Math.round((1 - totalSlimmedColumns/totalOriginalColumns) * 100)}% reduction)`);
+  }
   
   return lines.join('\n');
 }
 
 /**
- * Clear mode schema cache (useful for testing)
+ * Clear schema cache
  */
-export function clearModeSchemaCache(mode?: string): void {
-  if (mode) {
-    modeSchemaCache.delete(mode);
-    log('mode-schema-cache', `Cleared cache for mode '${mode}'`);
+export function clearModeSchemaCache(key?: string): void {
+  if (key) {
+    schemaCache.delete(key);
+    log('schema-cache', `Cleared cache for '${key}'`);
   } else {
-    modeSchemaCache.clear();
-    log('mode-schema-cache', `Cleared all mode schema caches`);
+    schemaCache.clear();
+    log('schema-cache', `Cleared all schema caches`);
   }
 }

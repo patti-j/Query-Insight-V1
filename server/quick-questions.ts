@@ -318,54 +318,22 @@ function validateQuestion(question: QuickQuestion, schema: Map<string, Set<strin
 }
 
 /**
- * Map report IDs to legacy mode types for backward compatibility
+ * Get validated quick questions (returns all valid questions regardless of mode)
  */
-export function mapReportIdToMode(reportId: string): 'planning' | 'capacity' | 'dispatch' | null {
-  const reportToModeMap: Record<string, 'planning' | 'capacity' | 'dispatch'> = {
-    'capacity-plan': 'capacity',
-    'production-planning': 'planning',
-    'dispatch-list': 'dispatch',
-    'inventories': 'planning',
-    'sales-orders': 'planning',
-    'schedule-conformance': 'planning',
-    'audit-log': 'planning',
-    'new-dispatch-list': 'dispatch',
-    // Legacy mode IDs (backward compatibility)
-    'planning': 'planning',
-    'capacity': 'capacity',
-    'dispatch': 'dispatch'
-  };
-  
-  return reportToModeMap[reportId] || null;
-}
-
-/**
- * Get validated quick questions for a specific report/mode
- */
-export async function getValidatedQuickQuestions(reportId: string): Promise<{ text: string; icon: string }[]> {
+export async function getValidatedQuickQuestions(_reportId?: string): Promise<{ text: string; icon: string }[]> {
   try {
-    // Map report ID to legacy mode
-    const mode = mapReportIdToMode(reportId);
-    
-    if (!mode) {
-      log(`No quick questions available for report '${reportId}' (not mapped to mode)`, 'quick-questions');
-      return [];
-    }
-    
     const schema = await getSchemaColumns();
     
-    // Filter questions for this mode and validate against schema
+    // Validate all questions against schema
     const validQuestions = ALL_QUICK_QUESTIONS
-      .filter(q => q.mode === mode)
       .filter(q => validateQuestion(q, schema))
       .map(q => ({ text: q.text, icon: q.icon }));
 
-    log(`Validated quick questions for report '${reportId}' (mode: ${mode}): ${validQuestions.length}/${ALL_QUICK_QUESTIONS.filter(q => q.mode === mode).length} passed`, 'quick-questions');
+    log(`Validated quick questions: ${validQuestions.length}/${ALL_QUICK_QUESTIONS.length} passed schema validation`, 'quick-questions');
     
     return validQuestions;
   } catch (error: any) {
     log(`Error validating quick questions: ${error.message}`, 'quick-questions');
-    // Return empty array on error to avoid showing potentially broken questions
     return [];
   }
 }

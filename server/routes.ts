@@ -23,9 +23,6 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { 
   getDiscoveryStatus, 
-  getScopeAvailability, 
-  isScopeAvailable, 
-  getAvailableTablesForScope,
   runTableDiscovery 
 } from "./table-discovery";
 
@@ -94,25 +91,6 @@ export async function registerRoutes(
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
-      
-      // Enrich modes with availability info from table discovery
-      const scopeAvailability = getScopeAvailability() as any[];
-      if (scopeAvailability && scopeAvailability.length > 0) {
-        for (const mode of catalog.modes) {
-          const availability = scopeAvailability.find((a: any) => a.id === mode.id);
-          if (availability) {
-            mode.available = availability.available;
-            mode.tablesFound = availability.tablesFound;
-            mode.tablesExpected = availability.tablesExpected;
-            mode.availableTables = availability.availableTables;
-            mode.missingTables = availability.missingTables;
-            mode.warning = availability.warning;
-          } else {
-            mode.available = true; // Default to available if no discovery data
-          }
-        }
-      }
-      
       res.json(catalog);
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'semantic-catalog');
@@ -203,26 +181,23 @@ export async function registerRoutes(
     }
   });
 
-  // Get schema for a mode (table->columns mapping)
-  app.get("/api/schema/:mode", async (req, res) => {
+  // Get schema for tables (table->columns mapping)
+  app.get("/api/schema/:tier", async (req, res) => {
     try {
-      const mode = req.params.mode as string;
+      const tier = req.params.tier as string;
       
-      // Load semantic catalog to validate mode against catalog IDs
+      // Load semantic catalog to get tables
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
       
-      const modeConfig = catalog.modes.find((m: any) => m.id === mode);
-      if (!modeConfig) {
-        const validModes = catalog.modes.map((m: any) => m.id).join(', ');
-        return res.status(404).json({ 
-          error: `Mode '${mode}' not found in semantic catalog. Valid modes: ${validModes}` 
-        });
+      // Get tables based on tier (default to tier1)
+      let tables = catalog.tables?.tier1 || [];
+      if (tier === 'tier2' || tier === 'all') {
+        tables = [...tables, ...(catalog.tables?.tier2 || [])];
       }
 
-      const allowedTables = modeConfig.tables as string[];
-      const schemas = await getSchemasForMode(mode, allowedTables);
+      const schemas = await getSchemasForMode(tier, tables);
       
       // Convert Map to plain object for JSON serialization
       const schemasObj: Record<string, TableSchema> = {};
@@ -231,13 +206,13 @@ export async function registerRoutes(
       }
       
       res.json({ 
-        mode, 
+        tier, 
         tables: schemasObj,
         tableCount: schemas.size,
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
-      log(`Failed to get schema for mode ${req.params.mode}: ${error.message}`, 'schema');
+      log(`Failed to get schema for tier ${req.params.tier}: ${error.message}`, 'schema');
       res.status(500).json({
         error: 'Failed to load schema',
         tables: {}
@@ -384,7 +359,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question, mode = 'production-planning', advancedMode = false, publishDate } = req.body;
+    const { question, advancedMode = false, publishDate } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -406,52 +381,35 @@ export async function registerRoutes(
       });
     }
 
-    // Check if scope is available (has tables in the database)
-    if (!isScopeAvailable(mode)) {
-      const scopeInfo = getScopeAvailability(mode) as any;
-      return res.status(400).json({
-        error: scopeInfo?.warning || `${mode} tables are not available in this environment yet`,
-        scopeUnavailable: true,
-      });
-    }
-
-    // Load semantic catalog to get allowed tables for the mode
+    // Load semantic catalog to get allowed tables
     let allowedTables: string[] = [];
-    let catalog: any = null;
     try {
       const catalogPath = join(process.cwd(), 'docs', 'semantic', 'semantic-catalog.json');
       const catalogContent = readFileSync(catalogPath, 'utf-8');
-      catalog = JSON.parse(catalogContent);
+      const catalog = JSON.parse(catalogContent);
       
-      // Use only tables that actually exist in the database
-      allowedTables = getAvailableTablesForScope(mode);
-      
-      // Fallback to catalog tables if discovery hasn't run
-      if (allowedTables.length === 0) {
-        const selectedMode = catalog.modes.find((m: any) => m.id === mode);
-        if (selectedMode) {
-          allowedTables = selectedMode.tables;
-        }
+      // Use all available tables (Tier1 by default, Tier2 if advanced mode)
+      allowedTables = catalog.tables?.tier1 || [];
+      if (advancedMode && catalog.tables?.tier2) {
+        allowedTables = [...allowedTables, ...catalog.tables.tier2];
       }
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'ask');
-      // Continue with available tables from discovery
-      allowedTables = getAvailableTablesForScope(mode);
     }
 
     // Create query log context
     const logContext = createQueryLogContext(req, question);
-    log(`Processing question: ${question} (mode: ${mode}, advancedMode: ${advancedMode})`, 'ask');
+    log(`Processing question: ${question} (advancedMode: ${advancedMode})`, 'ask');
 
     let generatedSql: string | undefined;
     let llmStartTime: number | undefined;
     let llmMs: number | undefined;
 
     try {
-      // Generate SQL from natural language with mode context
+      // Generate SQL from natural language
       // Matrix classifier selects relevant tables dynamically
       llmStartTime = Date.now();
-      const sqlGenResult = await generateSqlFromQuestion(question, { mode, allowedTables, publishDate, advancedMode });
+      const sqlGenResult = await generateSqlFromQuestion(question, { allowedTables, publishDate, advancedMode });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
       const confidence = sqlGenResult.confidence;
@@ -461,20 +419,13 @@ export async function registerRoutes(
 
       // Handle out-of-scope questions with low/no confidence
       if (confidence === 'none') {
-        const scopeNames = {
-          'capacity-plan': 'Capacity (resource utilization, demand, shifts)',
-          'production-planning': 'Production (jobs, schedules, due dates, lateness)',
-          'finance': 'Finance (sales orders, inventory, purchase orders)'
-        };
-        const currentScopeName = scopeNames[mode as keyof typeof scopeNames] || mode;
-        
         return res.json({
           isOutOfScope: true,
-          answer: `I couldn't find data matching your question in the available PowerBI reports. The current **${currentScopeName}** scope covers:\n\n` +
+          answer: `I couldn't find data matching your question in the available PowerBI reports. The system covers:\n\n` +
             `- **Capacity**: Resource utilization, demand vs capacity, shifts, overtime\n` +
             `- **Production**: Jobs, operations, schedules, due dates, lateness, priorities\n` +
             `- **Finance**: Sales orders, purchase orders, inventory levels, materials\n\n` +
-            `. Try rephrasing your question using terms like: jobs, resources, capacity, demand, orders, inventory, schedule, due date, or lateness.`,
+            `Try rephrasing your question using terms like: jobs, resources, capacity, demand, orders, inventory, schedule, due date, or lateness.`,
           question,
         });
       }
@@ -525,53 +476,6 @@ export async function registerRoutes(
         
         // Detect scope-mismatch using semantic catalog keywords
         const questionLower = question.toLowerCase();
-        
-        // Find the best matching scope based on keyword matches
-        let bestMatchScope: string | null = null;
-        let bestMatchCount = 0;
-        let currentScopeMatchCount = 0;
-        
-        if (catalog && catalog.modes) {
-          for (const catalogMode of catalog.modes) {
-            if (!catalogMode.keywords || catalogMode.keywords.length === 0) continue;
-            
-            const matchCount = catalogMode.keywords.filter((kw: string) => 
-              questionLower.includes(kw.toLowerCase())
-            ).length;
-            
-            if (catalogMode.id === mode) {
-              currentScopeMatchCount = matchCount;
-            } else if (matchCount > bestMatchCount) {
-              bestMatchCount = matchCount;
-              bestMatchScope = catalogMode.id;
-            }
-          }
-          
-          // Suggest switching if another scope matches better (2+ keywords) and current scope has fewer matches
-          if (bestMatchScope && bestMatchCount >= 2 && bestMatchCount > currentScopeMatchCount) {
-            const suggestedMode = catalog.modes.find((m: any) => m.id === bestMatchScope);
-            const currentMode = catalog.modes.find((m: any) => m.id === mode);
-            const firstError = columnValidation.errors[0];
-            
-            let errorMessage = `This question seems better suited for "${suggestedMode?.name || bestMatchScope}". `;
-            errorMessage += `You're currently in "${currentMode?.name || mode}".\n\n`;
-            errorMessage += `💡 Try switching scope and ask again.\n\n`;
-            errorMessage += `Error details: ${firstError.message}`;
-            
-            if (firstError.availableColumns && firstError.availableColumns.length > 0) {
-              errorMessage += `\n\nDid you mean one of these columns? ${firstError.availableColumns.join(', ')}`;
-            }
-            
-            return res.status(400).json({
-              error: errorMessage,
-              sql: finalSql,
-              isMock: false,
-              schemaError: true,
-              invalidColumns: columnValidation.errors.map(e => e.column),
-              suggestMode: bestMatchScope,
-            });
-          }
-        }
         
         // Build helpful error message with fuzzy suggestions
         const firstError = columnValidation.errors[0];
@@ -718,7 +622,6 @@ export async function registerRoutes(
           log(`🔴 SCHEMA MISMATCH: OpenAI generated SQL with invalid column '${invalidColumn}'`, 'ask');
           log(`Generated SQL with invalid column: ${failedSql}`, 'ask');
           log(`Question: ${question}`, 'ask');
-          log(`Mode: ${mode}`, 'ask');
           
           // Return helpful error message to user
           return res.status(500).json({

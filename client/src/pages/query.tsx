@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, Lightbulb, BarChart3, Heart, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -72,31 +72,11 @@ interface DiagnosticsResult {
   }>;
 }
 
-interface SemanticMode {
-  id: string;
-  name: string;
-  description: string;
-  tables: string[];
-  default: boolean;
-  schemaImplemented?: boolean;
-  commonFields?: string[];
-  keywords?: string[];
-  available?: boolean;
-  tablesFound?: number;
-  tablesExpected?: number;
-  availableTables?: string[];
-  missingTables?: string[];
-  warning?: string;
-}
-
-interface ModeSuggestion {
-  detectedMode: string;
-  currentMode: string;
-  question: string;
-}
-
 interface SemanticCatalog {
-  modes: SemanticMode[];
+  tables: {
+    tier1: string[];
+    tier2: string[];
+  };
   version: string;
   lastUpdated: string;
 }
@@ -122,15 +102,11 @@ export default function QueryPage() {
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
-  const [semanticCatalog, setSemanticCatalog] = useState<SemanticCatalog | null>(null);
-  const [selectedMode, setSelectedMode] = useState('capacity-plan');
   const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
-  const [suggestedMode, setSuggestedMode] = useState<string | null>(null);
-  const [failedQuestion, setFailedQuestion] = useState<string>('');
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -176,25 +152,8 @@ export default function QueryPage() {
       .then(res => setIsDevelopment(res.status !== 403))
       .catch(() => setIsDevelopment(false));
     
-    // Fetch semantic catalog
-    fetch('/api/semantic-catalog')
-      .then(res => res.json())
-      .then(data => {
-        setSemanticCatalog(data);
-        // Set default mode if specified
-        const defaultMode = data.modes.find((m: SemanticMode) => m.default);
-        if (defaultMode) {
-          setSelectedMode(defaultMode.id);
-        }
-      })
-      .catch(err => console.error('Failed to load semantic catalog:', err));
-  }, []);
-
-  // Fetch quick questions when mode changes
-  useEffect(() => {
-    if (!selectedMode) return;
-    
-    fetch(`/api/quick-questions/${selectedMode}`)
+    // Fetch quick questions
+    fetch('/api/quick-questions/all')
       .then(res => res.json())
       .then(data => {
         if (data.questions) {
@@ -202,28 +161,12 @@ export default function QueryPage() {
         }
       })
       .catch(err => console.error('Failed to load quick questions:', err));
-  }, [selectedMode]);
+  }, []);
 
 
   const executeQuery = async (q: string) => {
     if (!q.trim()) return;
 
-    // Check if selected scope has available tables
-    const selectedReport = semanticCatalog?.modes.find(m => m.id === selectedMode);
-    if (selectedReport?.available === false) {
-      setError(`${selectedReport.name} tables are not available in this environment. ${selectedReport.warning || ''}`);
-      return;
-    }
-
-    // Check if selected report has schema implemented
-    if (selectedReport && selectedReport.schemaImplemented === false) {
-      setError(`The "${selectedReport.name}" report schema is coming soon. Please select a different report.`);
-      return;
-    }
-
-    // Clear any previous scope mismatch state
-    setSuggestedMode(null);
-    setFailedQuestion('');
     setLoading(true);
     setError(null);
     setResult(null);
@@ -252,7 +195,6 @@ export default function QueryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: queryToSend,
-          mode: selectedMode,
           advancedMode,
           publishDate: anchorDateStr // Send anchor date to AI for date-relative queries
         }),
@@ -289,16 +231,6 @@ export default function QueryPage() {
         // If this is a schema/column validation error, don't fall back to mock data
         if (data.schemaError) {
           setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
-          
-          // Check if backend suggests switching to a different report mode
-          if (data.suggestMode) {
-            setSuggestedMode(data.suggestMode);
-            setFailedQuestion(queryToSend);
-          } else {
-            setSuggestedMode(null);
-            setFailedQuestion('');
-          }
-          
           setLoading(false);
           return;
         }
@@ -321,34 +253,14 @@ export default function QueryPage() {
         setDateTimeColumns(new Set());
       }
       
-      // Clear any scope suggestions after successful query (but keep question for reference)
-      setSuggestedMode(null);
-      setFailedQuestion('');
     } catch (err: any) {
       console.error("API Query Failed:", err);
       
       // Show error message without falling back to mock data
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
-      setSuggestedMode(null);
-      setFailedQuestion('');
     } finally {
       setLoading(false);
     }
-  };
-  
-  const handleSwitchMode = (newMode: string) => {
-    // Switch to suggested mode and re-run the failed question
-    setSelectedMode(newMode);
-    setSuggestedMode(null);
-    setError(null);
-    
-    // Re-run the failed question after a brief delay to allow mode switch to complete
-    setTimeout(() => {
-      if (failedQuestion) {
-        executeQuery(failedQuestion);
-        setFailedQuestion('');
-      }
-    }, 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -361,8 +273,6 @@ export default function QueryPage() {
     setResult(null);
     setError(null);
     setGeneralAnswer(null);
-    setSuggestedMode(null);
-    setFailedQuestion('');
     setFeedbackGiven(null);
     setShowData(false);
     setShowChart(false);
@@ -601,7 +511,7 @@ export default function QueryPage() {
               <div className="flex gap-2">
                 <Button 
                   type="submit" 
-                  disabled={loading || !question.trim() || semanticCatalog?.modes.find(m => m.id === selectedMode)?.available === false} 
+                  disabled={loading || !question.trim()} 
                   data-testid="button-submit"
                   className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                 >
@@ -695,24 +605,11 @@ export default function QueryPage() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
-                {suggestedMode ? 'Try a Different Category' : 'System Notification'}
+                System Notification
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p data-testid="text-error" className="whitespace-pre-line">{error}</p>
-              
-              {suggestedMode && semanticCatalog && (
-                <div className="pt-2 border-t border-destructive/20">
-                  <Button
-                    onClick={() => handleSwitchMode(suggestedMode)}
-                    className="bg-primary hover:bg-primary/90"
-                    data-testid="button-switch-mode"
-                  >
-                    <Lightbulb className="mr-2 h-4 w-4" />
-                    Switch to {semanticCatalog.modes.find(m => m.id === suggestedMode)?.name} and Retry
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
@@ -757,14 +654,14 @@ export default function QueryPage() {
                         "{submittedQuestion}"
                       </p>
                       <button
-                        onClick={() => toggleFavorite(submittedQuestion, selectedMode)}
+                        onClick={() => toggleFavorite(submittedQuestion, 'all')}
                         className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
-                        title={isFavorite(submittedQuestion, selectedMode) ? "Remove from favorites" : "Add to favorites"}
+                        title={isFavorite(submittedQuestion, 'all') ? "Remove from favorites" : "Add to favorites"}
                         data-testid="button-toggle-favorite"
                       >
                         <Heart 
                           className={`h-5 w-5 transition-colors ${
-                            isFavorite(submittedQuestion, selectedMode) 
+                            isFavorite(submittedQuestion, 'all') 
                               ? 'fill-red-500 text-red-500' 
                               : 'text-muted-foreground hover:text-red-500'
                           }`} 
