@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -60,18 +60,6 @@ interface QueryResult {
   };
 }
 
-interface DiagnosticsResult {
-  timestamp: string;
-  totalTables: number;
-  accessible: number;
-  failed: number;
-  tables: Array<{
-    table: string;
-    accessible: boolean;
-    error: string | null;
-  }>;
-}
-
 interface SemanticCatalog {
   tables: {
     tier1: string[];
@@ -98,10 +86,6 @@ export default function QueryPage() {
   const [faqQuestions, setFaqQuestions] = useState<QuickQuestion[]>([]);
   const [showData, setShowData] = useState(true);
   const [showSql, setShowSql] = useState(false);
-  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
-  const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [isDevelopment, setIsDevelopment] = useState(true);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
@@ -147,11 +131,6 @@ export default function QueryPage() {
   };
 
   useEffect(() => {
-    // Check if diagnostics is available (dev mode check)
-    fetch('/api/db/diagnostics', { method: 'HEAD' })
-      .then(res => setIsDevelopment(res.status !== 403))
-      .catch(() => setIsDevelopment(false));
-    
     // Fetch quick questions
     fetch('/api/quick-questions/all')
       .then(res => res.json())
@@ -300,41 +279,6 @@ export default function QueryPage() {
     }
   };
 
-  const runDiagnostics = async () => {
-    setDiagnosticsLoading(true);
-    setDiagnosticsResult(null);
-    setShowDiagnostics(true);
-
-    try {
-      const response = await fetch('/api/db/diagnostics');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setDiagnosticsResult(data);
-      } else {
-        const errorData = await response.json();
-        setDiagnosticsResult({
-          timestamp: new Date().toISOString(),
-          totalTables: 0,
-          accessible: 0,
-          failed: 0,
-          tables: [],
-        });
-        setError(`Diagnostics failed: ${errorData.error || 'Unknown error'}`);
-      }
-    } catch (err: any) {
-      setError(`Failed to run diagnostics: ${err.message}`);
-      setDiagnosticsResult({
-        timestamp: new Date().toISOString(),
-        totalTables: 0,
-        accessible: 0,
-        failed: 0,
-        tables: [],
-      });
-    } finally {
-      setDiagnosticsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/10">
@@ -358,24 +302,6 @@ export default function QueryPage() {
                   Dashboard
                 </Button>
               </Link>
-              {isDevelopment && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={runDiagnostics}
-                  disabled={diagnosticsLoading}
-                  data-testid="button-diagnostics"
-                  className="gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
-                  title="Check database table access"
-                >
-                  {diagnosticsLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                  DB Check
-                </Button>
-              )}
               <div className="[&_button]:border-slate-600 [&_button]:text-slate-300 [&_button]:hover:bg-slate-800 [&_button]:hover:text-white">
                 <ThemeToggle />
               </div>
@@ -545,72 +471,6 @@ export default function QueryPage() {
             </form>
           </CardContent>
         </Card>
-
-        {isDevelopment && showDiagnostics && diagnosticsResult && (
-          <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Database Diagnostics
-              </CardTitle>
-              <CardDescription>
-                Validation of access to publish.DASHt_* tables
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30" data-testid="badge-total-tables">
-                  {diagnosticsResult.totalTables} tables found
-                </Badge>
-                <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30" data-testid="badge-accessible-tables">
-                  {diagnosticsResult.accessible} accessible
-                </Badge>
-                {diagnosticsResult.failed > 0 && (
-                  <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30" data-testid="badge-failed-tables">
-                    {diagnosticsResult.failed} failed
-                  </Badge>
-                )}
-              </div>
-
-              {diagnosticsResult.tables.length > 0 && (
-                <div className="border border-border/50 rounded-xl overflow-hidden">
-                  <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted sticky top-0 z-10">
-                        <tr>
-                          <th className="px-4 py-3 text-left font-medium">Status</th>
-                          <th className="px-4 py-3 text-left font-medium">Table Name</th>
-                          <th className="px-4 py-3 text-left font-medium">Error</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {diagnosticsResult.tables.map((table, idx) => (
-                          <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-diagnostics-${idx}`}>
-                            <td className="px-4 py-3" data-testid={`status-${table.table}`}>
-                              {table.accessible ? (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-red-500" />
-                              )}
-                            </td>
-                            <td className="px-4 py-3 font-mono" data-testid={`table-${table.table}`}>{table.table}</td>
-                            <td className="px-4 py-3 text-muted-foreground text-xs" data-testid={`error-${table.table}`}>
-                              {table.error || '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground" data-testid="text-diagnostics-timestamp">
-                Last checked: {new Date(diagnosticsResult.timestamp).toLocaleString()}
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         {error && (
           <Card className="border-destructive/50 bg-destructive/5">
