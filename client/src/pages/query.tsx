@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
-import { getQuickQuestions, type QuickQuestion } from '@/config/quickQuestions';
+import type { QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
 import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
 import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
@@ -186,11 +186,23 @@ export default function QueryPage() {
         if (defaultMode) {
           setSelectedMode(defaultMode.id);
         }
-        // Load universal quick questions
-        setFaqQuestions(getQuickQuestions());
       })
       .catch(err => console.error('Failed to load semantic catalog:', err));
   }, []);
+
+  // Fetch quick questions when mode changes
+  useEffect(() => {
+    if (!selectedMode) return;
+    
+    fetch(`/api/quick-questions/${selectedMode}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.questions) {
+          setFaqQuestions(data.questions);
+        }
+      })
+      .catch(err => console.error('Failed to load quick questions:', err));
+  }, [selectedMode]);
 
 
   const executeQuery = async (q: string) => {
