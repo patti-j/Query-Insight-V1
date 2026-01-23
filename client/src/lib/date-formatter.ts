@@ -21,6 +21,11 @@ export function isDateTimeColumn(columnName: string): boolean {
     return false;
   }
   
+  // Exclude "overdue" columns - these are numeric values (hours/days overdue), not dates
+  if (normalizedName.includes('overdue')) {
+    return false;
+  }
+  
   const dateTimeKeywords = [
     'date',
     'time',
