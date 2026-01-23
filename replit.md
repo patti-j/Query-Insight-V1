@@ -28,7 +28,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - **Unified Query Experience:** No mode selection required - the matrix classifier automatically selects relevant tables based on keywords in the user's question. This simplifies the UX and allows cross-domain queries.
 - **SQL Safety Guardrails:** Strict validation ensures only `SELECT` statements, single statements, and allowlisted `INNER`/`LEFT`/`RIGHT` `JOIN`s are executed. `CROSS JOIN`s, system procedures, and external data access functions are blocked. All queries are limited to `TOP 100` rows and target `publish.DASHt_*` tables.
 - **Dynamic Table Discovery:** At startup, the system queries Azure SQL (sys.tables + sys.schemas) to discover which DASHt_* tables actually exist.
-- **Curated Table Architecture:** Uses Tier1 tables (DASHt_* curated tables from Power BI dashboards) exclusively, providing a simpler user experience.
+- **Curated Table Architecture:** Uses Tier1 tables (DASHt_* curated tables from Power BI dashboards) for user queries. Tier2 source tables are available in the schema for fallback when Tier1 lacks needed detail.
 - **Matrix-Driven Table Selection:** For each question, 2-4 most relevant tables are selected based on keyword matching to minimize LLM prompt size and improve SQL generation quality.
 - **Column Slimming:** Schema context is dynamically trimmed to include only relevant columns (30-column cap per table) based on question keywords.
 - **Comprehensive Schema Grounding:** The system prefetches and caches database schemas on startup. A SQL Column Validator parses and validates all column references in generated SQL against the cached schema, providing helpful error messages and suggestions for typos.

@@ -39,8 +39,23 @@ function loadStaticSchema(): Map<string, TableSchema> {
     const data = JSON.parse(content);
     
     staticSchema = new Map<string, TableSchema>();
-    for (const [tableName, schema] of Object.entries(data.tables)) {
-      staticSchema.set(tableName, schema as TableSchema);
+    
+    // Handle combined format with tier1 and tier2 sections
+    if (data.tier1?.tables) {
+      for (const [tableName, schema] of Object.entries(data.tier1.tables)) {
+        staticSchema.set(tableName, schema as TableSchema);
+      }
+    }
+    if (data.tier2?.tables) {
+      for (const [tableName, schema] of Object.entries(data.tier2.tables)) {
+        staticSchema.set(tableName, schema as TableSchema);
+      }
+    }
+    // Fallback for old flat format
+    if (data.tables && !data.tier1) {
+      for (const [tableName, schema] of Object.entries(data.tables)) {
+        staticSchema.set(tableName, schema as TableSchema);
+      }
     }
     
     log('schema-introspection', `Loaded static schema: ${staticSchema.size} tables from ${schemaPath}`);
