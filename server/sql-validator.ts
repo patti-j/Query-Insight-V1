@@ -6,7 +6,6 @@ export interface ValidationResult {
 
 export interface ValidationOptions {
   allowedTables?: string[];
-  advancedMode?: boolean;
 }
 
 const ALLOWED_TABLE_PATTERN = /\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?/i;
@@ -61,10 +60,10 @@ function normalizeTableName(tableName: string): string {
  * - CROSS JOIN blocked for safety
  * - Only queries against [publish].[DASHt_*] tables
  * - Enforces TOP (100) if missing
- * - Supports mode-specific table allowlists (when advancedMode is false)
+ * - Supports table allowlists for validation
  */
 export function validateAndModifySql(sql: string, options: ValidationOptions = {}): ValidationResult {
-  const { allowedTables, advancedMode = false } = options;
+  const { allowedTables } = options;
   // Strip trailing semicolon if present (AI often adds these)
   let trimmed = sql.trim();
   if (trimmed.endsWith(';')) {
@@ -126,8 +125,8 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
     }
   }
 
-  // If mode-specific allowlist is provided and advancedMode is off, enforce the allowlist
-  if (allowedTables && allowedTables.length > 0 && !advancedMode) {
+  // If allowlist is provided, enforce it
+  if (allowedTables && allowedTables.length > 0) {
     const normalizedAllowed = allowedTables.map(normalizeTableName);
 
     // Check each table reference against the allowlist
@@ -138,7 +137,7 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
         const allowedList = allowedTables.join(', ');
         return {
           valid: false,
-          error: `Table ${tableRef} is not in the allowed list for this mode. Allowed tables: ${allowedList}. Enable 'Advanced mode' to query other publish.DASHt_* tables.`
+          error: `Table ${tableRef} is not in the allowed list. Allowed tables: ${allowedList}.`
         };
       }
     }
@@ -290,13 +289,13 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     results.push('✅ PASS: CTE query accepted');
   }
 
-  // Test 11: Mode allowlist enforcement with multiple table references
+  // Test 11: Allowlist enforcement with multiple table references
   const test11 = validateAndModifySql(
     'SELECT * FROM [publish].[DASHt_Materials] UNION SELECT * FROM [publish].[DASHt_Resources]',
-    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'] }
   );
   if (test11.valid) {
-    results.push('❌ FAIL: Query with disallowed table (DASHt_Materials) should be rejected in mode allowlist');
+    results.push('❌ FAIL: Query with disallowed table (DASHt_Materials) should be rejected in allowlist');
     passed = false;
   } else if (test11.error && test11.error.includes('DASHt_Materials')) {
     results.push('✅ PASS: Mode allowlist correctly rejects disallowed table in UNION');
@@ -304,10 +303,10 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     results.push(`⚠️  PARTIAL: Query rejected but error doesn't mention DASHt_Materials: ${test11.error}`);
   }
 
-  // Test 12: Mode allowlist with all allowed tables should pass
+  // Test 12: Allowlist with all allowed tables should pass
   const test12 = validateAndModifySql(
     'SELECT TOP 10 * FROM [publish].[DASHt_Planning]',
-    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'] }
   );
   if (!test12.valid) {
     results.push(`❌ FAIL: Query with allowed table rejected: ${test12.error}`);
@@ -316,13 +315,13 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
     results.push('✅ PASS: Mode allowlist correctly accepts allowed table');
   }
 
-  // Test 13: Advanced mode should allow any DASHt_* table
+  // Test 13: No allowlist should allow any DASHt_* table
   const test13 = validateAndModifySql(
     'SELECT TOP 10 * FROM [publish].[DASHt_Inventories]',
-    { allowedTables: ['publish.DASHt_Planning'], advancedMode: true }
+    {}
   );
   if (!test13.valid) {
-    results.push(`❌ FAIL: Advanced mode should allow any DASHt_* table: ${test13.error}`);
+    results.push(`❌ FAIL: No allowlist should allow any DASHt_* table: ${test13.error}`);
     passed = false;
   } else {
     results.push('✅ PASS: Advanced mode correctly allows any DASHt_* table');
@@ -331,7 +330,7 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
   // Test 14: INNER JOIN with allowlisted tables should be allowed
   const test14 = validateAndModifySql(
     'SELECT TOP 10 d.*, c.* FROM [publish].[DASHt_CapacityPlanning_ResourceDemand] d INNER JOIN [publish].[DASHt_CapacityPlanning_ResourceCapacity] c ON d.ResourceId = c.ResourceId',
-    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'], advancedMode: false }
+    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'] }
   );
   if (!test14.valid) {
     results.push(`❌ FAIL: INNER JOIN with allowlisted tables should be allowed: ${test14.error}`);
@@ -343,7 +342,7 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
   // Test 15: JOIN with non-allowlist table should be rejected
   const test15 = validateAndModifySql(
     'SELECT TOP 10 * FROM [publish].[DASHt_Planning] INNER JOIN [publish].[DASHt_Inventories] ON 1=1',
-    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'], advancedMode: false }
+    { allowedTables: ['publish.DASHt_Planning', 'publish.DASHt_Resources'] }
   );
   if (test15.valid) {
     results.push('❌ FAIL: JOIN with non-allowlist table should be rejected');
@@ -375,7 +374,7 @@ export function runValidatorSelfCheck(): { passed: boolean; results: string[] } 
   // Test 18: LEFT JOIN with allowlisted tables should be allowed
   const test18 = validateAndModifySql(
     'SELECT TOP 10 d.ResourceName, d.DemandHours, c.NormalOnlineHours FROM [publish].[DASHt_CapacityPlanning_ResourceDemand] d LEFT JOIN [publish].[DASHt_CapacityPlanning_ResourceCapacity] c ON d.ResourceId = c.ResourceId AND d.DemandDate = c.ShiftDate',
-    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'], advancedMode: false }
+    { allowedTables: ['publish.DASHt_CapacityPlanning_ResourceDemand', 'publish.DASHt_CapacityPlanning_ResourceCapacity'] }
   );
   if (!test18.valid) {
     results.push(`❌ FAIL: LEFT JOIN with allowlisted tables should be allowed: ${test18.error}`);

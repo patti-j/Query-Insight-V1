@@ -102,7 +102,6 @@ export default function QueryPage() {
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isDevelopment, setIsDevelopment] = useState(true);
-  const [advancedMode, setAdvancedMode] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
@@ -195,7 +194,6 @@ export default function QueryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: queryToSend,
-          advancedMode,
           publishDate: anchorDateStr // Send anchor date to AI for date-relative queries
         }),
       });

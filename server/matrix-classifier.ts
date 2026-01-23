@@ -47,8 +47,7 @@ function matchKeywords(normalizedQuestion: string, keywords: string[]): { matche
 }
 
 export function classifyQuestionWithMatrix(
-  question: string,
-  advancedMode: boolean = false
+  question: string
 ): ClassificationResult {
   const normalizedQuestion = normalizeQuestion(question);
   const matrixMatches: MatrixMatch[] = [];
@@ -101,16 +100,6 @@ export function classifyQuestionWithMatrix(
     for (const table of match.tier1Tables) {
       if (selectedTables.size < analyticsReference.promptTrimming.maxTableCount) {
         selectedTables.add(table);
-      }
-    }
-  }
-  
-  if (advancedMode) {
-    for (const match of topMatches) {
-      for (const table of match.tier2Tables) {
-        if (selectedTables.size < analyticsReference.promptTrimming.maxTableCount) {
-          selectedTables.add(table);
-        }
       }
     }
   }

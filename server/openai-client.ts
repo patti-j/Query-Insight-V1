@@ -49,7 +49,6 @@ BUSINESS CONTEXT:
 interface GenerateOptions {
   allowedTables?: string[];
   publishDate?: string; // The effective "today" date for date-relative queries
-  advancedMode?: boolean; // Enable Tier 2 tables
 }
 
 interface GenerateResult {
@@ -101,10 +100,10 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
 
-  const { allowedTables = [], publishDate, advancedMode = false } = options;
+  const { allowedTables = [], publishDate } = options;
 
   // Use matrix-driven table selection (3-4 tables default, max 6)
-  const classification = classifyQuestionWithMatrix(question, advancedMode);
+  const classification = classifyQuestionWithMatrix(question);
   
   // Get business term context if any terms matched
   const businessTermContext = getBusinessTermContext(classification.matchedTerms);

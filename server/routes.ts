@@ -359,7 +359,7 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question, advancedMode = false, publishDate } = req.body;
+    const { question, publishDate } = req.body;
 
     // Validate question parameter
     if (!question || typeof question !== 'string') {
@@ -388,18 +388,15 @@ export async function registerRoutes(
       const catalogContent = readFileSync(catalogPath, 'utf-8');
       const catalog = JSON.parse(catalogContent);
       
-      // Use all available tables (Tier1 by default, Tier2 if advanced mode)
+      // Use Tier1 tables (curated DASHt_* tables)
       allowedTables = catalog.tables?.tier1 || [];
-      if (advancedMode && catalog.tables?.tier2) {
-        allowedTables = [...allowedTables, ...catalog.tables.tier2];
-      }
     } catch (error: any) {
       log(`Failed to load semantic catalog: ${error.message}`, 'ask');
     }
 
     // Create query log context
     const logContext = createQueryLogContext(req, question);
-    log(`Processing question: ${question} (advancedMode: ${advancedMode})`, 'ask');
+    log(`Processing question: ${question}`, 'ask');
 
     let generatedSql: string | undefined;
     let llmStartTime: number | undefined;
@@ -409,7 +406,7 @@ export async function registerRoutes(
       // Generate SQL from natural language
       // Matrix classifier selects relevant tables dynamically
       llmStartTime = Date.now();
-      const sqlGenResult = await generateSqlFromQuestion(question, { allowedTables, publishDate, advancedMode });
+      const sqlGenResult = await generateSqlFromQuestion(question, { allowedTables, publishDate });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
       const confidence = sqlGenResult.confidence;
@@ -433,7 +430,6 @@ export async function registerRoutes(
       // Validate and modify SQL if needed, using matrix-selected tables for validation
       const validationOptions: ValidationOptions = {
         allowedTables: selectedTables.length > 0 ? selectedTables : (allowedTables.length > 0 ? allowedTables : undefined),
-        advancedMode,
       };
       const validation = validateAndModifySql(generatedSql, validationOptions);
       
@@ -610,7 +606,6 @@ export async function registerRoutes(
         // Error during SQL execution (use validated SQL if available)
         const validationOptions: ValidationOptions = {
           allowedTables: allowedTables.length > 0 ? allowedTables : undefined,
-          advancedMode,
         };
         const validation = validateAndModifySql(generatedSql, validationOptions);
         const failedSql = validation.modifiedSql || generatedSql;
