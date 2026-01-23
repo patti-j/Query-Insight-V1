@@ -552,8 +552,8 @@ export async function registerRoutes(
           const tableName = tableMatch[1].replace(/\[/g, '').replace(/\]/g, '');
           
           try {
-            // Get the overall date range available in the table
-            const rangeQuery = `SELECT MIN(${detectedDateColumn}) AS MinDate, MAX(${detectedDateColumn}) AS MaxDate FROM ${tableName}`;
+            // Get the overall date range available in the table (excluding sentinel dates)
+            const rangeQuery = `SELECT MIN(${detectedDateColumn}) AS MinDate, MAX(CASE WHEN ${detectedDateColumn} < '2100-01-01' THEN ${detectedDateColumn} ELSE NULL END) AS MaxDate FROM ${tableName} WHERE ${detectedDateColumn} > '1900-01-01'`;
             const rangeResult = await executeQuery(rangeQuery);
             
             const minDate = rangeResult.recordset[0]?.MinDate;
