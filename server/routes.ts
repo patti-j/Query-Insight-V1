@@ -163,8 +163,8 @@ export async function registerRoutes(
         runCount: q.count
       }));
       
-      // Get static quick questions validated against schema
-      const staticQuestions = await getValidatedQuickQuestions(reportId);
+      // Get static quick questions from cache (validated at startup)
+      const staticQuestions = getValidatedQuickQuestions(reportId);
       
       // Merge: popular first, then fill with static (avoiding duplicates)
       const popularTexts = new Set(popularQueries.map(q => q.question.toLowerCase()));

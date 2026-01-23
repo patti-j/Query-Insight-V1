@@ -230,14 +230,14 @@ export const ALL_QUICK_QUESTIONS: QuickQuestion[] = [
 ];
 
 /**
- * Cache for schema validation results
+ * Cache for schema validation - loaded once at startup, never refreshed
  */
 let schemaCache: Map<string, Set<string>> | null = null;
-let schemaCacheTimestamp: number | null = null;
-const SCHEMA_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let validatedQuestionsCache: { text: string; icon: string }[] | null = null;
 
 /**
- * Fetch available columns for each table from INFORMATION_SCHEMA.COLUMNS
+ * Fetch available columns for tier1 DASHt tables from INFORMATION_SCHEMA.COLUMNS
+ * Called once at startup
  */
 async function fetchSchemaColumns(): Promise<Map<string, Set<string>>> {
   const schemaMap = new Map<string, Set<string>>();
@@ -269,27 +269,19 @@ async function fetchSchemaColumns(): Promise<Map<string, Set<string>>> {
     
   } catch (error: any) {
     log(`Failed to fetch schema columns: ${error.message}`, 'quick-questions');
-    // Return empty map on error - questions will be filtered out
   }
 
   return schemaMap;
 }
 
 /**
- * Get cached schema or fetch fresh if expired
+ * Get cached schema (must call prefetchSchema at startup first)
  */
-async function getSchemaColumns(): Promise<Map<string, Set<string>>> {
-  const now = Date.now();
-  
-  // Return cached if valid
-  if (schemaCache && schemaCacheTimestamp && (now - schemaCacheTimestamp) < SCHEMA_CACHE_TTL) {
-    return schemaCache;
+function getSchemaColumns(): Map<string, Set<string>> {
+  if (!schemaCache) {
+    log('Warning: Schema not prefetched, returning empty map', 'quick-questions');
+    return new Map();
   }
-
-  // Fetch fresh schema
-  schemaCache = await fetchSchemaColumns();
-  schemaCacheTimestamp = now;
-  
   return schemaCache;
 }
 
@@ -318,32 +310,34 @@ function validateQuestion(question: QuickQuestion, schema: Map<string, Set<strin
 }
 
 /**
- * Get validated quick questions (returns all valid questions regardless of mode)
+ * Get validated quick questions from cache (must call prefetchSchema at startup first)
  */
-export async function getValidatedQuickQuestions(_reportId?: string): Promise<{ text: string; icon: string }[]> {
-  try {
-    const schema = await getSchemaColumns();
-    
-    // Validate all questions against schema
-    const validQuestions = ALL_QUICK_QUESTIONS
-      .filter(q => validateQuestion(q, schema))
-      .map(q => ({ text: q.text, icon: q.icon }));
-
-    log(`Validated quick questions: ${validQuestions.length}/${ALL_QUICK_QUESTIONS.length} passed schema validation`, 'quick-questions');
-    
-    return validQuestions;
-  } catch (error: any) {
-    log(`Error validating quick questions: ${error.message}`, 'quick-questions');
-    return [];
+export function getValidatedQuickQuestions(_reportId?: string): { text: string; icon: string }[] {
+  if (validatedQuestionsCache) {
+    return validatedQuestionsCache;
   }
+  
+  // Fallback: validate now if cache not ready (shouldn't happen after startup)
+  const schema = getSchemaColumns();
+  return ALL_QUICK_QUESTIONS
+    .filter(q => validateQuestion(q, schema))
+    .map(q => ({ text: q.text, icon: q.icon }));
 }
 
 /**
- * Prefetch schema on startup (optional - for faster first request)
+ * Prefetch schema and validate questions on startup (called once, cached forever)
  */
 export async function prefetchSchema(): Promise<void> {
   try {
-    await getSchemaColumns();
+    // Fetch and cache schema
+    schemaCache = await fetchSchemaColumns();
+    
+    // Validate and cache quick questions
+    validatedQuestionsCache = ALL_QUICK_QUESTIONS
+      .filter(q => validateQuestion(q, schemaCache!))
+      .map(q => ({ text: q.text, icon: q.icon }));
+    
+    log(`Validated quick questions: ${validatedQuestionsCache.length}/${ALL_QUICK_QUESTIONS.length} passed schema validation`, 'quick-questions');
     log('Schema prefetch completed successfully', 'quick-questions');
   } catch (error: any) {
     log(`Schema prefetch failed: ${error.message}`, 'quick-questions');
