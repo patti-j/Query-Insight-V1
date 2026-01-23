@@ -2,6 +2,38 @@ import OpenAI from 'openai';
 import { getFormattedSchemaForTables } from './mode-schema-cache';
 import { classifyQuestionWithMatrix, getBusinessTermContext } from './matrix-classifier';
 
+// Simple LRU cache for successful SQL queries (max 100 entries)
+const sqlCache = new Map<string, { sql: string; selectedTables: string[]; timestamp: number }>();
+const SQL_CACHE_MAX_SIZE = 100;
+const SQL_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function getCacheKey(question: string): string {
+  return question.trim().toLowerCase();
+}
+
+function getCachedSql(question: string): { sql: string; selectedTables: string[] } | null {
+  const key = getCacheKey(question);
+  const cached = sqlCache.get(key);
+  if (cached && Date.now() - cached.timestamp < SQL_CACHE_TTL_MS) {
+    console.log(`[openai-client] Cache hit for: "${question.substring(0, 50)}..."`);
+    return { sql: cached.sql, selectedTables: cached.selectedTables };
+  }
+  if (cached) {
+    sqlCache.delete(key); // Expired
+  }
+  return null;
+}
+
+function cacheSql(question: string, sql: string, selectedTables: string[]): void {
+  const key = getCacheKey(question);
+  // Evict oldest if at max size
+  if (sqlCache.size >= SQL_CACHE_MAX_SIZE) {
+    const oldestKey = sqlCache.keys().next().value;
+    if (oldestKey) sqlCache.delete(oldestKey);
+  }
+  sqlCache.set(key, { sql, selectedTables, timestamp: Date.now() });
+}
+
 // Gracefully handle missing OpenAI credentials
 const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 
@@ -98,6 +130,12 @@ export async function generateSuggestions(question: string): Promise<string[]> {
 export async function generateSqlFromQuestion(question: string, options: GenerateOptions = {}): Promise<{ sql: string; selectedTables: string[]; confidence: 'high' | 'medium' | 'low' | 'none' }> {
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
+  }
+
+  // Check cache first for consistent results
+  const cached = getCachedSql(question);
+  if (cached) {
+    return { ...cached, confidence: 'high' };
   }
 
   const { allowedTables = [], publishDate } = options;
@@ -215,8 +253,9 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
         content: question
       }
     ],
-    temperature: 0.3,
+    temperature: 0.1,
     max_completion_tokens: 500,
+    seed: 42,
   });
   const llmTime = Date.now() - llmStartTime;
   
@@ -235,6 +274,11 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
     selectedTables: relevantTables,
     confidence: classification.confidence
   };
+}
+
+// Export cache function for use after successful query execution
+export function cacheSuccessfulSql(question: string, sql: string, selectedTables: string[]): void {
+  cacheSql(question, sql, selectedTables);
 }
 
 const QUESTION_CLASSIFIER_PROMPT = `

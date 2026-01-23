@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
 import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
-import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion, generateNaturalLanguageResponse } from "./openai-client";
+import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion, generateNaturalLanguageResponse, cacheSuccessfulSql } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -579,6 +579,9 @@ export async function registerRoutes(
         result.recordset.length,
         actualTotalCount
       );
+
+      // Cache successful SQL for consistent results on repeat queries
+      cacheSuccessfulSql(question, finalSql, selectedTables);
 
       res.json({
         answer: naturalAnswer,
