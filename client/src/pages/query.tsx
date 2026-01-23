@@ -372,10 +372,10 @@ export default function QueryPage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto p-8 space-y-8">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <h1 className="text-3xl font-semibold text-primary">AI Analytics</h1>
-          <p className="text-sm text-muted-foreground">
-            Ask questions about your manufacturing data using natural language.
+          <p className="text-sm text-muted-foreground italic">
+            Decision intelligence for PlanetTogether
           </p>
         </div>
 
