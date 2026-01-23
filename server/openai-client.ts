@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getFormattedSchemaForMode, getModeSchemaStats, getFormattedSchemaForTables } from './mode-schema-cache';
+import { getFormattedSchemaForTables } from './mode-schema-cache';
 import { classifyQuestionWithMatrix, getBusinessTermContext } from './matrix-classifier';
 
 // Gracefully handle missing OpenAI credentials
@@ -47,7 +47,6 @@ BUSINESS CONTEXT:
 `;
 
 interface GenerateOptions {
-  mode?: string;
   allowedTables?: string[];
   publishDate?: string; // The effective "today" date for date-relative queries
   advancedMode?: boolean; // Enable Tier 2 tables
@@ -102,7 +101,7 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     throw new Error('OpenAI API key not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY in Replit Secrets.');
   }
 
-  const { mode = 'production-planning', allowedTables = [], publishDate, advancedMode = false } = options;
+  const { allowedTables = [], publishDate, advancedMode = false } = options;
 
   // Use matrix-driven table selection (3-4 tables default, max 6)
   const classification = classifyQuestionWithMatrix(question, advancedMode);
@@ -138,10 +137,12 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     if (relevantTables.length > 0) {
       modeSchema = await getFormattedSchemaForTables(relevantTables, question);
       stats = { tableCount: relevantTables.length, columnCount: 0 };
+    } else if (allowedTables.length > 0) {
+      // Fall back to allowed tables schema
+      modeSchema = await getFormattedSchemaForTables(allowedTables, question);
+      stats = { tableCount: allowedTables.length, columnCount: 0 };
     } else {
-      // Fall back to full mode schema
-      modeSchema = await getFormattedSchemaForMode(mode);
-      stats = await getModeSchemaStats(mode);
+      modeSchema = 'All publish.DASHt_* tables available';
     }
     
     const schemaFetchTime = Date.now() - startTime;
@@ -155,106 +156,36 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     }
   }
 
-  // Mode-specific guidance
-  let modeGuidance = '';
-  if (mode === 'capacity-plan') {
-    modeGuidance = `
+  // Consolidated guidance for all table types
+  const tableGuidance = `
 
-CAPACITY PLAN MODE - CRITICAL TABLE RULES:
+CRITICAL TABLE RULES:
 
-TABLE-SPECIFIC COLUMNS (only use columns from the correct table):
+CAPACITY PLANNING TABLES:
 - DASHt_CapacityPlanning_ResourceCapacity: Has capacity data (NormalOnlineHours, OvertimeHours, etc.)
 - DASHt_CapacityPlanning_ResourceDemand: Has demand data (DemandHours, LoadedHours, etc.)
 - DASHt_CapacityPlanning_ShiftsCombined: Has shift data (ShiftName, StartTime, EndTime, etc.)
-- DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish: Has previous publish shift data for comparison
 - DASHt_Resources: Has resource metadata ONLY (ResourceName, WorkcenterName, DepartmentName, PlantName) - NO demand or capacity columns
-
-COMMON MISTAKES TO AVOID:
-- DO NOT use DemandHours, Capacity, or LoadedHours on DASHt_Resources - these columns do not exist there
 - For demand/capacity analysis: JOIN DASHt_Resources with DASHt_CapacityPlanning_ResourceDemand or DASHt_CapacityPlanning_ResourceCapacity
-- For shift comparisons: JOIN DASHt_CapacityPlanning_ShiftsCombined with DASHt_CapacityPlanning_ShiftsCombinedFromLastPublish
 
-BEST PRACTICES:
-- When listing resources, use SELECT DISTINCT to avoid duplicate rows
-- When grouping by resource, always GROUP BY ResourceName (and other relevant columns)
-
-EXAMPLE QUERIES:
-
-Q: "Which resources are the busiest next week?"
-SQL:
-SELECT TOP (100) rd.DemandDate, rd.ResourceName, rd.PlantName, rd.DepartmentName, SUM(rd.DemandHours) AS TotalDemandHours
-FROM publish.DASHt_CapacityPlanning_ResourceDemand rd
-WHERE rd.DemandDate >= '2025-01-06' AND rd.DemandDate < '2025-01-13'
-GROUP BY rd.DemandDate, rd.ResourceName, rd.PlantName, rd.DepartmentName
-ORDER BY TotalDemandHours DESC
-
-Q: "Show capacity utilization by resource"
-SQL:
-SELECT TOP (100) rc.ResourceName, rc.PlantName, rc.DepartmentName, 
-  SUM(rc.NormalOnlineHours) AS TotalCapacityHours, 
-  SUM(rd.DemandHours) AS TotalDemandHours
-FROM publish.DASHt_CapacityPlanning_ResourceCapacity rc
-LEFT JOIN publish.DASHt_CapacityPlanning_ResourceDemand rd 
-  ON rc.ResourceName = rd.ResourceName AND rc.CapacityDate = rd.DemandDate
-GROUP BY rc.ResourceName, rc.PlantName, rc.DepartmentName
-ORDER BY TotalDemandHours DESC
-
-ONLY use columns explicitly listed in the schema above for each table.`;
-  } else if (mode === 'production-planning') {
-    modeGuidance = `
-
-PRODUCTION & PLANNING MODE - CRITICAL RULES:
-- DO NOT invent or hallucinate aggregate columns like "TotalResourceDemandHours", "TotalDemand", "UtilizationPercentage", etc.
-- If totals or aggregates are needed, compute them via SUM(), COUNT(), AVG(), etc. over existing numeric columns listed in the schema above
-- If no suitable numeric columns exist in the schema for the requested calculation, DO NOT guess - instead return an error message
-- For capacity, demand, or resource utilization questions: This mode does NOT have capacity planning columns - suggest user switch to "Capacity Plan" report
-- ONLY use columns explicitly listed in the schema above for tables: DASHt_Planning, DASHt_JobOperationProducts, DASHt_JobOperationAttributes, DASHt_PredecessorOPIds, DASHt_RecentPublishedScenariosArchive
-
-SCHEDULED vs UNSCHEDULED JOBS (CRITICAL):
-- JobScheduledStatus column contains: 'Scheduled', 'FailedToSchedule', 'Finished', 'Unscheduled', etc.
+PRODUCTION PLANNING TABLES:
+- DASHt_Planning: Main planning table with job/operation data
+- JobScheduledStatus values: 'Scheduled', 'FailedToSchedule', 'Finished', 'Unscheduled'
 - When user asks for "scheduled jobs": ALWAYS add WHERE JobScheduledStatus = 'Scheduled'
 - When user asks for "unscheduled jobs": use WHERE JobScheduledStatus IN ('FailedToSchedule', 'Unscheduled')
-- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - these should be filtered out
-- DO NOT show jobs with JobScheduledStatus = 'FailedToSchedule' when user asks for scheduled jobs
+- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter them out
 
-BEST PRACTICES:
-- When listing jobs or resources, use SELECT DISTINCT to avoid duplicate rows
-- When grouping, always GROUP BY the appropriate columns`;
-  } else if (mode === 'finance') {
-    modeGuidance = `
-
-FINANCE MODE - SCENARIO-AWARE RULES FOR DASHt_SalesOrders:
-
-SCENARIO CONTROL (CRITICAL):
+FINANCE/SCENARIO-AWARE TABLES (DASHt_SalesOrders):
 - If user does NOT mention scenario, ALWAYS add: WHERE ScenarioType = 'Production'
 - If user mentions "what-if", "scenario", "copy", "simulation" → allow ScenarioType = 'What-If'
 - NEVER mix Production and What-If unless user explicitly asks for comparison
-- For comparisons, GROUP BY ScenarioType and/or ScenarioName
-
-EXACT METRIC FORMULAS (use these column names):
-- Order Count: COUNT(DISTINCT SalesOrderName)
-- Total Demand: SUM(QtyOrdered)
-- Shipped Quantity: SUM(QtyShipped)
-- Open Quantity: SUM(QtyOrdered - QtyShipped)
-- Overdue Orders: RequiredAvailableDate < CAST(GETDATE() AS DATE) AND (QtyOrdered - QtyShipped) > 0
-- Revenue: SUM(SalesAmount) - if NULL or zero-heavy, explain limitation
-
-KEY COLUMNS FOR DASHt_SalesOrders:
-- Identity: PlanningAreaName, SalesOrderName, SalesOrderId, SalesOrderLineId, LineNumber
-- Customer: CustomerName, CustomerExternalId
-- Item: ItemName, ItemType, ItemId, LineDescription
-- Quantities: QtyOrdered, QtyShipped
-- Dates: RequiredAvailableDate, ExpirationDate, PublishDate
-- Financial: UnitPrice, SalesAmount
-- Status: Cancelled, Hold, HoldReason, Priority
-- Scenario: ScenarioId, NewScenarioId, ScenarioName, ScenarioType
 
 BEST PRACTICES:
-- When listing orders, customers, or items, use SELECT DISTINCT to avoid duplicate rows
+- DO NOT invent or hallucinate aggregate columns - compute them via SUM(), COUNT(), AVG()
+- When listing items, use SELECT DISTINCT to avoid duplicate rows
 - When grouping, always GROUP BY the appropriate columns
-
-ONLY use columns explicitly listed in the schema above.`;
-  }
+- ONLY use columns explicitly listed in the schema below for each table
+`;
 
   // Build the effective "today" date context
   const todayContext = publishDate 
@@ -262,12 +193,11 @@ ONLY use columns explicitly listed in the schema above.`;
     : '';
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
-
-MODE: ${mode.toUpperCase()}${todayContext}
+${todayContext}
 ${businessTermContext}${contextHintsText}
-ALLOWED TABLES AND COLUMNS FOR THIS MODE:
-${modeSchema}${modeGuidance}
-
+AVAILABLE TABLES AND COLUMNS:
+${modeSchema}
+${tableGuidance}
 Generate only the SQL query, no explanation. Do not include markdown formatting or code blocks.`;
 
   const llmStartTime = Date.now();
