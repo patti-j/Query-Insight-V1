@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, CheckCircle2, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -96,7 +96,7 @@ export default function QueryPage() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [faqQuestions, setFaqQuestions] = useState<QuickQuestion[]>([]);
-  const [showData, setShowData] = useState(false);
+  const [showData, setShowData] = useState(true);
   const [showSql, setShowSql] = useState(false);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnosticsResult, setDiagnosticsResult] = useState<DiagnosticsResult | null>(null);
@@ -107,11 +107,12 @@ export default function QueryPage() {
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
   const [queryWasTransformed, setQueryWasTransformed] = useState(false);
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
-  const [showChart, setShowChart] = useState(false);
+  const [showChart, setShowChart] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
   
-  // Ref for scrolling to results
+  // Refs for scrolling
   const resultsRef = useRef<HTMLDivElement>(null);
+  const queryRef = useRef<HTMLDivElement>(null);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -460,7 +461,7 @@ export default function QueryPage() {
           </div>
         )}
 
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
+        <Card ref={queryRef} className="border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">Ask a Question</CardTitle>
           </CardHeader>
@@ -936,6 +937,22 @@ export default function QueryPage() {
                     </div>
                   </div>
                 )}
+                
+                {/* New Question Button */}
+                <div className="pt-4 border-t border-border/30 mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setQuestion('');
+                      queryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="w-full gap-2"
+                    data-testid="button-new-question"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    New Question
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
