@@ -62,8 +62,7 @@
         "publish.DASHt_Resources"
       ],
       "tier2Tables": [
-        "publish.Customers",
-        "publish.Departments",
+        "publish.Customers", 
         "publish.JobActivities",
         "publish.JobOperationAttributes",
         "publish.JobOperations",
