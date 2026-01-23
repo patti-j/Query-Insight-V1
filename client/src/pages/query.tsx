@@ -239,6 +239,19 @@ export default function QueryPage() {
 
       setResult(data);
       
+      // Always show data table when results come back
+      setShowData(true);
+      
+      // Only auto-show chart if there are numeric columns
+      if (data.rows && data.rows.length > 0) {
+        const hasNumericColumns = Object.values(data.rows[0]).some(
+          (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+        );
+        setShowChart(hasNumericColumns);
+      } else {
+        setShowChart(false);
+      }
+      
       // Scroll to results after a short delay
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
