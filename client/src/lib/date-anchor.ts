@@ -126,15 +126,16 @@ export function getEffectiveToday(): Date {
   if (import.meta.env.PROD) return new Date();
 
   const fixed = (import.meta.env.VITE_DEV_FIXED_TODAY as string) || "2024-01-01";
-  // Normalize to UTC midnight to avoid timezone surprises
-  return new Date(`${fixed}T00:00:00Z`);
+  // Parse as local midnight (not UTC) to avoid timezone display issues
+  const [year, month, day] = fixed.split('-').map(Number);
+  return new Date(year, month - 1, day);
 }
 
 export function formatEffectiveTodayLabel(): string {
   if (import.meta.env.PROD) return "";
   const d = getEffectiveToday();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `Effective Today = ${yyyy}-${mm}-${dd} (dev override)`;
 }
