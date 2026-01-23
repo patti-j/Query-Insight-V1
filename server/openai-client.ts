@@ -30,7 +30,7 @@ CRITICAL RULES:
 - Use ONLY the columns listed in the schema below for each table
 - DO NOT invent or hallucinate column names
 - When user says "next" jobs, sort by date (ORDER BY), don't filter to future dates unless explicitly requested
-- For job-level results, use ROW_NUMBER() to deduplicate by JobId when needed
+- DASHt_Planning has one row per OPERATION, not per job. For job-level queries (e.g., "top 10 jobs"), use SELECT DISTINCT or GROUP BY JobName/JobId to avoid duplicates
 
 COMMON COLUMN MAPPINGS (if present in schema):
 - Plant: Use BlockPlant (name) or PlantId (ID) - NOT PlantCode
