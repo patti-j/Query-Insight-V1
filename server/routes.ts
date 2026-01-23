@@ -101,6 +101,19 @@ export async function registerRoutes(
     res.json(failedQueries);
   });
 
+  // Serve query matrix HTML for team review
+  app.get("/matrix", (_req, res) => {
+    try {
+      const matrixPath = join(process.cwd(), 'docs', 'query-matrix.html');
+      const htmlContent = readFileSync(matrixPath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(htmlContent);
+    } catch (error: any) {
+      log(`Failed to load query matrix: ${error.message}`, 'matrix');
+      res.status(500).send('Failed to load query matrix');
+    }
+  });
+
   // Get semantic catalog with availability info
   app.get("/api/semantic-catalog", (_req, res) => {
     try {
