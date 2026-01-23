@@ -1,8 +1,44 @@
 import crypto from 'crypto';
 import type { Request } from 'express';
+import fs from 'fs';
+import path from 'path';
 
-// In-memory store for tracking query frequency (for FAQ feature)
-const queryFrequency: Map<string, { count: number; lastUsed: Date; successful: boolean }> = new Map();
+const FAQ_FILE = path.join(process.cwd(), 'data', 'popular-queries.json');
+
+interface QueryFrequencyData {
+  count: number;
+  lastUsed: string;
+  successful: boolean;
+}
+
+// Load FAQ data from file on startup
+function loadFAQData(): Map<string, QueryFrequencyData> {
+  try {
+    if (fs.existsSync(FAQ_FILE)) {
+      const data = JSON.parse(fs.readFileSync(FAQ_FILE, 'utf-8'));
+      return new Map(Object.entries(data));
+    }
+  } catch (err) {
+    console.error('Failed to load FAQ data:', err);
+  }
+  return new Map();
+}
+
+// Save FAQ data to file
+function saveFAQData(data: Map<string, QueryFrequencyData>): void {
+  try {
+    const dir = path.dirname(FAQ_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(FAQ_FILE, JSON.stringify(Object.fromEntries(data), null, 2));
+  } catch (err) {
+    console.error('Failed to save FAQ data:', err);
+  }
+}
+
+// In-memory store for tracking query frequency (for FAQ feature) - loaded from file
+const queryFrequency: Map<string, QueryFrequencyData> = loadFAQData();
 
 // In-memory store for feedback (thumbs up/down)
 interface FeedbackEntry {
@@ -76,15 +112,18 @@ export function trackQueryForFAQ(question: string, rowCount: number): void {
   
   if (existing) {
     existing.count += 1;
-    existing.lastUsed = new Date();
+    existing.lastUsed = new Date().toISOString();
     existing.successful = true;
   } else {
     queryFrequency.set(normalized, {
       count: 1,
-      lastUsed: new Date(),
+      lastUsed: new Date().toISOString(),
       successful: true,
     });
   }
+  
+  // Persist to file
+  saveFAQData(queryFrequency);
 }
 
 /**
