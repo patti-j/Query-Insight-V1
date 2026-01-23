@@ -110,6 +110,11 @@ export async function generateSqlFromQuestion(question: string, options: Generat
   // Get business term context if any terms matched
   const businessTermContext = getBusinessTermContext(classification.matchedTerms);
   
+  // Get context hints from matrix matches
+  const contextHintsText = classification.contextHints.length > 0
+    ? `\nTABLE SELECTION GUIDANCE:\n${classification.contextHints.join('\n')}\n`
+    : '';
+  
   // Filter selected tables to only those that exist in allowedTables (if provided)
   let relevantTables = classification.selectedTables;
   if (allowedTables.length > 0) {
@@ -259,7 +264,7 @@ ONLY use columns explicitly listed in the schema above.`;
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
 
 MODE: ${mode.toUpperCase()}${todayContext}
-${businessTermContext}
+${businessTermContext}${contextHintsText}
 ALLOWED TABLES AND COLUMNS FOR THIS MODE:
 ${modeSchema}${modeGuidance}
 

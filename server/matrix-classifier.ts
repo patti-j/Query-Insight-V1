@@ -6,12 +6,14 @@ interface MatrixMatch {
   tier2Tables: string[];
   matchScore: number;
   override?: boolean;
+  contextHint?: string;
 }
 
 interface ClassificationResult {
   selectedTables: string[];
   matchedKeywords: string[];
   matchedTerms: string[];
+  contextHints: string[];
   isOverride: boolean;
   confidence: 'high' | 'medium' | 'low' | 'none';
   debugInfo: {
@@ -72,7 +74,8 @@ export function classifyQuestionWithMatrix(
         tier1Tables: entry.tier1Tables,
         tier2Tables: entry.tier2Tables || [],
         matchScore: score,
-        override: entry.override
+        override: (entry as any).override,
+        contextHint: (entry as any).contextHint
       });
       allMatchedKeywords.push(...matched);
     }
@@ -152,10 +155,15 @@ export function classifyQuestionWithMatrix(
     confidence = 'none';
   }
   
+  const contextHints = matrixMatches
+    .filter(m => m.contextHint)
+    .map(m => m.contextHint as string);
+  
   const result: ClassificationResult = {
     selectedTables: Array.from(selectedTables),
     matchedKeywords: Array.from(new Set(allMatchedKeywords)),
     matchedTerms: termMatches,
+    contextHints,
     isOverride: hasOverride,
     confidence,
     debugInfo: {
@@ -171,6 +179,9 @@ export function classifyQuestionWithMatrix(
   console.log(`[matrix-classifier] Selected tables (${result.selectedTables.length}): ${result.selectedTables.join(', ')}`);
   if (termMatches.length > 0) {
     console.log(`[matrix-classifier] Business terms matched: ${termMatches.join(', ')}`);
+  }
+  if (contextHints.length > 0) {
+    console.log(`[matrix-classifier] Context hints: ${contextHints.length} hint(s)`);
   }
   
   return result;

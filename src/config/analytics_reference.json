@@ -350,16 +350,17 @@
     {
       "keywords": ["product", "products", "item", "items", "part", "parts", "sku", "skus", "finished good", "finished goods", "what we make", "making", "item type", "item group", "raw material", "raw materials", "subassembly", "subassemblies", "sub assembly", "sub assemblies", "intermediate", "intermediates", "fg", "int", "raw", "sub"],
       "tier1Tables": [
-        "publish.DASHt_JobOperationProducts",
+        "publish.DASHt_Inventories",
         "publish.DASHt_Planning",
         "publish.DASHt_Materials",
-        "publish.DASHt_Inventories"
+        "publish.DASHt_JobOperationProducts"
       ],
       "tier2Tables": [
         "publish.Items",
         "publish.JobProducts",
         "publish.JobMaterials"
-      ]
+      ],
+      "contextHint": "For inventory/stock questions use DASHt_Inventories (has ItemName, ItemType, ItemGroup, InitialOnHandQty). For job/production questions use DASHt_Planning (has JobProduct, MOProduct, MORequiredQty). For materials/BOM use DASHt_Materials (has MaterialName, TotalRequiredQty). Note: ItemType values are FinishedGood, RawMaterial, SubAssembly. ItemGroup values are FG, INT, RAW, SUB."
     }
   ],
   "tableKeywords": {
