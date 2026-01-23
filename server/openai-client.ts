@@ -380,9 +380,22 @@ export async function generateNaturalLanguageResponse(
     return `Found ${rowCount} result(s).`;
   }
 
-  // If no results, return a simple message
+  // If no results, generate a context-aware empty message
   if (rowCount === 0) {
-    return "No matching data was found for your query. Try adjusting the date range or criteria.";
+    try {
+      const emptyResponse = await openai.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages: [
+          { role: 'system', content: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."` },
+          { role: 'user', content: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.` }
+        ],
+        temperature: 0.3,
+        max_completion_tokens: 100,
+      });
+      return emptyResponse.choices[0]?.message?.content?.trim() || "No matching data was found for your query.";
+    } catch {
+      return "No matching data was found for your query. Try adjusting the date range or criteria.";
+    }
   }
 
   // Limit results sent to LLM to avoid token overflow
