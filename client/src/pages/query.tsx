@@ -525,20 +525,16 @@ export default function QueryPage() {
                       <p className="text-base font-medium text-foreground">
                         "{submittedQuestion}"
                       </p>
-                      <button
-                        onClick={() => toggleFavorite(submittedQuestion, 'all')}
-                        className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
-                        title={isFavorite(submittedQuestion, 'all') ? "Remove from favorites" : "Add to favorites"}
-                        data-testid="button-toggle-favorite"
-                      >
-                        <Heart 
-                          className={`h-5 w-5 transition-colors ${
-                            isFavorite(submittedQuestion, 'all') 
-                              ? 'fill-red-500 text-red-500' 
-                              : 'text-muted-foreground hover:text-red-500'
-                          }`} 
-                        />
-                      </button>
+                      {!isFavorite(submittedQuestion) && (
+                        <button
+                          onClick={() => toggleFavorite(submittedQuestion)}
+                          className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                          title="Add to favorites"
+                          data-testid="button-toggle-favorite"
+                        >
+                          <Heart className="h-5 w-5 text-muted-foreground hover:text-red-500 transition-colors" />
+                        </button>
+                      )}
                     </div>
                     {queryWasTransformed && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">

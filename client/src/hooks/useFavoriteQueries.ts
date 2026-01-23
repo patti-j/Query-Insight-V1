@@ -28,15 +28,15 @@ export function useFavoriteQueries() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newFavorites));
   }, []);
 
-  const addFavorite = useCallback((question: string, mode: string) => {
+  const addFavorite = useCallback((question: string) => {
     const normalizedQ = question.trim().toLowerCase();
-    const exists = favorites.some(f => f.question.trim().toLowerCase() === normalizedQ && f.mode === mode);
+    const exists = favorites.some(f => f.question.trim().toLowerCase() === normalizedQ);
     if (exists) return;
     
     const newFavorite: FavoriteQuery = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       question,
-      mode,
+      mode: 'all',
       savedAt: new Date().toISOString(),
     };
     saveFavorites([newFavorite, ...favorites]);
@@ -46,18 +46,18 @@ export function useFavoriteQueries() {
     saveFavorites(favorites.filter(f => f.id !== id));
   }, [favorites, saveFavorites]);
 
-  const isFavorite = useCallback((question: string, mode: string) => {
+  const isFavorite = useCallback((question: string) => {
     const normalizedQ = question.trim().toLowerCase();
-    return favorites.some(f => f.question.trim().toLowerCase() === normalizedQ && f.mode === mode);
+    return favorites.some(f => f.question.trim().toLowerCase() === normalizedQ);
   }, [favorites]);
 
-  const toggleFavorite = useCallback((question: string, mode: string) => {
+  const toggleFavorite = useCallback((question: string) => {
     const normalizedQ = question.trim().toLowerCase();
-    const existing = favorites.find(f => f.question.trim().toLowerCase() === normalizedQ && f.mode === mode);
+    const existing = favorites.find(f => f.question.trim().toLowerCase() === normalizedQ);
     if (existing) {
       removeFavorite(existing.id);
     } else {
-      addFavorite(question, mode);
+      addFavorite(question);
     }
   }, [favorites, addFavorite, removeFavorite]);
 
