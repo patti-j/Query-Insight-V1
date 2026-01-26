@@ -215,10 +215,10 @@ PRODUCTION PLANNING TABLES:
 - When user asks for "jobs on hold" or "held jobs": use WHERE JobOnHold = 'OnHold'
 - To include hold reasons: SELECT JobHoldReason column (may be NULL if no reason specified)
 
-SCENARIO FILTERING RULES:
-- DASHt_SalesOrders: If user does NOT mention scenario, ALWAYS add: WHERE ScenarioType = 'Production'
-- DASHt_Planning: Do NOT filter by ScenarioType unless user explicitly mentions "what-if", "scenario", or "simulation"
-- If user mentions "what-if", "scenario", "copy", "simulation" → filter by ScenarioType = 'What-If'
+SCENARIO FILTERING RULES (REQUIRED for DASHt_Planning and DASHt_SalesOrders):
+- ALWAYS add WHERE ScenarioType = 'Production' by default - this is MANDATORY
+- Only use ScenarioType = 'What-If' if user explicitly mentions "what-if", "scenario", "copy", or "simulation"
+- NEVER omit the ScenarioType filter - it must always be included
 - NEVER mix Production and What-If unless user explicitly asks for comparison
 
 BEST PRACTICES:
