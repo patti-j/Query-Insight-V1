@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { executeQuery } from "./db-azure";
 import { validateAndModifySql, runValidatorSelfCheck, type ValidationOptions } from "./sql-validator";
-import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion, generateNaturalLanguageResponse, cacheSuccessfulSql } from "./openai-client";
+import { generateSqlFromQuestion, generateSuggestions, classifyQuestion, answerGeneralQuestion, generateNaturalLanguageResponse, streamNaturalLanguageResponse, cacheSuccessfulSql } from "./openai-client";
 import { log } from "./index";
 import {
   createQueryLogContext,
@@ -383,6 +383,211 @@ export async function registerRoutes(
         error: 'Failed to run diagnostics. Check database connectivity and permissions.',
         timestamp: new Date().toISOString(),
       });
+    }
+  });
+
+  // Streaming natural language to SQL query endpoint (SSE)
+  app.post("/api/ask/stream", async (req, res) => {
+    const { question, publishDate } = req.body;
+
+    // Validate question parameter
+    if (!question || typeof question !== 'string') {
+      return res.status(400).json({
+        error: 'Question is required and must be a string',
+      });
+    }
+
+    // Track if client disconnected
+    let clientDisconnected = false;
+    req.on('close', () => {
+      clientDisconnected = true;
+      log('Client disconnected, aborting stream', 'ask-stream');
+    });
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+    // Helper to send SSE events (checks for disconnect)
+    const sendEvent = (event: string, data: any) => {
+      if (clientDisconnected) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Classify the question first
+    const questionType = await classifyQuestion(question);
+    if (clientDisconnected) { res.end(); return; }
+    
+    if (questionType === 'general') {
+      log(`General question detected (streaming): ${question}`, 'ask-stream');
+      const answer = await answerGeneralQuestion(question);
+      sendEvent('complete', {
+        isGeneralAnswer: true,
+        answer,
+        question,
+      });
+      res.end();
+      return;
+    }
+
+    // Create query log context
+    const logContext = createQueryLogContext(req, question);
+    log(`Processing question (streaming): ${question}`, 'ask-stream');
+
+    let generatedSql: string | undefined;
+    let llmStartTime: number | undefined;
+    let llmMs: number | undefined;
+
+    try {
+      // Send status update
+      sendEvent('status', { stage: 'generating_sql', message: 'Generating SQL query...' });
+
+      // Generate SQL from natural language
+      llmStartTime = Date.now();
+      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate });
+      generatedSql = sqlGenResult.sql;
+      const selectedTables = sqlGenResult.selectedTables;
+      const confidence = sqlGenResult.confidence;
+      llmMs = Date.now() - llmStartTime;
+      log(`Generated SQL (streaming): ${generatedSql}`, 'ask-stream');
+
+      // Handle out-of-scope questions with low/no confidence
+      if (confidence === 'none') {
+        sendEvent('complete', {
+          isOutOfScope: true,
+          answer: `I couldn't find data matching your question in the available PowerBI reports.`,
+          question,
+        });
+        res.end();
+        return;
+      }
+
+      // Validate and modify SQL if needed
+      const validationOptions: ValidationOptions = {};
+      const validation = validateAndModifySql(generatedSql, validationOptions);
+      
+      if (!validation.valid) {
+        log(`SQL validation failed (streaming): ${validation.error}`, 'ask-stream');
+        logValidationFailure(logContext, generatedSql, validation.error || 'Unknown validation error', llmMs);
+        sendEvent('error', { error: `SQL validation failed: ${validation.error}`, sql: generatedSql });
+        res.end();
+        return;
+      }
+
+      const finalSql = validation.modifiedSql || generatedSql;
+      
+      // Validate column references against schema
+      const columnValidation = await validateSqlColumns(finalSql, selectedTables);
+      if (!columnValidation.valid) {
+        log(`Column validation failed (streaming): ${columnValidation.errors.length} errors`, 'ask-stream');
+        logValidationFailure(logContext, finalSql, `Column validation failed`, llmMs);
+        
+        const firstError = columnValidation.errors[0];
+        let errorMessage = firstError.message;
+        if (firstError.availableColumns && firstError.availableColumns.length > 0) {
+          errorMessage += `\n\nDid you mean one of these? ${firstError.availableColumns.join(', ')}`;
+        }
+        
+        sendEvent('error', { error: errorMessage, sql: finalSql, schemaError: true });
+        res.end();
+        return;
+      }
+
+      // Check for disconnect before continuing
+      if (clientDisconnected) { res.end(); return; }
+
+      // Send SQL to client
+      sendEvent('sql', { sql: finalSql });
+      sendEvent('status', { stage: 'executing_sql', message: 'Running query...' });
+
+      // Execute the query
+      const sqlStartTime = Date.now();
+      const result = await executeQuery(finalSql);
+      const sqlMs = Date.now() - sqlStartTime;
+
+      if (clientDisconnected) { res.end(); return; }
+
+      // Log successful execution
+      logSuccess(logContext, finalSql, result.recordset.length, llmMs, sqlMs);
+      trackQueryForFAQ(question, result.recordset.length);
+
+      // Get actual total count if results were limited to 100
+      let actualTotalCount: number | undefined;
+      if (result.recordset.length === 100) {
+        try {
+          const fromIndex = finalSql.toUpperCase().indexOf(' FROM ');
+          if (fromIndex > -1) {
+            let countSql = 'SELECT COUNT(*) AS TotalCount' + finalSql.substring(fromIndex);
+            countSql = countSql.replace(/ORDER\s+BY\s+[^;]+/i, '');
+            const countResult = await executeQuery(countSql);
+            actualTotalCount = countResult.recordset[0]?.TotalCount;
+          }
+        } catch (countError: any) {
+          log(`Failed to get total count (streaming): ${countError.message}`, 'ask-stream');
+        }
+      }
+
+      if (clientDisconnected) { res.end(); return; }
+
+      // Send rows to client
+      sendEvent('rows', { 
+        rows: result.recordset, 
+        rowCount: result.recordset.length,
+        actualTotalCount 
+      });
+
+      // Stream the natural language response
+      sendEvent('status', { stage: 'generating_answer', message: 'Generating answer...' });
+
+      const stream = streamNaturalLanguageResponse(
+        question, 
+        result.recordset, 
+        result.recordset.length,
+        actualTotalCount
+      );
+
+      let fullAnswer = '';
+      for await (const chunk of stream) {
+        if (clientDisconnected) break; // Stop streaming if client disconnected
+        fullAnswer += chunk;
+        sendEvent('chunk', { text: chunk });
+      }
+
+      if (clientDisconnected) { res.end(); return; }
+
+      // Cache successful SQL
+      cacheSuccessfulSql(question, finalSql, selectedTables);
+
+      // Get suggestions asynchronously
+      const suggestions = await generateSuggestions(question);
+
+      // Send completion event
+      sendEvent('complete', {
+        answer: fullAnswer,
+        sql: finalSql,
+        rowCount: result.recordset.length,
+        actualTotalCount,
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
+      });
+
+      res.end();
+
+    } catch (error: any) {
+      log(`Error in /api/ask/stream: ${error.message}`, 'ask-stream');
+
+      if (generatedSql) {
+        const validationOptions: ValidationOptions = {};
+        const validation = validateAndModifySql(generatedSql, validationOptions);
+        const failedSql = validation.modifiedSql || generatedSql;
+        logExecutionFailure(logContext, failedSql, error.message || 'Failed to execute query', llmMs);
+      } else {
+        logGenerationFailure(logContext, error.message || 'Failed to generate SQL');
+      }
+
+      sendEvent('error', { error: error.message || 'Failed to process query' });
+      res.end();
     }
   });
 

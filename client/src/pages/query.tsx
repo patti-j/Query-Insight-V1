@@ -95,6 +95,8 @@ export default function QueryPage() {
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [streamingAnswer, setStreamingAnswer] = useState('');
+  const [streamingStage, setStreamingStage] = useState<string | null>(null);
   
   // Refs for scrolling
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -162,6 +164,8 @@ export default function QueryPage() {
     setFeedbackGiven(null);
     setShowData(false);
     setSubmittedQuestion(q.trim());
+    setStreamingAnswer('');
+    setStreamingStage(null);
 
     // Get the anchor date (effective "today" for queries) from environment secret
     const anchorDate = getEffectiveToday();
@@ -178,88 +182,139 @@ export default function QueryPage() {
     }
 
     try {
-      const response = await fetch('/api/ask', {
+      // Use streaming endpoint
+      const response = await fetch('/api/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: queryToSend,
-          publishDate: anchorDateStr // Send anchor date to AI for date-relative queries
+          publishDate: anchorDateStr
         }),
       });
 
-      // Try to parse JSON, if it fails (HTML response), throw error
-      let data;
-      try {
-        const text = await response.text();
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-           throw new Error(`Server response was not JSON: ${text.substring(0, 100)}...`);
-        }
-      } catch (e: any) {
-        throw new Error(e.message || 'Failed to parse server response');
-      }
-
-      // Handle general (non-data) answers
-      if (data.isGeneralAnswer) {
-        setGeneralAnswer(data.answer);
-        setLoading(false);
-        return;
-      }
-
-      // Handle out-of-scope questions
-      if (data.isOutOfScope) {
-        setGeneralAnswer(data.answer);
-        setLoading(false);
-        return;
-      }
-
       if (!response.ok) {
-        // If this is a schema/column validation error, don't fall back to mock data
-        if (data.schemaError) {
-          setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
-          setLoading(false);
-          return;
-        }
-        // If server returns explicit error, throw it
-        throw new Error(data.error || 'Query failed');
+        const text = await response.text();
+        throw new Error(`Server error: ${text}`);
       }
 
-      setResult(data);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulatedAnswer = '';
+      let rows: any[] = [];
+      let sql = '';
+      let rowCount = 0;
+      let actualTotalCount: number | undefined;
+      let suggestions: string[] | undefined;
       
-      // Always show data table when results come back
-      setShowData(true);
-      
-      // Only auto-show chart if there are numeric columns
-      if (data.rows && data.rows.length > 0) {
-        const hasNumericColumns = Object.values(data.rows[0]).some(
-          (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
-        );
-        setShowChart(hasNumericColumns);
-      } else {
-        setShowChart(false);
+      // Proper SSE parser state
+      let currentEventType = 'message';
+      let currentDataLines: string[] = [];
+
+      const processEvent = (eventType: string, dataStr: string) => {
+        try {
+          const data = JSON.parse(dataStr);
+          switch (eventType) {
+            case 'status':
+              setStreamingStage(data.message);
+              break;
+            case 'sql':
+              sql = data.sql;
+              break;
+            case 'rows':
+              rows = data.rows;
+              rowCount = data.rowCount;
+              actualTotalCount = data.actualTotalCount;
+              if (rows.length > 0) {
+                const detectedColumns = detectDateTimeColumns(rows);
+                setDateTimeColumns(detectedColumns);
+              }
+              break;
+            case 'chunk':
+              accumulatedAnswer += data.text;
+              setStreamingAnswer(accumulatedAnswer);
+              break;
+            case 'complete':
+              if (data.isGeneralAnswer || data.isOutOfScope) {
+                setGeneralAnswer(data.answer);
+              } else {
+                suggestions = data.suggestions;
+                setResult({
+                  answer: data.answer || accumulatedAnswer,
+                  sql: data.sql || sql,
+                  rows,
+                  rowCount: data.rowCount || rowCount,
+                  isMock: false,
+                  suggestions,
+                  nearestDates: data.nearestDates,
+                });
+                setShowData(true);
+                if (rows.length > 0) {
+                  const hasNumericColumns = Object.values(rows[0]).some(
+                    (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+                  );
+                  setShowChart(hasNumericColumns);
+                }
+              }
+              setStreamingStage(null);
+              break;
+            case 'error':
+              setError(data.error);
+              setStreamingStage(null);
+              break;
+          }
+        } catch (e) {
+          console.error('Failed to parse SSE data:', dataStr, e);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line === '') {
+            // Empty line = end of event frame, dispatch accumulated data
+            if (currentDataLines.length > 0) {
+              const dataStr = currentDataLines.join('\n');
+              processEvent(currentEventType, dataStr);
+              currentDataLines = [];
+              currentEventType = 'message';
+            }
+          } else if (line.startsWith('event:')) {
+            currentEventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            currentDataLines.push(line.slice(5).trim());
+          }
+          // Ignore other fields (id:, retry:, comments)
+        }
       }
       
-      // Scroll to results after a short delay
+      // Process any remaining event
+      if (currentDataLines.length > 0) {
+        const dataStr = currentDataLines.join('\n');
+        processEvent(currentEventType, dataStr);
+      }
+      
+      // Scroll to results after streaming complete
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
       
-      // Detect date/time columns in the result data
-      if (data.rows && data.rows.length > 0) {
-        const detectedColumns = detectDateTimeColumns(data.rows);
-        setDateTimeColumns(detectedColumns);
-      } else {
-        setDateTimeColumns(new Set());
-      }
-      
     } catch (err: any) {
       console.error("API Query Failed:", err);
-      
-      // Show error message without falling back to mock data
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
       setLoading(false);
+      setStreamingStage(null);
     }
   };
 
@@ -480,6 +535,47 @@ export default function QueryPage() {
             </form>
           </CardContent>
         </Card>
+
+        {/* Streaming Progress Indicator */}
+        {loading && (streamingStage || streamingAnswer) && (
+          <Card className="border-primary/30 bg-card/80 backdrop-blur-sm" data-testid="card-streaming">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                {streamingStage || 'Processing...'}
+              </CardTitle>
+              {submittedQuestion && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  "{submittedQuestion}"
+                </p>
+              )}
+            </CardHeader>
+            {streamingAnswer && (
+              <CardContent>
+                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl">
+                  <div className="text-base leading-relaxed" data-testid="text-streaming-answer">
+                    {streamingAnswer.split('\n').map((line, idx) => {
+                      const trimmedLine = line.trim();
+                      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                        return (
+                          <div key={idx} className="flex gap-2 ml-2 my-1">
+                            <span className="flex-shrink-0">{trimmedLine.charAt(0)}</span>
+                            <span>{trimmedLine.slice(1).trim()}</span>
+                          </div>
+                        );
+                      } else if (trimmedLine) {
+                        return <p key={idx} className="my-1">{line}</p>;
+                      } else {
+                        return <div key={idx} className="h-2" />;
+                      }
+                    })}
+                    <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {error && (
           <Card className="border-destructive/50 bg-destructive/5">

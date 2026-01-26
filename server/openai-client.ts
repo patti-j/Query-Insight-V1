@@ -414,6 +414,86 @@ Response: "Unassigned resources in Plant A are:
 Respond with ONLY the natural language answer, no preamble or explanation.
 `;
 
+export async function* streamNaturalLanguageResponse(
+  question: string, 
+  results: any[], 
+  rowCount: number,
+  actualTotalCount?: number
+): AsyncGenerator<string, void, unknown> {
+  if (!apiKey) {
+    yield `Found ${rowCount} result(s).`;
+    return;
+  }
+
+  // If no results, generate a context-aware empty message (non-streaming for simplicity)
+  if (rowCount === 0) {
+    try {
+      const emptyResponse = await openai.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages: [
+          { role: 'system', content: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."` },
+          { role: 'user', content: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.` }
+        ],
+        temperature: 0.3,
+        max_completion_tokens: 100,
+      });
+      yield emptyResponse.choices[0]?.message?.content?.trim() || "No matching data was found for your query.";
+    } catch {
+      yield "No matching data was found for your query. Try adjusting the date range or criteria.";
+    }
+    return;
+  }
+
+  // Limit results sent to LLM to avoid token overflow
+  const limitedResults = results.slice(0, 20);
+  const hasMore = rowCount > 20;
+  
+  // Determine if results were truncated by TOP 100
+  const wasLimited = actualTotalCount && actualTotalCount > rowCount;
+
+  try {
+    const limitNote = wasLimited 
+      ? `\nIMPORTANT: Results are limited to first ${rowCount} rows. The actual total is ${actualTotalCount}. Mention this in your response, e.g. "Here are the first 100 of ${actualTotalCount} total..."`
+      : '';
+      
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        { role: 'system', content: NATURAL_LANGUAGE_RESPONSE_PROMPT },
+        { 
+          role: 'user', 
+          content: `Question: "${question}"
+Results (${rowCount} returned${wasLimited ? `, ${actualTotalCount} total in database` : ''}${hasMore ? ', showing first 20 for summary' : ''}):
+${JSON.stringify(limitedResults, null, 2)}${limitNote}
+
+Provide a natural language summary of these results.`
+        }
+      ],
+      temperature: 0.3,
+      max_completion_tokens: 800,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        yield content;
+      }
+    }
+    
+    // Add note about additional results if truncated
+    if (hasMore && !wasLimited) {
+      yield `\n\n(Showing summary of ${rowCount} total results. Click "Show Data" to see all.)`;
+    }
+  } catch (error) {
+    console.error('[openai-client] Streaming natural language response failed:', error);
+    const totalToReport = actualTotalCount || rowCount;
+    yield wasLimited 
+      ? `Found ${actualTotalCount} total results (showing first ${rowCount}). Click "Show Data" to view the details.`
+      : `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
+  }
+}
+
 export async function generateNaturalLanguageResponse(
   question: string, 
   results: any[], 
