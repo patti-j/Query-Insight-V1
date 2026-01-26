@@ -97,7 +97,10 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
-  const [useStreaming, setUseStreaming] = useState(true); // Enabled for debugging
+  // Auto-disable streaming in Replit's webview (proxy doesn't support SSE properly)
+  // Enable streaming in production (Azure) or when explicitly testing
+  const isReplitEnv = typeof window !== 'undefined' && window.location.hostname.includes('replit');
+  const [useStreaming, setUseStreaming] = useState(!isReplitEnv);
   const [isStreaming, setIsStreaming] = useState(false);
   
   // Refs for scrolling and abort control
