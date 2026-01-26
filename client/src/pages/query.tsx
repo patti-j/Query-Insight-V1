@@ -97,7 +97,7 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
-  const [useStreaming, setUseStreaming] = useState(false); // Disabled due to client disconnect issues
+  const [useStreaming, setUseStreaming] = useState(true); // Enabled for debugging
   const [isStreaming, setIsStreaming] = useState(false);
   
   // Refs for scrolling and abort control
