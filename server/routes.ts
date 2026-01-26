@@ -38,36 +38,6 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
-  // SSE test endpoint - minimal test for streaming (GET and POST)
-  app.all("/api/sse-test", (req, res) => {
-    log('SSE test endpoint hit', 'sse-test');
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders();
-    
-    log('Headers flushed, sending events', 'sse-test');
-    
-    let count = 0;
-    const interval = setInterval(() => {
-      count++;
-      res.write(`data: Message ${count}\n\n`);
-      log(`Sent message ${count}`, 'sse-test');
-      if (count >= 5) {
-        clearInterval(interval);
-        res.end();
-        log('Stream ended', 'sse-test');
-      }
-    }, 500);
-
-    req.on('close', () => {
-      clearInterval(interval);
-      log('Client closed connection', 'sse-test');
-    });
-  });
-
   // Validator self-check endpoint (development only)
   app.get("/api/validator-check", (_req, res) => {
     const { passed, results } = runValidatorSelfCheck();

@@ -16,7 +16,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 
 ## Recent Changes (January 2026)
 
-- **Reverted to Non-Streaming API:** The frontend now uses `/api/ask` (non-streaming) instead of `/api/ask/stream` for reliability. SSE streaming code exists in the codebase but is disabled due to client disconnect issues.
+- **SSE Streaming with Environment Detection:** The app has full SSE streaming support (`/api/ask/stream`) with typing effects and stop button. Streaming auto-disables in Replit's webview (proxy doesn't support SSE properly) and uses non-streaming mode (`/api/ask`) instead. When deployed to Azure, streaming is enabled automatically.
 - **ScenarioType Filtering:** Both DASHt_Planning and DASHt_SalesOrders now ALWAYS filter by `ScenarioType = 'Production'` by default. Only use 'What-If' when user explicitly mentions "what-if", "scenario", etc.
 - **Job-Level Queries:** Strengthened SQL generation to use `GROUP BY JobName` for job-level queries on DASHt_Planning (which has one row per OPERATION) to avoid duplicate rows.
 - **Summary Improvements:** Updated LLM summarization to mention ALL distinct items (2-5 values) in results, not just the first one. Removed "Show Data" messages since data table is shown by default.
