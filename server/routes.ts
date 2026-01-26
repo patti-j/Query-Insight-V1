@@ -760,51 +760,93 @@ export async function registerRoutes(
 
       // Check for empty results and find nearest dates if applicable
       let nearestDates: { before: string | null; after: string | null } | undefined;
+      let invalidFilterMessage: string | undefined;
+      
       if (result.recordset.length === 0) {
-        // Check if the query involves date filtering - look for common date columns
-        const dateColumns = ['DemandDate', 'CapacityDate', 'ShiftDate', 'JobScheduledStartDateTime', 'PublishDate', 'RequiredAvailableDate'];
         const tableMatch = finalSql.match(/FROM\s+(\[?publish\]?\.\[?\w+\]?)/i);
+        const tableName = tableMatch ? tableMatch[1].replace(/\[/g, '').replace(/\]/g, '') : null;
         
-        // Find which date column is used in the query
-        let detectedDateColumn: string | null = null;
-        for (const col of dateColumns) {
-          if (finalSql.toLowerCase().includes(col.toLowerCase())) {
-            detectedDateColumn = col;
-            break;
+        // Check for common filter patterns that might have invalid values
+        const filterPatterns = [
+          { regex: /PlanningAreaName\s*=\s*'([^']+)'/i, column: 'PlanningAreaName', label: 'planning area' },
+          { regex: /PlantName\s*=\s*'([^']+)'/i, column: 'PlantName', label: 'plant' },
+          { regex: /DepartmentName\s*=\s*'([^']+)'/i, column: 'DepartmentName', label: 'department' },
+          { regex: /ResourceName\s*=\s*'([^']+)'/i, column: 'ResourceName', label: 'resource' },
+          { regex: /JobProduct\s*=\s*'([^']+)'/i, column: 'JobProduct', label: 'product' },
+        ];
+        
+        for (const pattern of filterPatterns) {
+          const match = finalSql.match(pattern.regex);
+          if (match && tableName) {
+            const userValue = match[1];
+            try {
+              // Check if the value exists in the database
+              const checkQuery = `SELECT DISTINCT TOP 10 ${pattern.column} FROM ${tableName} WHERE ${pattern.column} IS NOT NULL ORDER BY ${pattern.column}`;
+              const checkResult = await executeQuery(checkQuery);
+              const validValues = checkResult.recordset.map((r: any) => r[pattern.column]);
+              
+              if (validValues.length > 0 && !validValues.some((v: string) => v.toLowerCase() === userValue.toLowerCase())) {
+                // Value doesn't exist - provide helpful suggestion
+                invalidFilterMessage = `The ${pattern.label} "${userValue}" doesn't exist. Available ${pattern.label}s include: ${validValues.slice(0, 5).join(', ')}${validValues.length > 5 ? '...' : ''}.`;
+                log(`Invalid filter value: ${pattern.label} "${userValue}" not found. Valid values: ${validValues.join(', ')}`, 'ask');
+              }
+            } catch (filterError: any) {
+              log(`Failed to validate filter value: ${filterError.message}`, 'ask');
+            }
+            break; // Only check the first matching filter pattern
           }
         }
         
-        if (detectedDateColumn && tableMatch) {
-          const tableName = tableMatch[1].replace(/\[/g, '').replace(/\]/g, '');
+        // Check if the query involves date filtering - look for common date columns
+        if (!invalidFilterMessage) {
+          const dateColumns = ['DemandDate', 'CapacityDate', 'ShiftDate', 'JobScheduledStartDateTime', 'PublishDate', 'RequiredAvailableDate'];
           
-          try {
-            // Get the overall date range available in the table (excluding sentinel dates)
-            const rangeQuery = `SELECT MIN(${detectedDateColumn}) AS MinDate, MAX(CASE WHEN ${detectedDateColumn} < '2100-01-01' THEN ${detectedDateColumn} ELSE NULL END) AS MaxDate FROM ${tableName} WHERE ${detectedDateColumn} > '1900-01-01'`;
-            const rangeResult = await executeQuery(rangeQuery);
-            
-            const minDate = rangeResult.recordset[0]?.MinDate;
-            const maxDate = rangeResult.recordset[0]?.MaxDate;
-            
-            if (minDate || maxDate) {
-              nearestDates = {
-                before: minDate ? new Date(minDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
-                after: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
-              };
-              log(`No data found. Earliest: ${nearestDates.before}, Latest: ${nearestDates.after}`, 'ask');
+          // Find which date column is used in the query
+          let detectedDateColumn: string | null = null;
+          for (const col of dateColumns) {
+            if (finalSql.toLowerCase().includes(col.toLowerCase())) {
+              detectedDateColumn = col;
+              break;
             }
-          } catch (nearestError: any) {
-            log(`Failed to find available date range: ${nearestError.message}`, 'ask');
+          }
+          
+          if (detectedDateColumn && tableName) {
+            try {
+              // Get the overall date range available in the table (excluding sentinel dates)
+              const rangeQuery = `SELECT MIN(${detectedDateColumn}) AS MinDate, MAX(CASE WHEN ${detectedDateColumn} < '2100-01-01' THEN ${detectedDateColumn} ELSE NULL END) AS MaxDate FROM ${tableName} WHERE ${detectedDateColumn} > '1900-01-01'`;
+              const rangeResult = await executeQuery(rangeQuery);
+              
+              const minDate = rangeResult.recordset[0]?.MinDate;
+              const maxDate = rangeResult.recordset[0]?.MaxDate;
+              
+              if (minDate || maxDate) {
+                nearestDates = {
+                  before: minDate ? new Date(minDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+                  after: maxDate ? new Date(maxDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : null,
+                };
+                log(`No data found. Earliest: ${nearestDates.before}, Latest: ${nearestDates.after}`, 'ask');
+              }
+            } catch (nearestError: any) {
+              log(`Failed to find available date range: ${nearestError.message}`, 'ask');
+            }
           }
         }
       }
 
       // Generate natural language response from results
-      const naturalAnswer = await generateNaturalLanguageResponse(
-        question, 
-        result.recordset, 
-        result.recordset.length,
-        actualTotalCount
-      );
+      let naturalAnswer: string;
+      
+      // If we detected an invalid filter value, use that message instead
+      if (invalidFilterMessage) {
+        naturalAnswer = invalidFilterMessage;
+      } else {
+        naturalAnswer = await generateNaturalLanguageResponse(
+          question, 
+          result.recordset, 
+          result.recordset.length,
+          actualTotalCount
+        );
+      }
 
       // Cache successful SQL for consistent results on repeat queries
       cacheSuccessfulSql(question, finalSql, selectedTables);
@@ -818,6 +860,7 @@ export async function registerRoutes(
         isMock: false,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
         nearestDates,
+        invalidFilter: invalidFilterMessage ? true : undefined,
       });
 
     } catch (error: any) {
