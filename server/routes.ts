@@ -433,24 +433,34 @@ export async function registerRoutes(
 
     // Track if client disconnected
     let clientDisconnected = false;
+    let keepAliveInterval: NodeJS.Timeout | null = null;
     req.on('close', () => {
       clientDisconnected = true;
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
       log('Client disconnected, aborting stream', 'ask-stream');
     });
 
-    // Set up SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
+    // Set up SSE headers - optimized for Replit's proxy
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-    res.setHeader('Transfer-Encoding', 'chunked'); // Explicitly set chunked encoding
-    res.flushHeaders(); // Force headers to be sent immediately (critical for SSE with Vite)
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Don't set Transfer-Encoding manually - let Node handle it
+    res.flushHeaders();
     
     log('SSE headers sent and flushed', 'ask-stream');
     
-    // Send immediate heartbeat to test connection
-    res.write(': heartbeat\n\n');
-    log('Heartbeat sent', 'ask-stream');
+    // Send immediate ping event with actual data (not just comment)
+    res.write('event: ping\ndata: {"status":"connected"}\n\n');
+    log('Ping event sent', 'ask-stream');
+    
+    // Keep-alive interval to prevent proxy timeout
+    keepAliveInterval = setInterval(() => {
+      if (!clientDisconnected) {
+        res.write(': keepalive\n\n');
+      }
+    }, 15000);
 
     // Helper to send SSE events (checks for disconnect)
     const sendEvent = (event: string, data: any) => {
