@@ -182,8 +182,7 @@ export default function QueryPage() {
     }
 
     try {
-      // Use streaming endpoint
-      const response = await fetch('/api/ask/stream', {
+      const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -192,122 +191,70 @@ export default function QueryPage() {
         }),
       });
 
-      if (!response.ok) {
+      // Try to parse JSON
+      let data;
+      try {
         const text = await response.text();
-        throw new Error(`Server error: ${text}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body reader available');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulatedAnswer = '';
-      let rows: any[] = [];
-      let sql = '';
-      let rowCount = 0;
-      let actualTotalCount: number | undefined;
-      let suggestions: string[] | undefined;
-      
-      // Proper SSE parser state
-      let currentEventType = 'message';
-      let currentDataLines: string[] = [];
-
-      const processEvent = (eventType: string, dataStr: string) => {
         try {
-          const data = JSON.parse(dataStr);
-          switch (eventType) {
-            case 'status':
-              setStreamingStage(data.message);
-              break;
-            case 'sql':
-              sql = data.sql;
-              break;
-            case 'rows':
-              rows = data.rows;
-              rowCount = data.rowCount;
-              actualTotalCount = data.actualTotalCount;
-              if (rows.length > 0) {
-                const detectedColumns = detectDateTimeColumns(rows);
-                setDateTimeColumns(detectedColumns);
-              }
-              break;
-            case 'chunk':
-              accumulatedAnswer += data.text;
-              setStreamingAnswer(accumulatedAnswer);
-              break;
-            case 'complete':
-              if (data.isGeneralAnswer || data.isOutOfScope) {
-                setGeneralAnswer(data.answer);
-              } else {
-                suggestions = data.suggestions;
-                setResult({
-                  answer: data.answer || accumulatedAnswer,
-                  sql: data.sql || sql,
-                  rows,
-                  rowCount: data.rowCount || rowCount,
-                  isMock: false,
-                  suggestions,
-                  nearestDates: data.nearestDates,
-                });
-                setShowData(true);
-                if (rows.length > 0) {
-                  const hasNumericColumns = Object.values(rows[0]).some(
-                    (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
-                  );
-                  setShowChart(hasNumericColumns);
-                }
-              }
-              setStreamingStage(null);
-              break;
-            case 'error':
-              setError(data.error);
-              setStreamingStage(null);
-              break;
-          }
+          data = JSON.parse(text);
         } catch (e) {
-          console.error('Failed to parse SSE data:', dataStr, e);
+           throw new Error(`Server response was not JSON: ${text.substring(0, 100)}...`);
         }
-      };
+      } catch (e: any) {
+        throw new Error(e.message || 'Failed to parse server response');
+      }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Handle general (non-data) answers
+      if (data.isGeneralAnswer) {
+        setGeneralAnswer(data.answer);
+        setLoading(false);
+        return;
+      }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+      // Handle out-of-scope questions
+      if (data.isOutOfScope) {
+        setGeneralAnswer(data.answer);
+        setLoading(false);
+        return;
+      }
 
-        for (const line of lines) {
-          if (line === '') {
-            // Empty line = end of event frame, dispatch accumulated data
-            if (currentDataLines.length > 0) {
-              const dataStr = currentDataLines.join('\n');
-              processEvent(currentEventType, dataStr);
-              currentDataLines = [];
-              currentEventType = 'message';
-            }
-          } else if (line.startsWith('event:')) {
-            currentEventType = line.slice(6).trim();
-          } else if (line.startsWith('data:')) {
-            currentDataLines.push(line.slice(5).trim());
-          }
-          // Ignore other fields (id:, retry:, comments)
+      if (!response.ok) {
+        // If this is a schema/column validation error, don't fall back to mock data
+        if (data.schemaError) {
+          setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
+          setLoading(false);
+          return;
         }
+        throw new Error(data.error || 'Query failed');
+      }
+
+      setResult(data);
+      
+      // Always show data table when results come back
+      setShowData(true);
+      
+      // Only auto-show chart if there are numeric columns
+      if (data.rows && data.rows.length > 0) {
+        const hasNumericColumns = Object.values(data.rows[0]).some(
+          (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+        );
+        setShowChart(hasNumericColumns);
+      } else {
+        setShowChart(false);
       }
       
-      // Process any remaining event
-      if (currentDataLines.length > 0) {
-        const dataStr = currentDataLines.join('\n');
-        processEvent(currentEventType, dataStr);
-      }
-      
-      // Scroll to results after streaming complete
+      // Scroll to results after a short delay
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
+      
+      // Detect date/time columns in the result data
+      if (data.rows && data.rows.length > 0) {
+        const detectedColumns = detectDateTimeColumns(data.rows);
+        setDateTimeColumns(detectedColumns);
+      } else {
+        setDateTimeColumns(new Set());
+      }
       
     } catch (err: any) {
       console.error("API Query Failed:", err);
