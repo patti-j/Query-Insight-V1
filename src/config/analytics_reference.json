@@ -486,7 +486,7 @@
     "defaultTableCount": 4,
     "maxTableCount": 6,
     "maxColumnsPerTable": 25,
-    "alwaysIncludeColumns": ["Id", "Name", "Date", "DateTime", "ScenarioType", "ScenarioName", "PlantName", "DepartmentName"]
+    "alwaysIncludeColumns": ["Id", "Name", "Date", "DateTime", "ScenarioType", "ScenarioName", "PlantName", "DepartmentName", "ExternalId"]
   },
   "overrideRules": [
     {

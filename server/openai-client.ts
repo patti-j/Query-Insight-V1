@@ -71,6 +71,11 @@ COMMON COLUMN MAPPINGS (if present in schema):
 - Dates: Use JobScheduledStartDateTime/JobScheduledEndDateTime - NOT SchedStartDate/SchedEndDate
 - Quantity: Use JobQty, MORequiredQty, OPRequiredFinishQty - NOT QtyScheduled/QtyRequired
 
+EXTERNAL ID RULE (IMPORTANT):
+- If a table has an ExternalId column (e.g., ExternalId, ItemExternalId, CustomerExternalId), ALWAYS include it in SELECT results
+- ExternalId is the business-friendly identifier that users recognize - it should be shown alongside or instead of internal IDs
+- Common ExternalId columns: ExternalId, ItemExternalId, CustomerExternalId, VendorExternalId, ActivityExternalId, WarehouseExternalId
+
 BUSINESS CONTEXT:
 - JobOnHold: 'OnHold' | 'Released'
 - JobScheduledStatus: 'Scheduled' | 'Finished' | 'FailedToSchedule' | 'Template'
