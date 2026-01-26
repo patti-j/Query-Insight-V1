@@ -196,12 +196,14 @@ export default function QueryPage() {
 
       if (!response.ok) {
         const text = await response.text();
+        let errorMessage = text || 'Query failed';
         try {
           const errorData = JSON.parse(text);
-          throw new Error(errorData.error || 'Query failed');
-        } catch {
-          throw new Error(text || 'Query failed');
+          errorMessage = errorData.error || 'Query failed';
+        } catch (parseError) {
+          // Text is not JSON, use as-is
         }
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
@@ -211,7 +213,6 @@ export default function QueryPage() {
 
       const decoder = new TextDecoder();
       let buffer = '';
-      let currentEventType = '';
       let streamedAnswer = '';
       let partialResult: Partial<QueryResult> = {
         answer: '',
@@ -340,9 +341,11 @@ export default function QueryPage() {
       
     } catch (err: any) {
       if (err.name === 'AbortError') {
+        console.log('Request aborted');
         return;
       }
       console.error("API Query Failed:", err);
+      console.error("Error stack:", err.stack);
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
       setLoading(false);
