@@ -97,6 +97,7 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
+  const [useStreaming, setUseStreaming] = useState(false);
   
   // Refs for scrolling
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -181,6 +182,81 @@ export default function QueryPage() {
       setQueryWasTransformed(false);
     }
 
+    // Use streaming or non-streaming based on flag
+    if (useStreaming) {
+      await executeStreamingQuery(queryToSend, anchorDateStr);
+    } else {
+      await executeNonStreamingQuery(queryToSend, anchorDateStr);
+    }
+  };
+
+  const executeNonStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
+    try {
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          question: queryToSend,
+          publishDate: anchorDateStr
+        }),
+      });
+
+      let data;
+      try {
+        const text = await response.text();
+        data = JSON.parse(text);
+      } catch (e: any) {
+        throw new Error(e.message || 'Failed to parse server response');
+      }
+
+      if (data.isGeneralAnswer) {
+        setGeneralAnswer(data.answer);
+        setLoading(false);
+        return;
+      }
+
+      if (data.isOutOfScope) {
+        setGeneralAnswer(data.answer);
+        setLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        if (data.schemaError) {
+          setError(data.error || 'Schema validation failed.');
+          setLoading(false);
+          return;
+        }
+        throw new Error(data.error || 'Query failed');
+      }
+
+      setResult(data);
+      setShowData(true);
+      
+      if (data.rows && data.rows.length > 0) {
+        const hasNumericColumns = Object.values(data.rows[0]).some(
+          (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+        );
+        setShowChart(hasNumericColumns);
+        const detectedColumns = detectDateTimeColumns(data.rows);
+        setDateTimeColumns(detectedColumns);
+      } else {
+        setShowChart(false);
+      }
+      
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      
+    } catch (err: any) {
+      console.error("API Query Failed:", err);
+      setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
     const abortController = new AbortController();
     
     try {
@@ -293,7 +369,6 @@ export default function QueryPage() {
 
         buffer += decoder.decode(value, { stream: true });
         
-        // SSE events are separated by double newlines
         const eventBlocks = buffer.split('\n\n');
         buffer = eventBlocks.pop() || '';
 
@@ -324,12 +399,10 @@ export default function QueryPage() {
         }
       }
 
-      // Finalize result - use streamed answer if completion event wasn't received
       if (!streamCompleted) {
         partialResult.answer = streamedAnswer || partialResult.answer;
       }
       
-      // Set result if we have any content (rows, streamed answer, or answer from complete event)
       if (partialResult.rows?.length || streamedAnswer || partialResult.answer) {
         if (!partialResult.answer && streamedAnswer) {
           partialResult.answer = streamedAnswer;
@@ -345,7 +418,6 @@ export default function QueryPage() {
         return;
       }
       console.error("API Query Failed:", err);
-      console.error("Error stack:", err.stack);
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
       setLoading(false);
