@@ -97,11 +97,16 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
-  const [useStreaming, setUseStreaming] = useState(false);
+  const [useStreaming, setUseStreaming] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
   
-  // Refs for scrolling
+  // Refs for scrolling and abort control
   const resultsRef = useRef<HTMLDivElement>(null);
   const queryRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingAnswerRef = useRef<HTMLDivElement>(null);
+  const userScrolledRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -167,6 +172,7 @@ export default function QueryPage() {
     setSubmittedQuestion(q.trim());
     setStreamingAnswer('');
     setStreamingStatus(null);
+    userScrolledRef.current = false; // Reset auto-scroll state on new query
 
     // Get the anchor date (effective "today" for queries) from environment secret
     const anchorDate = getEffectiveToday();
@@ -256,8 +262,62 @@ export default function QueryPage() {
     }
   };
 
+  const stopStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setLoading(false);
+    setStreamingStatus('Stopped');
+  };
+  
+  // Smart auto-scroll: only scroll if user hasn't manually scrolled up
+  const smartAutoScroll = () => {
+    if (!streamingAnswerRef.current || userScrolledRef.current) return;
+    streamingAnswerRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  };
+  
+  // Detect user scroll to pause auto-scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollTop = window.scrollY || document.documentElement.scrollTop;
+      // If user scrolled up more than 100px from previous position, they're reading
+      if (currentScrollTop < lastScrollTopRef.current - 100) {
+        userScrolledRef.current = true;
+      }
+      // If user scrolls back to bottom, resume auto-scroll
+      const isAtBottom = (window.innerHeight + currentScrollTop) >= (document.documentElement.scrollHeight - 100);
+      if (isAtBottom) {
+        userScrolledRef.current = false;
+      }
+      lastScrollTopRef.current = currentScrollTop;
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
+    // Cancel any existing stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
     const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    setIsStreaming(true);
+    
+    let streamedAnswer = '';
+    let partialResult: Partial<QueryResult> = {
+      answer: '',
+      sql: '',
+      rows: [],
+      rowCount: 0,
+      isMock: false,
+    };
+    let streamCompleted = false;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     
     try {
       const response = await fetch('/api/ask/stream', {
@@ -282,24 +342,15 @@ export default function QueryPage() {
         throw new Error(errorMessage);
       }
 
-      const reader = response.body?.getReader();
+      reader = response.body?.getReader() || null;
       if (!reader) {
         throw new Error('Streaming not supported');
       }
 
       const decoder = new TextDecoder();
       let buffer = '';
-      let streamedAnswer = '';
-      let partialResult: Partial<QueryResult> = {
-        answer: '',
-        sql: '',
-        rows: [],
-        rowCount: 0,
-        isMock: false,
-      };
-      let streamCompleted = false;
 
-      const processEvent = (eventType: string, data: any) => {
+      const processEvent = (eventType: string, data: any): boolean => {
         switch (eventType) {
           case 'status':
             setStreamingStatus(data.message || data.stage);
@@ -307,6 +358,8 @@ export default function QueryPage() {
           case 'chunk':
             streamedAnswer += data.text;
             setStreamingAnswer(streamedAnswer);
+            // Smart auto-scroll (respects user manual scroll)
+            smartAutoScroll();
             break;
           case 'sql':
             partialResult.sql = data.sql;
@@ -339,36 +392,48 @@ export default function QueryPage() {
             
             if (data.isGeneralAnswer) {
               setGeneralAnswer(data.answer);
-              reader.cancel();
+              setStreamingStatus('Complete');
+              setIsStreaming(false);
               setLoading(false);
+              abortControllerRef.current = null;
               return true;
             }
             if (data.isOutOfScope) {
               setGeneralAnswer(data.answer);
-              reader.cancel();
+              setStreamingStatus('Complete');
+              setIsStreaming(false);
               setLoading(false);
+              abortControllerRef.current = null;
               return true;
             }
             break;
           case 'error':
-            reader.cancel();
             if (data.schemaError) {
               setError(data.error || 'Schema validation failed.');
             } else {
               setError(data.error);
             }
+            // Preserve partial results on error
+            if (streamedAnswer) {
+              setStreamingAnswer(streamedAnswer);
+            }
+            setStreamingStatus('Error');
+            setIsStreaming(false);
             setLoading(false);
+            abortControllerRef.current = null;
             return true;
         }
         return false;
       };
 
+      // Main streaming loop
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         
+        // SSE events are separated by double newlines
         const eventBlocks = buffer.split('\n\n');
         buffer = eventBlocks.pop() || '';
 
@@ -391,14 +456,21 @@ export default function QueryPage() {
             try {
               const data = JSON.parse(dataLines.join('\n'));
               const shouldExit = processEvent(eventType, data);
-              if (shouldExit) return;
+              if (shouldExit) {
+                setIsStreaming(false);
+                setLoading(false);
+                abortControllerRef.current = null;
+                return;
+              }
             } catch (e) {
               // Ignore parse errors for incomplete data
+              console.debug('SSE parse error:', e);
             }
           }
         }
       }
 
+      // Stream completed normally
       if (!streamCompleted) {
         partialResult.answer = streamedAnswer || partialResult.answer;
       }
@@ -414,13 +486,20 @@ export default function QueryPage() {
       
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.log('Request aborted');
+        // User stopped the stream - preserve partial results
+        console.log('Stream stopped by user');
+        if (streamedAnswer) {
+          partialResult.answer = streamedAnswer;
+          setResult(partialResult as QueryResult);
+        }
         return;
       }
       console.error("API Query Failed:", err);
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
+      setIsStreaming(false);
       setLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -430,6 +509,11 @@ export default function QueryPage() {
   };
 
   const handleNewQuestion = () => {
+    // Cancel any active stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     setQuestion('');
     setResult(null);
     setError(null);
@@ -440,6 +524,8 @@ export default function QueryPage() {
     setQueryWasTransformed(false);
     setStreamingAnswer('');
     setStreamingStatus(null);
+    setIsStreaming(false);
+    setLoading(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -648,19 +734,37 @@ export default function QueryPage() {
         {loading && (
           <Card className="border-primary/30 bg-card/80 backdrop-blur-sm" data-testid="card-loading">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                {streamingStatus || 'Processing your question...'}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  {streamingStatus || 'Processing your question...'}
+                </CardTitle>
+                {isStreaming && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={stopStreaming}
+                    className="gap-2 text-destructive border-destructive/50 hover:bg-destructive/10"
+                    data-testid="button-stop-streaming"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Stop
+                  </Button>
+                )}
+              </div>
               {submittedQuestion && (
                 <p className="text-sm text-muted-foreground mt-1">
                   "{submittedQuestion}"
                 </p>
               )}
             </CardHeader>
-            {streamingAnswer && (
-              <CardContent>
-                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl" data-testid="streaming-answer">
+            <CardContent>
+              <div 
+                ref={streamingAnswerRef}
+                className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl min-h-[60px]" 
+                data-testid="streaming-answer"
+              >
+                {streamingAnswer ? (
                   <div className="text-base leading-relaxed">
                     {streamingAnswer.split('\n').map((line, idx) => {
                       const trimmedLine = line.trim();
@@ -679,9 +783,14 @@ export default function QueryPage() {
                     })}
                     <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5" />
                   </div>
-                </div>
-              </CardContent>
-            )}
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
+                    <span className="text-sm italic">Waiting for response...</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
           </Card>
         )}
 
