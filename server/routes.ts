@@ -409,6 +409,7 @@ export async function registerRoutes(
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.flushHeaders(); // Force headers to be sent immediately (critical for SSE with Vite)
 
     // Helper to send SSE events (checks for disconnect)
     const sendEvent = (event: string, data: any) => {
