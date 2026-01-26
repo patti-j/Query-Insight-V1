@@ -97,7 +97,7 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
-  const [useStreaming, setUseStreaming] = useState(false); // Temporarily disabled for debugging
+  const [useStreaming, setUseStreaming] = useState(true); // Re-enabled with debug logging
   const [isStreaming, setIsStreaming] = useState(false);
   
   // Refs for scrolling and abort control
@@ -299,8 +299,11 @@ export default function QueryPage() {
   }, []);
 
   const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
+    console.log('[streaming] Starting streaming query');
+    
     // Cancel any existing stream
     if (abortControllerRef.current) {
+      console.log('[streaming] Cancelling existing stream');
       abortControllerRef.current.abort();
     }
     
@@ -320,6 +323,7 @@ export default function QueryPage() {
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     
     try {
+      console.log('[streaming] Sending fetch request');
       const response = await fetch('/api/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -329,6 +333,7 @@ export default function QueryPage() {
         }),
         signal: abortController.signal,
       });
+      console.log('[streaming] Got response, status:', response.status);
 
       if (!response.ok) {
         const text = await response.text();
@@ -346,9 +351,11 @@ export default function QueryPage() {
       if (!reader) {
         throw new Error('Streaming not supported');
       }
+      console.log('[streaming] Got reader, starting to read chunks');
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let chunkCount = 0;
 
       const processEvent = (eventType: string, data: any): boolean => {
         switch (eventType) {
@@ -429,7 +436,12 @@ export default function QueryPage() {
       // Main streaming loop
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        chunkCount++;
+        console.log(`[streaming] Read chunk ${chunkCount}, done=${done}, bytes=${value?.length || 0}`);
+        if (done) {
+          console.log('[streaming] Stream done signal received');
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         
