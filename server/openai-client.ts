@@ -62,7 +62,7 @@ CRITICAL RULES:
 - Use ONLY the columns listed in the schema below for each table
 - DO NOT invent or hallucinate column names
 - When user says "next" jobs, sort by date (ORDER BY), don't filter to future dates unless explicitly requested
-- DASHt_Planning has one row per OPERATION, not per job. For job-level queries (e.g., "top 10 jobs"), use SELECT DISTINCT or GROUP BY JobName/JobId to avoid duplicates
+- CRITICAL: DASHt_Planning has one row per OPERATION, not per job. ALWAYS use GROUP BY JobName (or JobId) when asking about jobs/products being produced to avoid showing duplicate rows. Use DISTINCT only for simple lists of unique values.
 
 COMMON COLUMN MAPPINGS (if present in schema):
 - Plant: Use BlockPlant (name) or PlantId (ID) - NOT PlantCode
@@ -391,6 +391,7 @@ FORMATTING RULES:
 - Format numbers with commas for readability (e.g., 1,234 not 1234)
 - Round decimals to 2 places maximum
 - IMPORTANT: If the user asked for a specific number (e.g., "top 10", "first 20"), list ALL of those items, not just a subset
+- IMPORTANT: Look at ALL distinct values in the results. If there are 2-5 unique products/jobs/items, mention ALL of them in your response
 - If there are more than 15 items and user didn't specify a count, summarize the top 10 and mention how many total
 - If no results, say so clearly and suggest why (e.g., "No data found for this date range")
 
@@ -482,16 +483,9 @@ Provide a natural language summary of these results.`
       }
     }
     
-    // Add note about additional results if truncated
-    if (hasMore && !wasLimited) {
-      yield `\n\n(Showing summary of ${rowCount} total results. Click "Show Data" to see all.)`;
-    }
-  } catch (error) {
+    } catch (error) {
     console.error('[openai-client] Streaming natural language response failed:', error);
-    const totalToReport = actualTotalCount || rowCount;
-    yield wasLimited 
-      ? `Found ${actualTotalCount} total results (showing first ${rowCount}). Click "Show Data" to view the details.`
-      : `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
+    yield `Found ${rowCount} result(s).`;
   }
 }
 
@@ -555,16 +549,9 @@ Provide a natural language summary of these results.`
 
     let answer = response.choices[0]?.message?.content?.trim() || `Found ${totalToReport} result(s).`;
     
-    // Add note about additional results if truncated
-    if (hasMore && !wasLimited) {
-      answer += `\n\n(Showing summary of ${rowCount} total results. Click "Show Data" to see all.)`;
-    }
-    
     return answer;
   } catch (error) {
     console.error('[openai-client] Natural language response generation failed:', error);
-    return wasLimited 
-      ? `Found ${actualTotalCount} total results (showing first ${rowCount}). Click "Show Data" to view the details.`
-      : `Found ${rowCount} result(s). Click "Show Data" to view the details.`;
+    return `Found ${rowCount} result(s).`;
   }
 }
