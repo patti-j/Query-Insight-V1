@@ -10,6 +10,10 @@ Preferred communication style: Simple, everyday language.
 Code quality expectation: Production-ready, clean code suitable for dev team code review.
 Cleanup approach: Clean up incrementally as features are built, not in large batches at the end.
 
+## Deployment
+
+**This app is deployed from Azure, NOT Replit.** Do not use Replit's publish/deploy functionality. The production deployment is managed through Azure App Service.
+
 ## Recent Changes (January 2026)
 
 - **Reverted to Non-Streaming API:** The frontend now uses `/api/ask` (non-streaming) instead of `/api/ask/stream` for reliability. SSE streaming code exists in the codebase but is disabled due to client disconnect issues.
