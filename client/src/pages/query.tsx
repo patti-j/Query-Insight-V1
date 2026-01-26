@@ -95,6 +95,8 @@ export default function QueryPage() {
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [streamingAnswer, setStreamingAnswer] = useState('');
+  const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   
   // Refs for scrolling
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -162,6 +164,8 @@ export default function QueryPage() {
     setFeedbackGiven(null);
     setShowData(false);
     setSubmittedQuestion(q.trim());
+    setStreamingAnswer('');
+    setStreamingStatus(null);
 
     // Get the anchor date (effective "today" for queries) from environment secret
     const anchorDate = getEffectiveToday();
@@ -177,82 +181,167 @@ export default function QueryPage() {
       setQueryWasTransformed(false);
     }
 
+    const abortController = new AbortController();
+    
     try {
-      const response = await fetch('/api/ask', {
+      const response = await fetch('/api/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: queryToSend,
           publishDate: anchorDateStr
         }),
+        signal: abortController.signal,
       });
 
-      // Try to parse JSON
-      let data;
-      try {
+      if (!response.ok) {
         const text = await response.text();
         try {
-          data = JSON.parse(text);
-        } catch (e) {
-           throw new Error(`Server response was not JSON: ${text.substring(0, 100)}...`);
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || 'Query failed');
+        } catch {
+          throw new Error(text || 'Query failed');
         }
-      } catch (e: any) {
-        throw new Error(e.message || 'Failed to parse server response');
       }
 
-      // Handle general (non-data) answers
-      if (data.isGeneralAnswer) {
-        setGeneralAnswer(data.answer);
-        setLoading(false);
-        return;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Streaming not supported');
       }
 
-      // Handle out-of-scope questions
-      if (data.isOutOfScope) {
-        setGeneralAnswer(data.answer);
-        setLoading(false);
-        return;
-      }
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentEventType = '';
+      let streamedAnswer = '';
+      let partialResult: Partial<QueryResult> = {
+        answer: '',
+        sql: '',
+        rows: [],
+        rowCount: 0,
+        isMock: false,
+      };
+      let streamCompleted = false;
 
-      if (!response.ok) {
-        // If this is a schema/column validation error, don't fall back to mock data
-        if (data.schemaError) {
-          setError(data.error || 'Schema validation failed. The AI generated a query that references non-existent columns or tables.');
-          setLoading(false);
-          return;
+      const processEvent = (eventType: string, data: any) => {
+        switch (eventType) {
+          case 'status':
+            setStreamingStatus(data.message || data.stage);
+            break;
+          case 'chunk':
+            streamedAnswer += data.text;
+            setStreamingAnswer(streamedAnswer);
+            break;
+          case 'sql':
+            partialResult.sql = data.sql;
+            break;
+          case 'rows':
+            partialResult.rows = data.rows;
+            partialResult.rowCount = data.rowCount;
+            setShowData(true);
+            
+            if (data.rows.length > 0) {
+              const hasNumericColumns = Object.values(data.rows[0]).some(
+                (val: any) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+              );
+              setShowChart(hasNumericColumns);
+              
+              const detectedColumns = detectDateTimeColumns(data.rows);
+              setDateTimeColumns(detectedColumns);
+            }
+            
+            setTimeout(() => {
+              resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+            break;
+          case 'complete':
+            streamCompleted = true;
+            partialResult.answer = data.answer || streamedAnswer;
+            partialResult.suggestions = data.suggestions;
+            if (data.sql) partialResult.sql = data.sql;
+            if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
+            
+            if (data.isGeneralAnswer) {
+              setGeneralAnswer(data.answer);
+              reader.cancel();
+              setLoading(false);
+              return true;
+            }
+            if (data.isOutOfScope) {
+              setGeneralAnswer(data.answer);
+              reader.cancel();
+              setLoading(false);
+              return true;
+            }
+            break;
+          case 'error':
+            reader.cancel();
+            if (data.schemaError) {
+              setError(data.error || 'Schema validation failed.');
+            } else {
+              setError(data.error);
+            }
+            setLoading(false);
+            return true;
         }
-        throw new Error(data.error || 'Query failed');
+        return false;
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        // SSE events are separated by double newlines
+        const eventBlocks = buffer.split('\n\n');
+        buffer = eventBlocks.pop() || '';
+
+        for (const block of eventBlocks) {
+          if (!block.trim()) continue;
+          
+          const lines = block.split('\n');
+          let eventType = 'message';
+          let dataLines: string[] = [];
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              dataLines.push(line.slice(6));
+            }
+          }
+
+          if (dataLines.length > 0) {
+            try {
+              const data = JSON.parse(dataLines.join('\n'));
+              const shouldExit = processEvent(eventType, data);
+              if (shouldExit) return;
+            } catch (e) {
+              // Ignore parse errors for incomplete data
+            }
+          }
+        }
       }
 
-      setResult(data);
-      
-      // Always show data table when results come back
-      setShowData(true);
-      
-      // Only auto-show chart if there are numeric columns
-      if (data.rows && data.rows.length > 0) {
-        const hasNumericColumns = Object.values(data.rows[0]).some(
-          (val) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
-        );
-        setShowChart(hasNumericColumns);
-      } else {
-        setShowChart(false);
+      // Finalize result - use streamed answer if completion event wasn't received
+      if (!streamCompleted) {
+        partialResult.answer = streamedAnswer || partialResult.answer;
       }
       
-      // Scroll to results after a short delay
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-      
-      // Detect date/time columns in the result data
-      if (data.rows && data.rows.length > 0) {
-        const detectedColumns = detectDateTimeColumns(data.rows);
-        setDateTimeColumns(detectedColumns);
-      } else {
-        setDateTimeColumns(new Set());
+      // Set result if we have any content (rows, streamed answer, or answer from complete event)
+      if (partialResult.rows?.length || streamedAnswer || partialResult.answer) {
+        if (!partialResult.answer && streamedAnswer) {
+          partialResult.answer = streamedAnswer;
+        }
+        setResult(partialResult as QueryResult);
       }
+      
+      setStreamingStatus(null);
       
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error("API Query Failed:", err);
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
@@ -274,6 +363,8 @@ export default function QueryPage() {
     setShowData(false);
     setShowChart(false);
     setQueryWasTransformed(false);
+    setStreamingAnswer('');
+    setStreamingStatus(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -478,13 +569,13 @@ export default function QueryPage() {
           </CardContent>
         </Card>
 
-        {/* Loading Progress Indicator */}
+        {/* Loading Progress Indicator with Streaming Status */}
         {loading && (
           <Card className="border-primary/30 bg-card/80 backdrop-blur-sm" data-testid="card-loading">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                Processing your question...
+                {streamingStatus || 'Processing your question...'}
               </CardTitle>
               {submittedQuestion && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -492,6 +583,30 @@ export default function QueryPage() {
                 </p>
               )}
             </CardHeader>
+            {streamingAnswer && (
+              <CardContent>
+                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl" data-testid="streaming-answer">
+                  <div className="text-base leading-relaxed">
+                    {streamingAnswer.split('\n').map((line, idx) => {
+                      const trimmedLine = line.trim();
+                      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+                        return (
+                          <div key={idx} className="flex gap-2 ml-2 my-1">
+                            <span className="flex-shrink-0">{trimmedLine.charAt(0)}</span>
+                            <span>{trimmedLine.slice(1).trim()}</span>
+                          </div>
+                        );
+                      } else if (trimmedLine) {
+                        return <p key={idx} className="my-1">{line}</p>;
+                      } else {
+                        return <div key={idx} className="h-2" />;
+                      }
+                    })}
+                    <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5" />
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 
