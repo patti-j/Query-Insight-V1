@@ -326,7 +326,10 @@ export default function QueryPage() {
       console.log('[streaming] Sending fetch request');
       const response = await fetch('/api/ask/stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
         body: JSON.stringify({ 
           question: queryToSend,
           publishDate: anchorDateStr
@@ -445,28 +448,30 @@ export default function QueryPage() {
 
         buffer += decoder.decode(value, { stream: true });
         
-        // SSE events are separated by double newlines
-        const eventBlocks = buffer.split('\n\n');
+        // SSE events are separated by blank line (LF or CRLF)
+        const eventBlocks = buffer.split(/\r?\n\r?\n/);
         buffer = eventBlocks.pop() || '';
 
         for (const block of eventBlocks) {
           if (!block.trim()) continue;
           
-          const lines = block.split('\n');
+          const lines = block.split(/\r?\n/);
           let eventType = 'message';
-          let dataLines: string[] = [];
+          const dataLines: string[] = [];
 
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith('data: ')) {
-              dataLines.push(line.slice(6));
+            // Handle both "event:" and "event: " formats
+            if (line.startsWith('event:')) {
+              eventType = line.slice('event:'.length).trim();
+            } else if (line.startsWith('data:')) {
+              dataLines.push(line.slice('data:'.length).trimStart());
             }
           }
 
           if (dataLines.length > 0) {
+            const dataStr = dataLines.join('\n');
             try {
-              const data = JSON.parse(dataLines.join('\n'));
+              const data = JSON.parse(dataStr);
               const shouldExit = processEvent(eventType, data);
               if (shouldExit) {
                 setIsStreaming(false);
@@ -475,8 +480,9 @@ export default function QueryPage() {
                 return;
               }
             } catch (e) {
-              // Ignore parse errors for incomplete data
-              console.debug('SSE parse error:', e);
+              // If partial JSON, re-buffer and wait for more bytes
+              buffer = block + '\n\n' + buffer;
+              break;
             }
           }
         }

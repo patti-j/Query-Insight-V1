@@ -451,10 +451,6 @@ export async function registerRoutes(
     
     log('SSE headers sent and flushed', 'ask-stream');
     
-    // Send immediate ping event with actual data (not just comment)
-    res.write('event: ping\ndata: {"status":"connected"}\n\n');
-    log('Ping event sent', 'ask-stream');
-    
     // Keep-alive interval to prevent proxy timeout
     keepAliveInterval = setInterval(() => {
       if (!clientDisconnected) {
@@ -462,27 +458,22 @@ export async function registerRoutes(
       }
     }, 15000);
 
-    // Helper to send SSE events (checks for disconnect)
-    const sendEvent = (event: string, data: any) => {
+    // Helper to write with flush support for proxies
+    const write = (s: string) => {
       if (clientDisconnected) return;
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      res.write(s);
+      // @ts-ignore - flush may exist on some response implementations
+      if (typeof res.flush === 'function') res.flush();
     };
 
-    // Classify the question first
-    const questionType = await classifyQuestion(question);
-    if (clientDisconnected) { res.end(); return; }
-    
-    if (questionType === 'general') {
-      log(`General question detected (streaming): ${question}`, 'ask-stream');
-      const answer = await answerGeneralQuestion(question);
-      sendEvent('complete', {
-        isGeneralAnswer: true,
-        answer,
-        question,
-      });
-      res.end();
-      return;
-    }
+    // Helper to send SSE events (checks for disconnect)
+    const sendEvent = (event: string, data: any) => {
+      write(`event: ${event}\n`);
+      write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Send initial connected status
+    sendEvent('status', { stage: 'connected', message: 'Connected' });
 
     // Create query log context
     const logContext = createQueryLogContext(req, question);
@@ -493,6 +484,22 @@ export async function registerRoutes(
     let llmMs: number | undefined;
 
     try {
+      // Classify INSIDE try so errors don't kill SSE immediately
+      const questionType = await classifyQuestion(question);
+      if (clientDisconnected) { res.end(); return; }
+      
+      if (questionType === 'general') {
+        log(`General question detected (streaming): ${question}`, 'ask-stream');
+        const answer = await answerGeneralQuestion(question);
+        sendEvent('complete', {
+          isGeneralAnswer: true,
+          answer,
+          question,
+        });
+        res.end();
+        return;
+      }
+
       // Send status update
       sendEvent('status', { stage: 'generating_sql', message: 'Generating SQL query...' });
 
