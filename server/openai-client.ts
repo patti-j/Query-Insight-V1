@@ -72,9 +72,11 @@ COMMON COLUMN MAPPINGS (if present in schema):
 - Quantity: Use JobQty, MORequiredQty, OPRequiredFinishQty - NOT QtyScheduled/QtyRequired
 
 EXTERNAL ID RULE (IMPORTANT):
-- If a table has an ExternalId column (e.g., ExternalId, ItemExternalId, CustomerExternalId), ALWAYS include it in SELECT results
-- ExternalId is the business-friendly identifier that users recognize - it should be shown alongside or instead of internal IDs
-- Common ExternalId columns: ExternalId, ItemExternalId, CustomerExternalId, VendorExternalId, ActivityExternalId, WarehouseExternalId
+- ExternalId columns exist ONLY in Tier2 tables (publish.Jobs, publish.Resources, etc.), NOT in Tier1 DASHt_* tables
+- For Tier1 tables (DASHt_Planning, DASHt_SalesOrders, etc.), use the Name columns as business-friendly identifiers:
+  - JobName, ResourceName, CustomerName, ItemName, etc. - these ARE the user-friendly identifiers
+- NEVER add ExternalId to queries against DASHt_* tables - it will cause a column validation error
+- Only include ExternalId when querying Tier2 tables directly
 
 BUSINESS CONTEXT:
 - JobOnHold: 'OnHold' | 'Released'

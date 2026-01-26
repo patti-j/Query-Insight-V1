@@ -22,7 +22,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - **Summary Improvements:** Updated LLM summarization to mention ALL distinct items (2-5 values) in results, not just the first one. Removed "Show Data" messages since data table is shown by default.
 - **Planning Area Support:** Added "planning area" keywords to the matrix classifier (23 total matrix entries now).
 - **Invalid Filter Validation:** When a query returns 0 results due to a non-existent filter value (e.g., misspelled planning area "B01"), the system now provides helpful messages like: 'The planning area "B01" doesn\'t exist. Available planning areas include: BI01, BI02.'
-- **ExternalId Display:** Updated SQL generation to always include ExternalId columns when available - these are business-friendly identifiers that users recognize.
+- **ExternalId Clarification:** ExternalId columns exist ONLY in Tier2 tables, NOT in Tier1 (DASHt_*) tables. For Tier1 tables, use Name columns (JobName, ResourceName, etc.) as business-friendly identifiers.
 
 ## System Architecture
 

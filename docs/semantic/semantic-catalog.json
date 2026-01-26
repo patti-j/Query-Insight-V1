@@ -72,7 +72,8 @@
   "notes": {
     "tier1_default": "Use Tier1 tables (DASHt_*) for normal queries; they are curated outputs used by Power BI dashboards.",
     "tier2_optional": "Tier2 tables are underlying publish sources used to build Tier1; enable only in Advanced mode or when Tier1 lacks needed grain.",
-    "scenario_aware": "DASHt_SalesOrders is scenario-aware. Default to ScenarioType='Production'. Allow What-If only when user explicitly mentions scenarios."
+    "scenario_aware": "DASHt_SalesOrders is scenario-aware. Default to ScenarioType='Production'. Allow What-If only when user explicitly mentions scenarios.",
+    "externalId_columns": "IMPORTANT: ExternalId columns exist ONLY in Tier2 tables, NOT in Tier1 (DASHt_*) tables. For Tier1 tables, use the Name columns (e.g., JobName, ResourceName, CustomerName) as the business-friendly identifiers instead of ExternalId."
   },
   "scenarioRules": {
     "defaultScenarioType": "Production",
