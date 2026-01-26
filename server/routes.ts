@@ -38,6 +38,36 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // SSE test endpoint - minimal test for streaming (GET and POST)
+  app.all("/api/sse-test", (req, res) => {
+    log('SSE test endpoint hit', 'sse-test');
+    
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    
+    log('Headers flushed, sending events', 'sse-test');
+    
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      res.write(`data: Message ${count}\n\n`);
+      log(`Sent message ${count}`, 'sse-test');
+      if (count >= 5) {
+        clearInterval(interval);
+        res.end();
+        log('Stream ended', 'sse-test');
+      }
+    }, 500);
+
+    req.on('close', () => {
+      clearInterval(interval);
+      log('Client closed connection', 'sse-test');
+    });
+  });
+
   // Validator self-check endpoint (development only)
   app.get("/api/validator-check", (_req, res) => {
     const { passed, results } = runValidatorSelfCheck();
@@ -388,6 +418,8 @@ export async function registerRoutes(
 
   // Streaming natural language to SQL query endpoint (SSE)
   app.post("/api/ask/stream", async (req, res) => {
+    log(`Stream request received, headers: ${JSON.stringify(req.headers)}`, 'ask-stream');
+    
     const { question, publishDate } = req.body;
 
     // Validate question parameter
@@ -396,6 +428,8 @@ export async function registerRoutes(
         error: 'Question is required and must be a string',
       });
     }
+
+    log(`Stream request validated, question: ${question}`, 'ask-stream');
 
     // Track if client disconnected
     let clientDisconnected = false;
@@ -406,10 +440,17 @@ export async function registerRoutes(
 
     // Set up SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.setHeader('Transfer-Encoding', 'chunked'); // Explicitly set chunked encoding
     res.flushHeaders(); // Force headers to be sent immediately (critical for SSE with Vite)
+    
+    log('SSE headers sent and flushed', 'ask-stream');
+    
+    // Send immediate heartbeat to test connection
+    res.write(': heartbeat\n\n');
+    log('Heartbeat sent', 'ask-stream');
 
     // Helper to send SSE events (checks for disconnect)
     const sendEvent = (event: string, data: any) => {
