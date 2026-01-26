@@ -451,6 +451,16 @@
         "publish.Resources"
       ],
       "contextHint": "For resource schedule questions, filter DASHt_Planning by ResourceName and order by scheduled start time."
+    },
+    {
+      "keywords": ["planning area", "planning areas", "area", "areas"],
+      "tier1Tables": [
+        "publish.DASHt_Planning",
+        "publish.DASHt_Resources",
+        "publish.DASHt_SalesOrders"
+      ],
+      "tier2Tables": [],
+      "contextHint": "PlanningAreaName column is available in DASHt_Planning and DASHt_Resources. Use SELECT DISTINCT PlanningAreaName to list unique planning areas."
     }
   ],
   "tableKeywords": {
