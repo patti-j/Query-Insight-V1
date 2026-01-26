@@ -95,8 +95,6 @@ export default function QueryPage() {
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [streamingAnswer, setStreamingAnswer] = useState('');
-  const [streamingStage, setStreamingStage] = useState<string | null>(null);
   
   // Refs for scrolling
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -164,8 +162,6 @@ export default function QueryPage() {
     setFeedbackGiven(null);
     setShowData(false);
     setSubmittedQuestion(q.trim());
-    setStreamingAnswer('');
-    setStreamingStage(null);
 
     // Get the anchor date (effective "today" for queries) from environment secret
     const anchorDate = getEffectiveToday();
@@ -261,7 +257,6 @@ export default function QueryPage() {
       setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
     } finally {
       setLoading(false);
-      setStreamingStage(null);
     }
   };
 
@@ -483,13 +478,13 @@ export default function QueryPage() {
           </CardContent>
         </Card>
 
-        {/* Streaming Progress Indicator */}
-        {loading && (streamingStage || streamingAnswer) && (
-          <Card className="border-primary/30 bg-card/80 backdrop-blur-sm" data-testid="card-streaming">
+        {/* Loading Progress Indicator */}
+        {loading && (
+          <Card className="border-primary/30 bg-card/80 backdrop-blur-sm" data-testid="card-loading">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                {streamingStage || 'Processing...'}
+                Processing your question...
               </CardTitle>
               {submittedQuestion && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -497,30 +492,6 @@ export default function QueryPage() {
                 </p>
               )}
             </CardHeader>
-            {streamingAnswer && (
-              <CardContent>
-                <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl">
-                  <div className="text-base leading-relaxed" data-testid="text-streaming-answer">
-                    {streamingAnswer.split('\n').map((line, idx) => {
-                      const trimmedLine = line.trim();
-                      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
-                        return (
-                          <div key={idx} className="flex gap-2 ml-2 my-1">
-                            <span className="flex-shrink-0">{trimmedLine.charAt(0)}</span>
-                            <span>{trimmedLine.slice(1).trim()}</span>
-                          </div>
-                        );
-                      } else if (trimmedLine) {
-                        return <p key={idx} className="my-1">{line}</p>;
-                      } else {
-                        return <div key={idx} className="h-2" />;
-                      }
-                    })}
-                    <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-                  </div>
-                </div>
-              </CardContent>
-            )}
           </Card>
         )}
 
