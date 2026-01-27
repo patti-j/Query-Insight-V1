@@ -449,16 +449,17 @@ export async function registerRoutes(
 
     // Send initial connected status
     sendEvent('status', { stage: 'connected', message: 'Connected' });
-
-    // Create query log context
-    const logContext = createQueryLogContext(req, question);
     log(`Processing question (streaming): ${question}`, 'ask-stream');
 
+    let logContext: ReturnType<typeof createQueryLogContext> | undefined;
     let generatedSql: string | undefined;
     let llmStartTime: number | undefined;
     let llmMs: number | undefined;
 
     try {
+      // Create query log context inside try
+      logContext = createQueryLogContext(req, question);
+
       // Classify INSIDE try so errors don't kill SSE immediately
       const questionType = await classifyQuestion(question);
       if (clientDisconnected) { res.end(); return; }
@@ -611,13 +612,16 @@ export async function registerRoutes(
     } catch (error: any) {
       log(`Error in /api/ask/stream: ${error.message}`, 'ask-stream');
 
-      if (generatedSql) {
-        const validationOptions: ValidationOptions = {};
-        const validation = validateAndModifySql(generatedSql, validationOptions);
-        const failedSql = validation.modifiedSql || generatedSql;
-        logExecutionFailure(logContext, failedSql, error.message || 'Failed to execute query', llmMs);
-      } else {
-        logGenerationFailure(logContext, error.message || 'Failed to generate SQL');
+      // Only log to query logger if context was created
+      if (logContext) {
+        if (generatedSql) {
+          const validationOptions: ValidationOptions = {};
+          const validation = validateAndModifySql(generatedSql, validationOptions);
+          const failedSql = validation.modifiedSql || generatedSql;
+          logExecutionFailure(logContext, failedSql, error.message || 'Failed to execute query', llmMs);
+        } else {
+          logGenerationFailure(logContext, error.message || 'Failed to generate SQL');
+        }
       }
 
       sendEvent('error', { error: error.message || 'Failed to process query' });
