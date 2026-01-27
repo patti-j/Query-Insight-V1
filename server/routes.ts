@@ -449,6 +449,7 @@ export async function registerRoutes(
 
     // Send initial connected status
     sendEvent('status', { stage: 'connected', message: 'Connected' });
+    sendEvent('status', { stage: 'after_connected', message: 'after_connected' });
     log(`Processing question (streaming): ${question}`, 'ask-stream');
 
     let logContext: ReturnType<typeof createQueryLogContext> | undefined;
@@ -462,7 +463,7 @@ export async function registerRoutes(
 
       // Classify INSIDE try so errors don't kill SSE immediately
       const questionType = await classifyQuestion(question);
-      if (clientDisconnected) { res.end(); return; }
+      if (clientDisconnected) return;
       
       // Log classification result for debugging
       sendEvent('status', { stage: 'classified', questionType });
@@ -475,7 +476,6 @@ export async function registerRoutes(
           answer,
           question,
         });
-        res.end();
         return;
       }
 
@@ -499,19 +499,18 @@ export async function registerRoutes(
           answer: `I couldn't find data matching your question in the available PowerBI reports.`,
           question,
         });
-        res.end();
         return;
       }
 
       // Validate and modify SQL if needed
       const validationOptions: ValidationOptions = {};
       const validation = validateAndModifySql(generatedSql, validationOptions);
+
       
       if (!validation.valid) {
         log(`SQL validation failed (streaming): ${validation.error}`, 'ask-stream');
         logValidationFailure(logContext, generatedSql, validation.error || 'Unknown validation error', llmMs);
         sendEvent('error', { error: `SQL validation failed: ${validation.error}`, sql: generatedSql });
-        res.end();
         return;
       }
 
@@ -530,12 +529,11 @@ export async function registerRoutes(
         }
         
         sendEvent('error', { error: errorMessage, sql: finalSql, schemaError: true });
-        res.end();
         return;
       }
 
       // Check for disconnect before continuing
-      if (clientDisconnected) { res.end(); return; }
+      if (clientDisconnected) return;
 
       // Send SQL to client
       sendEvent('sql', { sql: finalSql });
@@ -546,7 +544,7 @@ export async function registerRoutes(
       const result = await executeQuery(finalSql);
       const sqlMs = Date.now() - sqlStartTime;
 
-      if (clientDisconnected) { res.end(); return; }
+      if (clientDisconnected) return;
 
       // Log successful execution
       logSuccess(logContext, finalSql, result.recordset.length, llmMs, sqlMs);
@@ -568,7 +566,7 @@ export async function registerRoutes(
         }
       }
 
-      if (clientDisconnected) { res.end(); return; }
+      if (clientDisconnected) return;
 
       // Send rows to client
       sendEvent('rows', { 
@@ -594,7 +592,7 @@ export async function registerRoutes(
         sendEvent('chunk', { text: chunk });
       }
 
-      if (clientDisconnected) { res.end(); return; }
+      if (clientDisconnected) return;
 
       // Cache successful SQL
       cacheSuccessfulSql(question, finalSql, selectedTables);
@@ -610,8 +608,6 @@ export async function registerRoutes(
         actualTotalCount,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
       });
-
-      res.end();
 
     } catch (error: any) {
       log(`Error in /api/ask/stream: ${error.message}`, 'ask-stream');
@@ -629,10 +625,11 @@ export async function registerRoutes(
       }
 
       sendEvent('error', { error: error.message || 'Failed to process query' });
-      res.end();
     } finally {
       // Always clean up keepalive interval to prevent memory leaks
       if (keepAliveInterval) clearInterval(keepAliveInterval);
+      sendEvent('status', { stage: 'ending', message: 'Stream ending' });
+      res.end();
     }
   });
 
