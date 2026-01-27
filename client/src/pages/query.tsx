@@ -97,6 +97,14 @@ export default function QueryPage() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
+  
+  // Messages array for proper persistence during streaming
+  interface StreamMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    text: string;
+  }
+  const [messages, setMessages] = useState<StreamMessage[]>([]);
   // Auto-disable streaming in Replit's webview (proxy doesn't support SSE properly)
   // Enable streaming in production (Azure) or when explicitly testing
   const isReplitEnv = typeof window !== 'undefined' && window.location.hostname.includes('replit');
@@ -314,7 +322,13 @@ export default function QueryPage() {
     abortControllerRef.current = abortController;
     setIsStreaming(true);
     
+    // 1) Create a message slot up-front
+    const assistantId = crypto.randomUUID();
+    setMessages(prev => [...prev, { id: assistantId, role: "assistant", text: "" }]);
+    
+    // Track accumulated answer text
     let streamedAnswer = '';
+    
     let partialResult: Partial<QueryResult> = {
       answer: '',
       sql: '',
@@ -369,7 +383,11 @@ export default function QueryPage() {
             setStreamingStatus(data.message || data.stage);
             break;
           case 'chunk':
+            // 2) On each chunk: update message by ID
             streamedAnswer += data.text;
+            setMessages(prev =>
+              prev.map(m => m.id === assistantId ? { ...m, text: m.text + data.text } : m)
+            );
             setStreamingAnswer(streamedAnswer);
             // Smart auto-scroll (respects user manual scroll)
             smartAutoScroll();
@@ -398,6 +416,13 @@ export default function QueryPage() {
             break;
           case 'complete':
             streamCompleted = true;
+            // 3) On complete: finalize message with final answer
+            const finalAnswer = data.answer;
+            setMessages(prev =>
+              prev.map(m => m.id === assistantId ? { ...m, text: finalAnswer ?? m.text } : m)
+            );
+            setIsStreaming(false);
+            
             partialResult.answer = data.answer || streamedAnswer;
             partialResult.suggestions = data.suggestions;
             if (data.sql) partialResult.sql = data.sql;
@@ -416,7 +441,6 @@ export default function QueryPage() {
             
             // Finish streaming
             setStreamingStatus('Complete');
-            setIsStreaming(false);
             setLoading(false);
             abortControllerRef.current = null;
             return true;
