@@ -442,16 +442,14 @@ export async function* streamNaturalLanguageResponse(
   // If no results, generate a context-aware empty message (non-streaming for simplicity)
   if (rowCount === 0) {
     try {
-      const emptyResponse = await openai.chat.completions.create({
+      const emptyResponse = await openai.responses.create({
         model: 'gpt-4.1-mini',
-        messages: [
-          { role: 'system', content: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."` },
-          { role: 'user', content: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.` }
-        ],
+        instructions: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."`,
+        input: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.`,
         temperature: 0.3,
-        max_completion_tokens: 100,
+        max_output_tokens: 100,
       });
-      yield emptyResponse.choices[0]?.message?.content?.trim() || "No matching data was found for your query.";
+      yield emptyResponse.output_text?.trim() || "No matching data was found for your query.";
     } catch {
       yield "No matching data was found for your query. Try adjusting the date range or criteria.";
     }
@@ -469,33 +467,64 @@ export async function* streamNaturalLanguageResponse(
     const limitNote = wasLimited 
       ? `\nIMPORTANT: Results are limited to first ${rowCount} rows. The actual total is ${actualTotalCount}. Mention this in your response, e.g. "Here are the first 100 of ${actualTotalCount} total..."`
       : '';
-      
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [
-        { role: 'system', content: NATURAL_LANGUAGE_RESPONSE_PROMPT },
-        { 
-          role: 'user', 
-          content: `Question: "${question}"
+    
+    // Build input for Responses API (converted from Chat Completions messages)
+    const userInput = `Question: "${question}"
 Results (${rowCount} returned${wasLimited ? `, ${actualTotalCount} total in database` : ''}${hasMore ? ', showing first 20 for summary' : ''}):
 ${JSON.stringify(limitedResults, null, 2)}${limitNote}
 
-Provide a natural language summary of these results.`
-        }
-      ],
+Provide a natural language summary of these results.`;
+
+    // Feature flag for JSON structured output mode (future use)
+    const useJsonMode = process.env.RESPONSE_JSON_MODE === 'true';
+    
+    // Use OpenAI Responses API with streaming
+    const stream = await openai.responses.create({
+      model: 'gpt-4.1-mini',
+      instructions: NATURAL_LANGUAGE_RESPONSE_PROMPT,
+      input: userInput,
       temperature: 0.3,
-      max_completion_tokens: 800,
+      max_output_tokens: 800,
       stream: true,
+      ...(useJsonMode ? { 
+        text: { format: { type: 'json_object' } }
+      } : {}),
     });
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        yield content;
+    // Process Responses API streaming events
+    for await (const event of stream) {
+      // Handle text delta events
+      if (event.type === 'response.output_text.delta') {
+        const delta = (event as any).delta;
+        if (delta) {
+          yield delta;
+        }
+      }
+      
+      // Placeholder: Log tool/function call events for future implementation
+      if (event.type === 'response.function_call_arguments.delta') {
+        console.log('[openai-client] Tool call delta received:', (event as any).delta);
+      }
+      
+      if (event.type === 'response.output_item.added') {
+        const item = (event as any).item;
+        if (item?.type === 'function_call') {
+          console.log('[openai-client] Function call started:', item.name);
+        }
+      }
+      
+      // Handle completion
+      if (event.type === 'response.completed') {
+        console.log('[openai-client] Response stream completed');
+      }
+      
+      // Handle failures
+      if (event.type === 'response.failed') {
+        console.error('[openai-client] Response stream failed:', event);
       }
     }
     
-    } catch (error) {
+  } catch (error) {
     console.error('[openai-client] Streaming natural language response failed:', error);
     yield `Found ${rowCount} result(s).`;
   }
