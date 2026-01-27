@@ -406,13 +406,22 @@ export async function registerRoutes(
 
     log(`Stream request validated, question: ${question}`, 'ask-stream');
 
-    // Track if client disconnected
+    // Track if client disconnected (SSE: watch the RESPONSE, not the request)
     let clientDisconnected = false;
     let keepAliveInterval: NodeJS.Timeout | null = null;
-    req.on('close', () => {
+
+    // If the client goes away, the response closes
+    res.on('close', () => {
       clientDisconnected = true;
       if (keepAliveInterval) clearInterval(keepAliveInterval);
-      log('Client disconnected, aborting stream', 'ask-stream');
+      log('Client disconnected (res.close), aborting stream', 'ask-stream');
+    });
+
+    // If the client aborts mid-request (rare here, but correct)
+    req.on('aborted', () => {
+      clientDisconnected = true;
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      log('Client aborted request (req.aborted), aborting stream', 'ask-stream');
     });
 
     // Set up SSE headers - optimized for Replit's proxy
