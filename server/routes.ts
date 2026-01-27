@@ -626,6 +626,9 @@ export async function registerRoutes(
 
       sendEvent('error', { error: error.message || 'Failed to process query' });
       res.end();
+    } finally {
+      // Always clean up keepalive interval to prevent memory leaks
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
     }
   });
 
