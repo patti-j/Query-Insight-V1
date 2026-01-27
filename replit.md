@@ -64,7 +64,9 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - For job-level queries, ALWAYS use `GROUP BY JobName` or `DISTINCT` to avoid duplicates
 - JobOnHold values: 'OnHold', 'Released' - "on hold" is NOT the same as "unscheduled"
 - JobScheduledStatus values: 'Scheduled', 'FailedToSchedule', 'Finished', 'Unscheduled', 'Template'
-- Sentinel dates (9000-01-01, 1800-01-01) indicate UNSCHEDULED jobs - filter them out for date queries
+- Sentinel dates (9000-01-01, 1800-01-01) indicate UNSCHEDULED jobs:
+  - For UNSCHEDULED job queries: Use JobScheduledStatus flag only, do NOT filter on sentinel dates
+  - For SCHEDULED job queries with date ranges: Filter OUT sentinel dates to get valid dates only
 
 **ScenarioType Filtering:**
 - ALWAYS filter by `ScenarioType = 'Production'` for DASHt_Planning and DASHt_SalesOrders unless user asks for what-if

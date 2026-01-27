@@ -216,8 +216,10 @@ PRODUCTION PLANNING TABLES:
 - DASHt_Planning: Main planning table with job/operation data
 - JobScheduledStatus values: 'Scheduled', 'FailedToSchedule', 'Finished', 'Unscheduled'
 - When user asks for "scheduled jobs": ALWAYS add WHERE JobScheduledStatus = 'Scheduled'
-- When user asks for "unscheduled jobs": use WHERE JobScheduledStatus IN ('FailedToSchedule', 'Unscheduled')
-- Jobs with sentinel dates (9000-01-01, 1800-01-01) are UNSCHEDULED - filter them out
+- When user asks for "unscheduled jobs" or "not scheduled": use WHERE JobScheduledStatus IN ('FailedToSchedule', 'Unscheduled') - DO NOT add sentinel date filters (unscheduled jobs have sentinel dates by design)
+- SENTINEL DATE RULES: Dates 9000-01-01 and 1800-01-01 indicate unscheduled jobs
+  * For UNSCHEDULED job queries: Do NOT filter on JobScheduledStartDateTime or JobScheduledEndDateTime (the status flag is sufficient)
+  * For SCHEDULED job queries with date filtering: Add JobScheduledStartDateTime NOT IN ('9000-01-01', '1800-01-01') to exclude invalid dates
 - JobOnHold values: 'OnHold', 'Released' - IMPORTANT: "on hold" is NOT the same as "unscheduled"
 - When user asks for "jobs on hold" or "held jobs": use WHERE JobOnHold = 'OnHold'
 - To include hold reasons: SELECT JobHoldReason column (may be NULL if no reason specified)
