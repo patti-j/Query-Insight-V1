@@ -106,16 +106,14 @@ export default function QueryPage() {
     text: string;
   }
   const [messages, setMessages] = useState<StreamMessage[]>([]);
-  // Auto-disable streaming in Replit's webview (proxy doesn't support SSE properly)
-  // Enable streaming in production (Azure) or when explicitly testing
-  const isReplitEnv = typeof window !== 'undefined' && window.location.hostname.includes('replit');
-  const [useStreaming, setUseStreaming] = useState(!isReplitEnv);
+  // Streaming is now enabled everywhere using GET SSE (proxy-friendly)
+  const [useStreaming, setUseStreaming] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   
-  // Refs for scrolling and abort control
+  // Refs for scrolling and EventSource control
   const resultsRef = useRef<HTMLDivElement>(null);
   const queryRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const streamingAnswerRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
   const lastScrollTopRef = useRef(0);
@@ -287,9 +285,9 @@ export default function QueryPage() {
   };
 
   const stopStreaming = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
     setIsStreaming(false);
     setLoading(false);
@@ -323,16 +321,15 @@ export default function QueryPage() {
   }, []);
 
   const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
-    console.log('[streaming] Starting streaming query');
+    console.log('[streaming] Starting streaming query with EventSource');
     
-    // Cancel any existing stream
-    if (abortControllerRef.current) {
-      console.log('[streaming] Cancelling existing stream');
-      abortControllerRef.current.abort();
+    // Close any existing EventSource
+    if (eventSourceRef.current) {
+      console.log('[streaming] Closing existing EventSource');
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
     
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
     setIsStreaming(true);
     
     // 1) Create a message slot up-front
@@ -349,233 +346,145 @@ export default function QueryPage() {
       rowCount: 0,
       isMock: false,
     };
-    let streamCompleted = false;
-    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
     
-    try {
-      console.log('[streaming] Sending fetch request');
-      const response = await fetch('/api/ask/stream', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({ 
-          question: queryToSend,
-          publishDate: anchorDateStr
-        }),
-        signal: abortController.signal,
-      });
-      console.log('[streaming] Got response, status:', response.status);
-
-      if (!response.ok) {
-        const text = await response.text();
-        let errorMessage = text || 'Query failed';
-        try {
-          const errorData = JSON.parse(text);
-          errorMessage = errorData.error || 'Query failed';
-        } catch (parseError) {
-          // Text is not JSON, use as-is
-        }
-        throw new Error(errorMessage);
-      }
-
-      reader = response.body?.getReader() || null;
-      if (!reader) {
-        throw new Error('Streaming not supported');
-      }
-      console.log('[streaming] Got reader, starting to read chunks');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let chunkCount = 0;
-
-      const processEvent = (eventType: string, data: any): boolean => {
-        switch (eventType) {
-          case 'status':
-            setStreamingStatus(data.message || data.stage);
-            break;
-          case 'chunk':
-            // 2) On each chunk: update message by ID
-            streamedAnswer += data.text;
-            setMessages(prev =>
-              prev.map(m => m.id === assistantId ? { ...m, text: m.text + data.text } : m)
-            );
-            setStreamingAnswer(streamedAnswer);
-            // Smart auto-scroll (respects user manual scroll)
-            smartAutoScroll();
-            break;
-          case 'sql':
-            partialResult.sql = data.sql;
-            break;
-          case 'rows':
-            partialResult.rows = data.rows;
-            partialResult.rowCount = data.rowCount;
-            setShowData(true);
-            
-            if (data.rows.length > 0) {
-              const hasNumericColumns = Object.values(data.rows[0]).some(
-                (val: any) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
-              );
-              setShowChart(hasNumericColumns);
-              
-              const detectedColumns = detectDateTimeColumns(data.rows);
-              setDateTimeColumns(detectedColumns);
-            }
-            
-            setTimeout(() => {
-              resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
-            break;
-          case 'complete':
-            streamCompleted = true;
-            // 3) On complete: finalize message with final answer
-            const finalAnswer = data.answer;
-            setMessages(prev =>
-              prev.map(m => m.id === assistantId ? { ...m, text: finalAnswer ?? m.text } : m)
-            );
-            setIsStreaming(false);
-            
-            partialResult.answer = data.answer || streamedAnswer;
-            partialResult.suggestions = data.suggestions;
-            if (data.sql) partialResult.sql = data.sql;
-            if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
-            if (data.dataLastUpdated) partialResult.dataLastUpdated = data.dataLastUpdated;
-            
-            // Display the answer immediately
-            if (data.answer) {
-              streamedAnswer = data.answer;
-              setStreamingAnswer(data.answer);
-            }
-            
-            // Handle general/out-of-scope answers
-            if (data.isGeneralAnswer || data.isOutOfScope) {
-              setGeneralAnswer(data.answer);
-            }
-            
-            // Finish streaming - commit result before returning
-            setResult(partialResult as QueryResult);
-            setShowData(true);
-            setStreamingStatus('Complete');
-            setLoading(false);
-            abortControllerRef.current = null;
-            return true;
-          case 'error':
-            if (data.schemaError) {
-              setError(data.error || 'Schema validation failed.');
-            } else {
-              setError(data.error);
-            }
-            // Preserve partial results on error
-            if (streamedAnswer) {
-              setStreamingAnswer(streamedAnswer);
-            }
-            setStreamingStatus('Error');
-            setIsStreaming(false);
-            setLoading(false);
-            abortControllerRef.current = null;
-            return true;
-        }
-        return false;
-      };
-
-      // Main streaming loop
-      while (true) {
-        const { done, value } = await reader.read();
-        chunkCount++;
-        console.log(`[streaming] Read chunk ${chunkCount}, done=${done}, bytes=${value?.length || 0}`);
-        if (done) {
-          console.log('[streaming] Stream done signal received');
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
+    // Build URL with query params (GET is more proxy-friendly for SSE)
+    const url = `/api/ask/stream?question=${encodeURIComponent(queryToSend)}&publishDate=${encodeURIComponent(anchorDateStr)}`;
+    console.log('[streaming] Creating EventSource for:', url);
+    
+    const es = new EventSource(url);
+    eventSourceRef.current = es;
+    
+    es.addEventListener('status', (e) => {
+      const data = JSON.parse((e as MessageEvent).data);
+      setStreamingStatus(data.message || data.stage);
+    });
+    
+    es.addEventListener('chunk', (e) => {
+      const data = JSON.parse((e as MessageEvent).data);
+      // 2) On each chunk: update message by ID
+      streamedAnswer += data.text;
+      setMessages(prev =>
+        prev.map(m => m.id === assistantId ? { ...m, text: m.text + data.text } : m)
+      );
+      setStreamingAnswer(streamedAnswer);
+      // Smart auto-scroll (respects user manual scroll)
+      smartAutoScroll();
+    });
+    
+    es.addEventListener('sql', (e) => {
+      const data = JSON.parse((e as MessageEvent).data);
+      partialResult.sql = data.sql;
+    });
+    
+    es.addEventListener('rows', (e) => {
+      const data = JSON.parse((e as MessageEvent).data);
+      partialResult.rows = data.rows;
+      partialResult.rowCount = data.rowCount;
+      setShowData(true);
+      
+      if (data.rows.length > 0) {
+        const hasNumericColumns = Object.values(data.rows[0]).some(
+          (val: any) => typeof val === 'number' || (!isNaN(parseFloat(val as string)) && isFinite(val as any))
+        );
+        setShowChart(hasNumericColumns);
         
-        // SSE events are separated by blank line (LF or CRLF)
-        const eventBlocks = buffer.split(/\r?\n\r?\n/);
-        buffer = eventBlocks.pop() || '';
-
-        for (const block of eventBlocks) {
-          if (!block.trim()) continue;
-          
-          const lines = block.split(/\r?\n/);
-          let eventType = 'message';
-          const dataLines: string[] = [];
-
-          for (const line of lines) {
-            // Handle both "event:" and "event: " formats
-            if (line.startsWith('event:')) {
-              eventType = line.slice('event:'.length).trim();
-            } else if (line.startsWith('data:')) {
-              dataLines.push(line.slice('data:'.length).trimStart());
-            }
-          }
-
-          if (dataLines.length > 0) {
-            const dataStr = dataLines.join('\n');
-            try {
-              const data = JSON.parse(dataStr);
-              const shouldExit = processEvent(eventType, data);
-              if (shouldExit) {
-                setIsStreaming(false);
-                setLoading(false);
-                abortControllerRef.current = null;
-                return;
-              }
-            } catch (e) {
-              // If partial JSON, re-buffer and wait for more bytes
-              buffer = block + '\n\n' + buffer;
-              break;
-            }
-          }
-        }
-      }
-
-      // Stream completed normally
-      if (!streamCompleted) {
-        partialResult.answer = streamedAnswer || partialResult.answer;
+        const detectedColumns = detectDateTimeColumns(data.rows);
+        setDateTimeColumns(detectedColumns);
       }
       
-      if (partialResult.rows?.length || streamedAnswer || partialResult.answer) {
-        if (!partialResult.answer && streamedAnswer) {
-          partialResult.answer = streamedAnswer;
-        }
-        setResult(partialResult as QueryResult);
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    });
+    
+    es.addEventListener('complete', (e) => {
+      const data = JSON.parse((e as MessageEvent).data);
+      console.log('[streaming] Complete event received');
+      
+      // 3) On complete: finalize message with final answer
+      const finalAnswer = data.answer;
+      setMessages(prev =>
+        prev.map(m => m.id === assistantId ? { ...m, text: finalAnswer ?? m.text } : m)
+      );
+      setIsStreaming(false);
+      
+      partialResult.answer = data.answer || streamedAnswer;
+      partialResult.suggestions = data.suggestions;
+      if (data.sql) partialResult.sql = data.sql;
+      if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
+      if (data.dataLastUpdated) partialResult.dataLastUpdated = data.dataLastUpdated;
+      
+      // Display the answer immediately
+      if (data.answer) {
+        streamedAnswer = data.answer;
+        setStreamingAnswer(data.answer);
       }
       
-      setStreamingStatus(null);
-      
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        // User stopped the stream - preserve partial results
-        console.log('Stream stopped by user');
-        if (streamedAnswer) {
-          partialResult.answer = streamedAnswer;
-          setResult(partialResult as QueryResult);
-        }
-        return;
+      // Handle general/out-of-scope answers
+      if (data.isGeneralAnswer || data.isOutOfScope) {
+        setGeneralAnswer(data.answer);
       }
-      console.error("API Query Failed:", err);
-      setError(`Query failed: ${err.message}. Please check your database connection, API configuration, or try rephrasing your question.`);
-    } finally {
+      
+      // Finish streaming - commit result before returning
+      setResult(partialResult as QueryResult);
+      setShowData(true);
+      setStreamingStatus('Complete');
+      setLoading(false);
+      es.close();
+      eventSourceRef.current = null;
+    });
+    
+    es.addEventListener('error', (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data);
+        if (data.schemaError) {
+          setError(data.error || 'Schema validation failed.');
+        } else {
+          setError(data.error);
+        }
+      } catch {
+        // SSE connection error (not a JSON error event)
+        setError('Connection lost. Please try again.');
+      }
+      // Preserve partial results on error
+      if (streamedAnswer) {
+        setStreamingAnswer(streamedAnswer);
+      }
+      setStreamingStatus('Error');
       setIsStreaming(false);
       setLoading(false);
-      abortControllerRef.current = null;
-    }
+      es.close();
+      eventSourceRef.current = null;
+    });
+    
+    es.onerror = () => {
+      console.log('[streaming] EventSource error occurred');
+      // Preserve partial results
+      if (streamedAnswer) {
+        partialResult.answer = streamedAnswer;
+        setResult(partialResult as QueryResult);
+      }
+      setError('Connection lost. Please try again.');
+      setStreamingStatus('Error');
+      setIsStreaming(false);
+      setLoading(false);
+      es.close();
+      eventSourceRef.current = null;
+    };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Prevent double-submission while streaming
-    if (abortControllerRef.current) return;
+    if (eventSourceRef.current) return;
     executeQuery(question);
   };
 
   const handleNewQuestion = () => {
     // Cancel any active stream
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
     setQuestion('');
     setResult(null);

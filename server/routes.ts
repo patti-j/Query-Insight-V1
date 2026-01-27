@@ -386,16 +386,13 @@ export async function registerRoutes(
     }
   });
 
-  // Streaming natural language to SQL query endpoint (SSE)
-  app.post("/api/ask/stream", async (req, res) => {
+  // Streaming natural language to SQL query endpoint (SSE via GET for proxy compatibility)
+  app.get("/api/ask/stream", async (req, res) => {
     log(`Stream request received, headers: ${JSON.stringify(req.headers)}`, 'ask-stream');
     
-    const publishDate = req.body?.publishDate;
-    const question =
-      req.body?.question ??
-      req.body?.query ??
-      req.body?.q ??
-      req.body?.prompt;
+    // Read params from query string (GET is more proxy-friendly for SSE)
+    const publishDate = String(req.query.publishDate ?? '');
+    const question = String(req.query.question ?? req.query.query ?? req.query.q ?? req.query.prompt ?? '');
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
