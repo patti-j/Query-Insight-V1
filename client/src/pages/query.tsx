@@ -526,6 +526,8 @@ export default function QueryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent double-submission while streaming
+    if (abortControllerRef.current) return;
     executeQuery(question);
   };
 
