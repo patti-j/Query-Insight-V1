@@ -403,29 +403,23 @@ export default function QueryPage() {
             if (data.sql) partialResult.sql = data.sql;
             if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
             
-            // Display the answer in streaming UI
+            // Display the answer immediately
             if (data.answer) {
               streamedAnswer = data.answer;
               setStreamingAnswer(data.answer);
             }
             
-            if (data.isGeneralAnswer) {
+            // Handle general/out-of-scope answers
+            if (data.isGeneralAnswer || data.isOutOfScope) {
               setGeneralAnswer(data.answer);
-              setStreamingStatus('Complete');
-              setIsStreaming(false);
-              setLoading(false);
-              abortControllerRef.current = null;
-              return true;
             }
-            if (data.isOutOfScope) {
-              setGeneralAnswer(data.answer);
-              setStreamingStatus('Complete');
-              setIsStreaming(false);
-              setLoading(false);
-              abortControllerRef.current = null;
-              return true;
-            }
-            break;
+            
+            // Finish streaming
+            setStreamingStatus('Complete');
+            setIsStreaming(false);
+            setLoading(false);
+            abortControllerRef.current = null;
+            return true;
           case 'error':
             if (data.schemaError) {
               setError(data.error || 'Schema validation failed.');
