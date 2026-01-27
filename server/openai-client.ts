@@ -235,6 +235,9 @@ BEST PRACTICES:
 - When listing items, use SELECT DISTINCT to avoid duplicate rows
 - When grouping, always GROUP BY the appropriate columns
 - ONLY use columns explicitly listed in the schema below for each table
+- DO NOT use single-letter table aliases (a, b, d, etc.) - use full table names or meaningful aliases
+- Always use explicit column names from the schema - never abbreviate or guess column names
+- For jobs on hold with reasons: SELECT JobName, JobOnHold, JobHoldReason FROM [publish].[DASHt_Planning] WHERE JobOnHold = 'OnHold'
 `;
 
   // Build the effective "today" date context
