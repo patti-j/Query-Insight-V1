@@ -430,6 +430,7 @@ export async function registerRoutes(
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Encoding', 'identity');
     // Don't set Transfer-Encoding manually - let Node handle it
     res.flushHeaders();
     
