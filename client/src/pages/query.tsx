@@ -403,6 +403,12 @@ export default function QueryPage() {
             if (data.sql) partialResult.sql = data.sql;
             if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
             
+            // Display the answer in streaming UI
+            if (data.answer) {
+              streamedAnswer = data.answer;
+              setStreamingAnswer(data.answer);
+            }
+            
             if (data.isGeneralAnswer) {
               setGeneralAnswer(data.answer);
               setStreamingStatus('Complete');
