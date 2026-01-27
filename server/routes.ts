@@ -450,7 +450,6 @@ export async function registerRoutes(
     // Send initial connected status
     sendEvent('status', { stage: 'connected', message: 'Connected' });
     sendEvent('status', { stage: 'after_connected', message: 'after_connected' });
-    log(`Processing question (streaming): ${question}`, 'ask-stream');
 
     let logContext: ReturnType<typeof createQueryLogContext> | undefined;
     let generatedSql: string | undefined;
@@ -458,7 +457,7 @@ export async function registerRoutes(
     let llmMs: number | undefined;
 
     try {
-      // Create query log context inside try
+      log(`Processing question (streaming): ${question}`, 'ask-stream');
       logContext = createQueryLogContext(req, question);
 
       // Classify INSIDE try so errors don't kill SSE immediately
