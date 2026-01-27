@@ -625,9 +625,7 @@ export async function registerRoutes(
 
       sendEvent('error', { error: error.message || 'Failed to process query' });
     } finally {
-      // Always clean up keepalive interval to prevent memory leaks
       if (keepAliveInterval) clearInterval(keepAliveInterval);
-      sendEvent('status', { stage: 'ending', message: 'Stream ending' });
       res.end();
     }
   });
