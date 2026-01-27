@@ -390,12 +390,17 @@ export async function registerRoutes(
   app.post("/api/ask/stream", async (req, res) => {
     log(`Stream request received, headers: ${JSON.stringify(req.headers)}`, 'ask-stream');
     
-    const { question, publishDate } = req.body;
+    const publishDate = req.body?.publishDate;
+    const question =
+      req.body?.question ??
+      req.body?.query ??
+      req.body?.q ??
+      req.body?.prompt;
 
     // Validate question parameter
-    if (!question || typeof question !== 'string') {
+    if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return res.status(400).json({
-        error: 'Question is required and must be a string',
+        error: 'Question is required and must be a non-empty string',
       });
     }
 
@@ -622,12 +627,17 @@ export async function registerRoutes(
 
   // Natural language to SQL query endpoint
   app.post("/api/ask", async (req, res) => {
-    const { question, publishDate } = req.body;
+    const publishDate = req.body?.publishDate;
+    const question =
+      req.body?.question ??
+      req.body?.query ??
+      req.body?.q ??
+      req.body?.prompt;
 
     // Validate question parameter
-    if (!question || typeof question !== 'string') {
+    if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return res.status(400).json({
-        error: 'Question is required and must be a string',
+        error: 'Question is required and must be a non-empty string',
       });
     }
 
