@@ -439,7 +439,9 @@ export default function QueryPage() {
               setGeneralAnswer(data.answer);
             }
             
-            // Finish streaming
+            // Finish streaming - commit result before returning
+            setResult(partialResult as QueryResult);
+            setShowData(true);
             setStreamingStatus('Complete');
             setLoading(false);
             abortControllerRef.current = null;
