@@ -464,6 +464,9 @@ export async function registerRoutes(
       const questionType = await classifyQuestion(question);
       if (clientDisconnected) { res.end(); return; }
       
+      // Log classification result for debugging
+      sendEvent('status', { stage: 'classified', questionType });
+      
       if (questionType === 'general') {
         log(`General question detected (streaming): ${question}`, 'ask-stream');
         const answer = await answerGeneralQuestion(question);
@@ -476,8 +479,9 @@ export async function registerRoutes(
         return;
       }
 
-      // Send status update
+      // Send status update and initial chunk to keep UI alive
       sendEvent('status', { stage: 'generating_sql', message: 'Generating SQL query...' });
+      sendEvent('chunk', { text: 'Generating SQL...' });
 
       // Generate SQL from natural language
       llmStartTime = Date.now();
