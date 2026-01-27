@@ -594,11 +594,35 @@ export async function registerRoutes(
       );
 
       let fullAnswer = '';
+      
+      // Token buffering: batch small writes to reduce proxy disconnects
+      let tokenBuffer = '';
+      const BUFFER_FLUSH_SIZE = 20; // Flush when buffer reaches this size
+      const BUFFER_FLUSH_INTERVAL = 50; // Or flush every 50ms
+      let lastFlushTime = Date.now();
+      
+      const flushBuffer = () => {
+        if (tokenBuffer.length > 0 && !clientDisconnected) {
+          sendEvent('chunk', { text: tokenBuffer });
+          tokenBuffer = '';
+          lastFlushTime = Date.now();
+        }
+      };
+      
       for await (const chunk of stream) {
         if (clientDisconnected) break; // Stop streaming if client disconnected
         fullAnswer += chunk;
-        sendEvent('chunk', { text: chunk });
+        tokenBuffer += chunk;
+        
+        // Flush if buffer is large enough or enough time has passed
+        const now = Date.now();
+        if (tokenBuffer.length >= BUFFER_FLUSH_SIZE || (now - lastFlushTime) >= BUFFER_FLUSH_INTERVAL) {
+          flushBuffer();
+        }
       }
+      
+      // Flush any remaining buffered content
+      flushBuffer();
 
       if (clientDisconnected) return;
 
