@@ -484,6 +484,7 @@ export async function registerRoutes(
           isGeneralAnswer: true,
           answer,
           question,
+          dataLastUpdated: publishDate || null,
         });
         return;
       }
@@ -507,6 +508,7 @@ export async function registerRoutes(
           isOutOfScope: true,
           answer: `I couldn't find data matching your question in the available PowerBI reports.`,
           question,
+          dataLastUpdated: publishDate || null,
         });
         return;
       }
@@ -616,6 +618,7 @@ export async function registerRoutes(
         rowCount: result.recordset.length,
         actualTotalCount,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
+        dataLastUpdated: publishDate || null,
       });
 
     } catch (error: any) {
@@ -915,6 +918,7 @@ export async function registerRoutes(
         suggestions: suggestions.length > 0 ? suggestions : undefined,
         nearestDates,
         invalidFilter: invalidFilterMessage ? true : undefined,
+        dataLastUpdated: publishDate || null,
       });
 
     } catch (error: any) {

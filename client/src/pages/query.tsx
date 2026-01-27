@@ -58,6 +58,7 @@ interface QueryResult {
     before: string | null;
     after: string | null;
   };
+  dataLastUpdated?: string | null;
 }
 
 interface SemanticCatalog {
@@ -121,6 +122,18 @@ export default function QueryPage() {
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
+  
+  // Dev mode sanity check for date display
+  useEffect(() => {
+    if (!import.meta.env.PROD) {
+      const queryDate = getEffectiveToday();
+      console.log('[date-check] Query Date (effective today):', queryDate.toISOString().split('T')[0]);
+      console.log('[date-check] VITE_DEV_FIXED_TODAY:', import.meta.env.VITE_DEV_FIXED_TODAY || '(not set)');
+      if (publishDate) {
+        console.log('[date-check] Data Last Updated (publishDate):', publishDate.toISOString().split('T')[0]);
+      }
+    }
+  }, [publishDate]);
   
   // Favorite queries
   const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
@@ -427,6 +440,7 @@ export default function QueryPage() {
             partialResult.suggestions = data.suggestions;
             if (data.sql) partialResult.sql = data.sql;
             if (data.rowCount !== undefined) partialResult.rowCount = data.rowCount;
+            if (data.dataLastUpdated) partialResult.dataLastUpdated = data.dataLastUpdated;
             
             // Display the answer immediately
             if (data.answer) {
