@@ -676,7 +676,7 @@ export default function QueryPage() {
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="min-h-[100px] bg-background/50"
+                  className="min-h-[100px] p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
                   data-testid="input-question"
                 />
                 
