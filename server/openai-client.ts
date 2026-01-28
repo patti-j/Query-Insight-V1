@@ -58,7 +58,8 @@ DATABASE: Microsoft SQL Server (Azure SQL Database) - T-SQL dialect
 - NEVER use CROSS JOIN
 
 CRITICAL RULES:
-- Always include TOP (100) or less in your final SELECT
+- Always include TOP (100) immediately after SELECT (e.g., SELECT TOP (100) JobName, ... FROM ...)
+- Generate ONLY ONE SELECT statement - do NOT add extra SELECT statements
 - Use ONLY the columns listed in the schema below for each table
 - DO NOT invent or hallucinate column names
 - When user says "next" jobs, sort by date (ORDER BY), don't filter to future dates unless explicitly requested
