@@ -646,10 +646,10 @@ export default function QueryPage() {
                   data-testid="input-question"
                 />
                 
-                {/* Display both Simulated Today (anchor) and Publish Date */}
+                {/* Display both Query Date (anchor) and Last Publish to Analytics (UTC) */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                   <div className="flex items-center gap-2" data-testid="today-anchor-display">
-                    <span className="font-medium">Simulated Today:</span>
+                    <span className="font-medium">Query Date:</span>
                     <span className="text-foreground/70">
                       {getEffectiveToday().toLocaleDateString('en-US', { 
                         year: 'numeric', 
@@ -660,12 +660,16 @@ export default function QueryPage() {
                   </div>
                   {publishDate && (
                     <div className="flex items-center gap-2" data-testid="publish-date-display">
-                      <span className="font-medium">Publish Date:</span>
+                      <span className="font-medium">Last Publish to Analytics (UTC):</span>
                       <span className="text-foreground/70">
-                        {publishDate.toLocaleDateString('en-US', { 
+                        {publishDate.toLocaleString('en-US', { 
                           year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
+                          month: 'numeric', 
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                          timeZone: 'UTC'
                         })}
                       </span>
                     </div>
