@@ -21,7 +21,15 @@
     {
       "name": "Jobs In Planning",
       "type": "measure",
-      "description": "Count of distinct jobs present in the planning table (Production scenario only)",
+      "description": "Count of distinct jobs present in the planning table (all scenarios)",
+      "computation": "DISTINCTCOUNT(Planning[JobId])",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId"]
+    },
+    {
+      "name": "Jobs In Planning (Production)",
+      "type": "measure",
+      "description": "Count of distinct jobs in production scenario planning only",
       "computation": "DISTINCTCOUNT(Planning[JobId]) WHERE ScenarioType='Production'",
       "tables": ["DASHt_Planning"],
       "columns": ["JobId", "ScenarioType"]

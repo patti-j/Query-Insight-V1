@@ -81,8 +81,12 @@ JOB COUNT QUERIES (SPECIAL RULES):
   * "How many jobs are there?" / "total jobs" / "all jobs" → Use Tier2 publish.Jobs table:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs]
       (Do NOT filter by ScenarioType - Jobs table has ALL jobs)
-  * "Jobs in planning" / "how many jobs currently in planning" → Use Tier1 DASHt_Planning:
+  * "Jobs in planning" / "how many jobs in planning" / "jobs in the plan" → Use Tier1 DASHt_Planning WITHOUT ScenarioType filter:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
+      (NO ScenarioType filter - includes all scenarios by default)
+  * "Jobs in production planning" / "production scenario" / "baseline production" → Use Tier1 DASHt_Planning WITH ScenarioType filter:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production'
+      (ONLY filter ScenarioType when user explicitly mentions "production")
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed
