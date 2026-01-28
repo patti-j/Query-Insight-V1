@@ -320,8 +320,9 @@ export default function QueryPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
-    console.log('[streaming] Starting streaming query with EventSource');
+  const executeStreamingQuery = async (queryToSend: string, anchorDateStr: string, retryCount = 0) => {
+    const MAX_RETRIES = 2;
+    console.log('[streaming] Starting streaming query with EventSource' + (retryCount > 0 ? ` (retry ${retryCount}/${MAX_RETRIES})` : ''));
     
     // Close any existing EventSource
     if (eventSourceRef.current) {
@@ -331,13 +332,23 @@ export default function QueryPage() {
     }
     
     setIsStreaming(true);
+    if (retryCount > 0) {
+      setStreamingStatus(`Reconnecting... (attempt ${retryCount + 1})`);
+    }
     
-    // 1) Create a message slot up-front
-    const assistantId = crypto.randomUUID();
-    setMessages(prev => [...prev, { id: assistantId, role: "assistant", text: "" }]);
+    // 1) Create a message slot up-front (only on first attempt)
+    let assistantId: string;
+    if (retryCount === 0) {
+      assistantId = crypto.randomUUID();
+      setMessages(prev => [...prev, { id: assistantId, role: "assistant", text: "" }]);
+    } else {
+      // On retry, reuse the last assistant message
+      assistantId = '';
+    }
     
-    // Track accumulated answer text
+    // Track accumulated answer text and whether we received any data
     let streamedAnswer = '';
+    let receivedData = false;
     
     let partialResult: Partial<QueryResult> = {
       answer: '',
@@ -355,6 +366,7 @@ export default function QueryPage() {
     eventSourceRef.current = es;
     
     es.addEventListener('status', (e) => {
+      receivedData = true;
       const data = JSON.parse((e as MessageEvent).data);
       setStreamingStatus(data.message || data.stage);
     });
@@ -458,7 +470,19 @@ export default function QueryPage() {
     });
     
     es.onerror = () => {
-      console.log('[streaming] EventSource error occurred');
+      console.log('[streaming] EventSource error occurred, receivedData:', receivedData, 'retryCount:', retryCount);
+      es.close();
+      eventSourceRef.current = null;
+      
+      // Auto-retry if we haven't received any data yet and haven't exhausted retries
+      if (!receivedData && retryCount < MAX_RETRIES) {
+        console.log('[streaming] Auto-retrying in 1 second...');
+        setTimeout(() => {
+          executeStreamingQuery(queryToSend, anchorDateStr, retryCount + 1);
+        }, 1000);
+        return;
+      }
+      
       // Preserve partial results
       if (streamedAnswer) {
         partialResult.answer = streamedAnswer;
@@ -468,8 +492,6 @@ export default function QueryPage() {
       setStreamingStatus('Error');
       setIsStreaming(false);
       setLoading(false);
-      es.close();
-      eventSourceRef.current = null;
     };
   };
 
