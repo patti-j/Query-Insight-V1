@@ -65,7 +65,7 @@ CRITICAL RULES:
 
 CRITICAL - DASHt_Planning TABLE STRUCTURE:
 ⚠️ DASHt_Planning has ONE ROW PER OPERATION, NOT per job!
-⚠️ Each job has 5-10 operation rows. Without GROUP BY, you'll get duplicate job rows!
+⚠️ Each job can have 1 or more operations (typically 1-10 rows per job). Without GROUP BY, you may get duplicate job rows!
 ⚠️ ALWAYS use GROUP BY JobName for ANY job-level query to avoid showing the same job multiple times.
 
 MANDATORY GROUPING EXAMPLES:
