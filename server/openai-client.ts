@@ -80,7 +80,14 @@ MANDATORY GROUPING EXAMPLES:
 JOB COUNT QUERIES (SPECIAL RULES):
   * "How many jobs are there?" / "total jobs" / "all jobs" → Use Tier2 publish.Jobs table:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs]
-      (Do NOT filter by ScenarioType - Jobs table has ALL jobs)
+      (Do NOT filter - Jobs table has ALL jobs including cancelled)
+  * "Jobs report" / "commitment overview" / "active jobs" / "non-cancelled jobs" → Use publish.Jobs with Cancelled=0:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs] WHERE Cancelled = 0
+      (This matches the Power BI Jobs Report donut - excludes cancelled jobs)
+  * "Released jobs on jobs report" / "released jobs" → Use publish.Jobs with BOTH filters:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs] WHERE Cancelled = 0 AND Commitment = 'Released'
+  * "Jobs by commitment" → Use publish.Jobs grouped by Commitment:
+      SELECT Commitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[Jobs] WHERE Cancelled = 0 GROUP BY Commitment
   * "Jobs in planning" / "how many jobs in planning" / "jobs in the plan" → Use Tier1 DASHt_Planning WITHOUT ScenarioType filter:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
       (NO ScenarioType filter - includes all scenarios by default)

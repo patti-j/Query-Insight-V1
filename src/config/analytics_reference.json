@@ -19,6 +19,22 @@
       "columns": ["JobId"]
     },
     {
+      "name": "Active Jobs (Jobs Report)",
+      "type": "measure",
+      "description": "Distinct jobs excluding cancelled jobs (matches Jobs Commitment Overview donut)",
+      "computation": "DISTINCTCOUNT(Jobs[JobId]) WHERE Cancelled = 0",
+      "tables": ["Jobs"],
+      "columns": ["JobId", "Cancelled"]
+    },
+    {
+      "name": "Active Jobs by Commitment",
+      "type": "measure",
+      "description": "Active jobs grouped by commitment status (Released, Firm, Planned)",
+      "computation": "DISTINCTCOUNT(Jobs[JobId]) WHERE Cancelled = 0 GROUP BY Commitment",
+      "tables": ["Jobs"],
+      "columns": ["JobId", "Cancelled", "Commitment"]
+    },
+    {
       "name": "Jobs In Planning",
       "type": "measure",
       "description": "Count of distinct jobs present in the planning table (all scenarios)",
@@ -514,6 +530,11 @@
       "triggers": ["how many jobs are there", "total jobs", "all jobs", "count of jobs", "number of jobs", "how many jobs do"],
       "requiredTables": ["publish.Jobs"],
       "description": "Total job count queries should use the Jobs master table (not DASHt_Planning)"
+    },
+    {
+      "triggers": ["jobs report", "commitment overview", "active jobs", "non-cancelled jobs", "jobs by commitment", "released jobs", "firm jobs", "planned jobs"],
+      "requiredTables": ["publish.Jobs"],
+      "description": "Jobs Report queries use the Jobs table with Cancelled=0 filter for active jobs"
     }
   ]
 }
