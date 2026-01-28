@@ -349,6 +349,7 @@ export default function QueryPage() {
     // Track accumulated answer text and whether we received any data
     let streamedAnswer = '';
     let receivedData = false;
+    let errorHandled = false; // Prevent onerror from overwriting server-sent errors
     
     let partialResult: Partial<QueryResult> = {
       answer: '',
@@ -449,14 +450,17 @@ export default function QueryPage() {
     es.addEventListener('error', (e) => {
       try {
         const data = JSON.parse((e as MessageEvent).data);
+        errorHandled = true; // Mark that we received a server error
+        console.log('[streaming] Server error event received:', data.error);
         if (data.schemaError) {
           setError(data.error || 'Schema validation failed.');
         } else {
           setError(data.error);
         }
       } catch {
-        // SSE connection error (not a JSON error event)
-        setError('Connection lost. Please try again.');
+        // SSE connection error (not a JSON error event) - let onerror handle it
+        console.log('[streaming] Error event parsing failed, delegating to onerror');
+        return;
       }
       // Preserve partial results on error
       if (streamedAnswer) {
@@ -470,9 +474,15 @@ export default function QueryPage() {
     });
     
     es.onerror = () => {
-      console.log('[streaming] EventSource error occurred, receivedData:', receivedData, 'retryCount:', retryCount);
+      console.log('[streaming] EventSource onerror, receivedData:', receivedData, 'retryCount:', retryCount, 'errorHandled:', errorHandled);
       es.close();
       eventSourceRef.current = null;
+      
+      // If error was already handled by the 'error' event listener, don't override
+      if (errorHandled) {
+        console.log('[streaming] Error already handled by server error event, skipping');
+        return;
+      }
       
       // Auto-retry if we haven't received any data yet and haven't exhausted retries
       if (!receivedData && retryCount < MAX_RETRIES) {
