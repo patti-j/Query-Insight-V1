@@ -84,18 +84,23 @@ NO GROUPING NEEDED (operation-level queries):
 DEFAULT RULE: When in doubt, ALWAYS add GROUP BY JobName to prevent duplicate job rows.
 
 COMMON COLUMN MAPPINGS (if present in schema):
-- Plant: Use BlockPlant (name) or PlantId (ID) - NOT PlantCode
-- Job: Use JobName (readable ID) or JobId - NOT JobNumber
+- Plant: PREFER BlockPlant (user-friendly name) over PlantId - PlantId is internal
+- Department: PREFER BlockDepartment (user-friendly name) over DepartmentId
+- Resource: PREFER BlockResource (user-friendly name) over ResourceId
+- Job: Use JobName (readable ID) - NOT JobId or JobNumber
 - Product: Use JobProduct, MOProduct, or JobProductDescription - NOT PartNumber
 - Dates: Use JobScheduledStartDateTime/JobScheduledEndDateTime - NOT SchedStartDate/SchedEndDate
 - Quantity: Use JobQty, MORequiredQty, OPRequiredFinishQty - NOT QtyScheduled/QtyRequired
 
-EXTERNAL ID RULE (IMPORTANT):
+USER-FRIENDLY OUTPUT RULE (IMPORTANT):
+- In DASHt_* tables, ALWAYS use the Name/Block columns for display, not internal IDs:
+  - BlockPlant instead of PlantId
+  - BlockDepartment instead of DepartmentId
+  - BlockResource instead of ResourceId
+  - JobName instead of JobId
+  - CustomerName instead of CustomerId
 - ExternalId columns exist ONLY in Tier2 tables (publish.Jobs, publish.Resources, etc.), NOT in Tier1 DASHt_* tables
-- For Tier1 tables (DASHt_Planning, DASHt_SalesOrders, etc.), use the Name columns as business-friendly identifiers:
-  - JobName, ResourceName, CustomerName, ItemName, etc. - these ARE the user-friendly identifiers
 - NEVER add ExternalId to queries against DASHt_* tables - it will cause a column validation error
-- Only include ExternalId when querying Tier2 tables directly
 
 BUSINESS CONTEXT:
 - JobOnHold: 'OnHold' | 'Released'
