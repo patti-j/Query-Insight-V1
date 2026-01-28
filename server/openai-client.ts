@@ -76,7 +76,13 @@ MANDATORY GROUPING EXAMPLES:
   * "Show jobs on hold" → SELECT JobName, JobHoldReason, ... WHERE JobOnHold = 'OnHold' GROUP BY JobName, JobHoldReason
   * "Show job dates" → SELECT JobName, MIN(date), MAX(date), ... GROUP BY JobName
   * "List jobs by product" → SELECT JobName, JobProduct, ... GROUP BY JobName, JobProduct
-  * "Count jobs" → SELECT COUNT(DISTINCT JobName)
+
+JOB COUNT QUERIES (SPECIAL RULES):
+  * "How many jobs are there?" / "total jobs" / "all jobs" → Use Tier2 publish.Jobs table:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs]
+      (Do NOT filter by ScenarioType - Jobs table has ALL jobs)
+  * "Jobs in planning" / "how many jobs currently in planning" → Use Tier1 DASHt_Planning:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production'
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed

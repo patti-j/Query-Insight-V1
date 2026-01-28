@@ -13,10 +13,18 @@
     {
       "name": "All Jobs",
       "type": "measure",
-      "description": "Count of distinct jobs",
-      "computation": "DISTINCTCOUNT(Planning[JobId])",
-      "tables": ["DASHt_Planning"],
+      "description": "Count of all distinct jobs in the system (from Jobs master table)",
+      "computation": "DISTINCTCOUNT(Jobs[JobId])",
+      "tables": ["Jobs"],
       "columns": ["JobId"]
+    },
+    {
+      "name": "Jobs In Planning",
+      "type": "measure",
+      "description": "Count of distinct jobs present in the planning table (Production scenario only)",
+      "computation": "DISTINCTCOUNT(Planning[JobId]) WHERE ScenarioType='Production'",
+      "tables": ["DASHt_Planning"],
+      "columns": ["JobId", "ScenarioType"]
     },
     {
       "name": "Average Overdue",
@@ -493,6 +501,11 @@
       "triggers": ["predecessor", "predecessors", "dependency", "dependencies", "blocked by previous", "previous op", "previous operation"],
       "requiredTables": ["publish.DASHt_PredecessorOPIds", "publish.DASHt_Planning"],
       "description": "Predecessor questions always require PredecessorOPIds + Planning tables"
+    },
+    {
+      "triggers": ["how many jobs are there", "total jobs", "all jobs", "count of jobs", "number of jobs", "how many jobs do"],
+      "requiredTables": ["publish.Jobs"],
+      "description": "Total job count queries should use the Jobs master table (not DASHt_Planning)"
     }
   ]
 }

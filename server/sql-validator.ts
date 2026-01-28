@@ -8,14 +8,63 @@ export interface ValidationOptions {
   allowedTables?: string[];
 }
 
-const ALLOWED_TABLE_PATTERN = /\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?/i;
+// Allow DASHt_* tables and specific Tier2 tables (Jobs, Resources, etc.)
+const ALLOWED_TABLE_PATTERN = /\[?publish\]?\.\[?(DASHt_[a-zA-Z0-9_]+|Jobs|Resources|Activities|Materials|Customers|Items)\]?/i;
 const MAX_ROWS = 100;
+
+/**
+ * Check if a query is aggregate-only (COUNT, SUM, MIN, MAX, AVG)
+ * These queries return a single row and don't need TOP limiting
+ */
+function isAggregateOnlyQuery(sql: string): boolean {
+  // Extract the SELECT list (between SELECT and FROM)
+  // Use [\s\S] instead of . with s flag for ES2017 compatibility
+  const selectMatch = sql.match(/SELECT\s+([\s\S]*?)\s+FROM\s+/i);
+  if (!selectMatch) return false;
+  
+  let selectList = selectMatch[1];
+  
+  // Remove TOP clause if present
+  selectList = selectList.replace(/TOP\s*\(\s*\d+\s*\)/i, '').trim();
+  // Remove DISTINCT if present
+  selectList = selectList.replace(/^DISTINCT\s+/i, '').trim();
+  
+  if (!selectList) return false;
+  
+  // Split by comma, handling nested parentheses
+  const columns: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const char of selectList) {
+    if (char === '(') depth++;
+    else if (char === ')') depth--;
+    else if (char === ',' && depth === 0) {
+      columns.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) columns.push(current.trim());
+  
+  // Check if ALL columns are aggregate functions
+  const aggregatePattern = /^(COUNT|SUM|MIN|MAX|AVG)\s*\(/i;
+  for (const col of columns) {
+    // Remove alias (AS ...)
+    const colWithoutAlias = col.replace(/\s+AS\s+\w+$/i, '').trim();
+    if (!aggregatePattern.test(colWithoutAlias)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
 
 /**
  * Extract table name from SQL query for error messages
  */
 function extractTableName(sql: string): string | null {
-  const match = sql.match(/FROM\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/i);
+  const match = sql.match(/FROM\s+(\[?publish\]?\.\[?(DASHt_[a-zA-Z0-9_]+|Jobs|Resources|Activities|Materials|Customers|Items)\]?)/i);
   return match ? match[1] : null;
 }
 
@@ -26,8 +75,8 @@ function extractTableName(sql: string): string | null {
 function extractAllTableReferences(sql: string): string[] {
   const tables: string[] = [];
   
-  // Pattern to match tables in FROM clauses
-  const fromPattern = /FROM\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
+  // Pattern to match tables in FROM clauses (DASHt_* and allowed Tier2 tables)
+  const fromPattern = /FROM\s+(\[?publish\]?\.\[?(DASHt_[a-zA-Z0-9_]+|Jobs|Resources|Activities|Materials|Customers|Items)\]?)/gi;
   let match;
   
   while ((match = fromPattern.exec(sql)) !== null) {
@@ -35,8 +84,8 @@ function extractAllTableReferences(sql: string): string[] {
   }
   
   // Pattern to match tables in JOIN clauses (INNER JOIN, LEFT JOIN, RIGHT JOIN, etc.)
-  // This matches: JOIN [publish].[DASHt_TableName] or JOIN publish.DASHt_TableName
-  const joinPattern = /(?:INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?publish\]?\.\[?DASHt_[a-zA-Z0-9_]+\]?)/gi;
+  // This matches: JOIN [publish].[DASHt_TableName] or JOIN publish.DASHt_TableName or Tier2 tables
+  const joinPattern = /(?:INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?publish\]?\.\[?(DASHt_[a-zA-Z0-9_]+|Jobs|Resources|Activities|Materials|Customers|Items)\]?)/gi;
   
   while ((match = joinPattern.exec(sql)) !== null) {
     tables.push(match[1]);
@@ -158,16 +207,24 @@ export function validateAndModifySql(sql: string, options: ValidationOptions = {
     );
   }
   
-  if (!hasCTE && !modifiedSql.match(/SELECT\s+(DISTINCT\s+)?TOP\s*\(\s*\d+\s*\)/i)) {
-    // Add TOP (100) after SELECT [DISTINCT] (only for non-CTE queries)
+  // Skip TOP for aggregate-only queries (COUNT, SUM, MIN, MAX, AVG)
+  // These return a single row and don't need limiting
+  const isAggregate = isAggregateOnlyQuery(modifiedSql);
+  
+  if (isAggregate) {
+    // Remove any existing TOP from aggregate queries
+    modifiedSql = modifiedSql.replace(/SELECT\s+TOP\s*\(\s*\d+\s*\)\s+/i, 'SELECT ');
+    modifiedSql = modifiedSql.replace(/SELECT\s+DISTINCT\s+TOP\s*\(\s*\d+\s*\)\s+/i, 'SELECT DISTINCT ');
+  } else if (!hasCTE && !modifiedSql.match(/SELECT\s+(DISTINCT\s+)?TOP\s*\(\s*\d+\s*\)/i)) {
+    // Add TOP (100) after SELECT [DISTINCT] (only for non-CTE, non-aggregate queries)
     // Handle DISTINCT: SELECT DISTINCT -> SELECT DISTINCT TOP (100)
     if (modifiedSql.match(/SELECT\s+DISTINCT\s+/i)) {
       modifiedSql = modifiedSql.replace(/SELECT\s+DISTINCT\s+/i, `SELECT DISTINCT TOP (${MAX_ROWS}) `);
     } else {
       modifiedSql = modifiedSql.replace(/SELECT\s+/i, `SELECT TOP (${MAX_ROWS}) `);
     }
-  } else if (!hasCTE) {
-    // Verify TOP value doesn't exceed limit (non-CTE queries)
+  } else if (!hasCTE && !isAggregate) {
+    // Verify TOP value doesn't exceed limit (non-CTE, non-aggregate queries)
     const topMatch = modifiedSql.match(/TOP\s*\(\s*(\d+)\s*\)/i);
     if (topMatch) {
       const topValue = parseInt(topMatch[1], 10);
