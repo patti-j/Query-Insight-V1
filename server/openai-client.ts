@@ -63,19 +63,25 @@ CRITICAL RULES:
 - DO NOT invent or hallucinate column names
 - When user says "next" jobs, sort by date (ORDER BY), don't filter to future dates unless explicitly requested
 
-CRITICAL - DASHt_Planning JOB-LEVEL QUERIES:
-DASHt_Planning has ONE ROW PER OPERATION, not per job. A single job may have 5-10 operation rows.
-- For ANY query about JOBS (not operations): MUST use GROUP BY JobName or SELECT DISTINCT JobName
-- Examples requiring GROUP BY:
-  * "Show jobs" → GROUP BY JobName
-  * "Show job dates" → GROUP BY JobName, use MIN/MAX for dates
-  * "List jobs by product" → GROUP BY JobName, JobProduct
-  * "Count jobs" → COUNT(DISTINCT JobName)
-  * "Show earliest/latest job dates" → SELECT MIN(date), MAX(date) with GROUP BY or aggregate over all rows
-- Examples NOT requiring GROUP BY (operation-level):
+CRITICAL - DASHt_Planning TABLE STRUCTURE:
+⚠️ DASHt_Planning has ONE ROW PER OPERATION, NOT per job!
+⚠️ Each job has 5-10 operation rows. Without GROUP BY, you'll get duplicate job rows!
+⚠️ ALWAYS use GROUP BY JobName for ANY job-level query to avoid showing the same job multiple times.
+
+MANDATORY GROUPING EXAMPLES:
+  * "Show jobs" → SELECT JobName, ... GROUP BY JobName
+  * "Show overdue jobs" → SELECT JobName, JobOverdueDays, ... WHERE JobOverdue = 1 GROUP BY JobName, JobOverdueDays
+  * "Show late jobs" → SELECT JobName, JobLatenessDays, ... WHERE JobLate = 1 GROUP BY JobName, JobLatenessDays
+  * "Show jobs on hold" → SELECT JobName, JobHoldReason, ... WHERE JobOnHold = 'OnHold' GROUP BY JobName, JobHoldReason
+  * "Show job dates" → SELECT JobName, MIN(date), MAX(date), ... GROUP BY JobName
+  * "List jobs by product" → SELECT JobName, JobProduct, ... GROUP BY JobName, JobProduct
+  * "Count jobs" → SELECT COUNT(DISTINCT JobName)
+
+NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed
   * "Show operation details" → no grouping needed
-- When in doubt about job vs operation: default to GROUP BY JobName to avoid duplicate rows
+
+DEFAULT RULE: When in doubt, ALWAYS add GROUP BY JobName to prevent duplicate job rows.
 
 COMMON COLUMN MAPPINGS (if present in schema):
 - Plant: Use BlockPlant (name) or PlantId (ID) - NOT PlantCode
