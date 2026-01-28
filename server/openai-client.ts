@@ -220,6 +220,12 @@ PRODUCTION PLANNING TABLES:
 - SENTINEL DATE RULES: Dates 9000-01-01 and 1800-01-01 indicate unscheduled jobs
   * For UNSCHEDULED job queries: Do NOT filter on JobScheduledStartDateTime or JobScheduledEndDateTime (the status flag is sufficient)
   * For SCHEDULED job queries with date filtering: Add JobScheduledStartDateTime NOT IN ('9000-01-01', '1800-01-01') to exclude invalid dates
+- DATE COLUMN SELECTION (CRITICAL):
+  * JobEntryDate: When the job was created/entered - USE THIS for date filtering when querying ALL jobs (scheduled + unscheduled)
+  * JobScheduledStartDateTime/JobScheduledEndDateTime: Only valid for SCHEDULED jobs - unscheduled jobs have sentinel dates (9000-01-01 or 1800-01-01)
+  * JobNeedDateTime: When the job is needed/due - may also have sentinel dates for unscheduled jobs
+  * When user asks for "jobs in the last month" or "jobs this week" WITHOUT mentioning "scheduled": Use JobEntryDate to include ALL jobs
+  * When user asks for "scheduled jobs in the last month": Use JobScheduledEndDateTime AND filter JobScheduledStatus = 'Scheduled'
 - JobOnHold values: 'OnHold', 'Released' - IMPORTANT: "on hold" is NOT the same as "unscheduled"
 - When user asks for "jobs on hold" or "held jobs": use WHERE JobOnHold = 'OnHold'
 - To include hold reasons: SELECT JobHoldReason column (may be NULL if no reason specified)
