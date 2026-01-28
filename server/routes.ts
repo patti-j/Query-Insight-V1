@@ -486,9 +486,8 @@ export async function registerRoutes(
         return;
       }
 
-      // Send status update and initial chunk to keep UI alive
+      // Send status update to keep connection alive (no chunk text - only stream results)
       sendEvent('status', { stage: 'generating_sql', message: 'Generating SQL query...' });
-      sendEvent('chunk', { text: 'Generating SQL...' });
 
       // Generate SQL from natural language
       llmStartTime = Date.now();
