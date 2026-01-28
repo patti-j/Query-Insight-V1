@@ -527,7 +527,7 @@ export async function registerRoutes(
       // Validate column references against schema
       const columnValidation = await validateSqlColumns(finalSql, selectedTables);
       if (!columnValidation.valid) {
-        log(`Column validation failed (streaming): ${columnValidation.errors.length} errors`, 'ask-stream');
+        log(`Column validation failed (streaming): ${columnValidation.errors.length} errors - ${JSON.stringify(columnValidation.errors)}`, 'ask-stream');
         logValidationFailure(logContext, finalSql, `Column validation failed`, llmMs);
         
         const firstError = columnValidation.errors[0];
