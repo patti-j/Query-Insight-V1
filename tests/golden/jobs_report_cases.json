@@ -1,0 +1,44 @@
+[
+  {
+    "id": "jobs_report_total",
+    "question": "How many jobs are there on the jobs report?",
+    "expected": 34,
+    "sqlMustContain": ["publish", "Jobs", "Cancelled = 0"],
+    "description": "Total active jobs matching Power BI Jobs Report donut"
+  },
+  {
+    "id": "released_jobs",
+    "question": "How many released jobs are there on the jobs report?",
+    "expected": 17,
+    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Released'"],
+    "description": "Released jobs with both Cancelled and Commitment filters"
+  },
+  {
+    "id": "planned_jobs",
+    "question": "How many planned jobs are there on the jobs report?",
+    "expected": 12,
+    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Planned'"],
+    "description": "Planned commitment jobs"
+  },
+  {
+    "id": "firm_jobs",
+    "question": "How many firm jobs are there?",
+    "expected": 6,
+    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Firm'"],
+    "description": "Firm commitment jobs"
+  },
+  {
+    "id": "jobs_by_commitment",
+    "question": "Show jobs by commitment",
+    "sqlMustContain": ["Cancelled = 0", "GROUP BY Commitment"],
+    "description": "Breakdown by commitment status"
+  },
+  {
+    "id": "all_jobs_total",
+    "question": "How many jobs are there?",
+    "expected": 34,
+    "sqlMustContain": ["publish", "Jobs"],
+    "sqlMustNotContain": ["Cancelled"],
+    "description": "All jobs without Cancelled filter"
+  }
+]

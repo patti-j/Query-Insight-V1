@@ -88,6 +88,9 @@ JOB COUNT QUERIES (SPECIAL RULES):
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs] WHERE Cancelled = 0 AND Commitment = 'Released'
   * "Jobs by commitment" → Use publish.Jobs grouped by Commitment:
       SELECT Commitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[Jobs] WHERE Cancelled = 0 GROUP BY Commitment
+  * "Planned jobs" / "estimate jobs" / "firm jobs" → Use publish.Jobs with Commitment filter:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs] WHERE Cancelled = 0 AND Commitment = 'Planned'
+      (Replace 'Planned' with 'Estimate' or 'Firm' based on question)
   * "Jobs in planning" / "how many jobs in planning" / "jobs in the plan" → Use Tier1 DASHt_Planning WITHOUT ScenarioType filter:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
       (NO ScenarioType filter - includes all scenarios by default)
