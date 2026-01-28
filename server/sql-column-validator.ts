@@ -203,7 +203,13 @@ function isKeyword(word: string): boolean {
     'GROUP', 'BY', 'ORDER', 'ASC', 'DESC', 'AND', 'OR', 'NOT', 'IN', 'IS',
     'NULL', 'LIKE', 'BETWEEN', 'EXISTS', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
     'CAST', 'CONVERT', 'SUM', 'COUNT', 'AVG', 'MAX', 'MIN', 'DISTINCT', 'TOP',
-    'OVER', 'PARTITION', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'WITH', 'CTE'
+    'OVER', 'PARTITION', 'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'WITH', 'CTE',
+    // SQL date/time functions
+    'DATEPART', 'DATEDIFF', 'DATEADD', 'GETDATE', 'GETUTCDATE', 'SYSDATETIME',
+    'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND', 'FORMAT',
+    // Other common SQL functions
+    'COALESCE', 'ISNULL', 'NULLIF', 'IIF', 'LEN', 'CHARINDEX', 'SUBSTRING',
+    'UPPER', 'LOWER', 'TRIM', 'LTRIM', 'RTRIM', 'REPLACE', 'CONCAT', 'ABS', 'ROUND'
   ]);
   return keywords.has(word.toUpperCase());
 }
