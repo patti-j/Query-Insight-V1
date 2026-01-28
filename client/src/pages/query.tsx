@@ -841,27 +841,27 @@ export default function QueryPage() {
         {result && (
           <div ref={resultsRef} className="space-y-4">
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="text-green-500">✓</span>
-                  Results
-                </CardTitle>
+              <CardHeader className="pb-2">
                 {submittedQuestion && (
-                  <div className="mt-2 space-y-2">
+                  <div className="space-y-2">
                     <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-between" data-testid="text-submitted-question">
                       <p className="text-base font-medium text-foreground">
                         "{submittedQuestion}"
                       </p>
-                      {!isFavorite(submittedQuestion) && (
-                        <button
-                          onClick={() => toggleFavorite(submittedQuestion)}
-                          className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
-                          title="Add to favorites"
-                          data-testid="button-toggle-favorite"
-                        >
-                          <Heart className="h-5 w-5 text-muted-foreground hover:text-red-500 transition-colors" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => toggleFavorite(submittedQuestion)}
+                        className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                        title={isFavorite(submittedQuestion) ? "Remove from favorites" : "Add to favorites"}
+                        data-testid="button-toggle-favorite"
+                      >
+                        <Heart 
+                          className={`h-5 w-5 transition-colors ${
+                            isFavorite(submittedQuestion) 
+                              ? 'fill-red-500 text-red-500' 
+                              : 'text-muted-foreground hover:text-red-500'
+                          }`} 
+                        />
+                      </button>
                     </div>
                     {queryWasTransformed && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
