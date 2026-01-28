@@ -123,11 +123,14 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
   const whereMatch = cleanSql.match(whereRegex);
   if (whereMatch) {
     const whereClause = whereMatch[1];
-    const columnRegex = /[\w]+\.?(\w+)\s*[=<>!]/g;
+    // Match optional table prefix (table.) followed by column name, then comparison operator
+    // Use optional non-capturing group for table prefix to correctly capture column name
+    const columnRegex = /(?:(\w+)\.)?(\w+)\s*[=<>!]/g;
     let match;
     while ((match = columnRegex.exec(whereClause)) !== null) {
-      if (match[1] && !isKeyword(match[1])) {
-        references.push({ column: match[1], context: 'WHERE' });
+      const columnName = match[2]; // Column name is now in group 2
+      if (columnName && !isKeyword(columnName)) {
+        references.push({ column: columnName, context: 'WHERE' });
       }
     }
   }
