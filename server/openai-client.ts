@@ -62,7 +62,20 @@ CRITICAL RULES:
 - Use ONLY the columns listed in the schema below for each table
 - DO NOT invent or hallucinate column names
 - When user says "next" jobs, sort by date (ORDER BY), don't filter to future dates unless explicitly requested
-- CRITICAL: DASHt_Planning has one row per OPERATION, not per job. ALWAYS use GROUP BY JobName (or JobId) when asking about jobs/products being produced to avoid showing duplicate rows. Use DISTINCT only for simple lists of unique values.
+
+CRITICAL - DASHt_Planning JOB-LEVEL QUERIES:
+DASHt_Planning has ONE ROW PER OPERATION, not per job. A single job may have 5-10 operation rows.
+- For ANY query about JOBS (not operations): MUST use GROUP BY JobName or SELECT DISTINCT JobName
+- Examples requiring GROUP BY:
+  * "Show jobs" → GROUP BY JobName
+  * "Show job dates" → GROUP BY JobName, use MIN/MAX for dates
+  * "List jobs by product" → GROUP BY JobName, JobProduct
+  * "Count jobs" → COUNT(DISTINCT JobName)
+  * "Show earliest/latest job dates" → SELECT MIN(date), MAX(date) with GROUP BY or aggregate over all rows
+- Examples NOT requiring GROUP BY (operation-level):
+  * "Show operations" → no grouping needed
+  * "Show operation details" → no grouping needed
+- When in doubt about job vs operation: default to GROUP BY JobName to avoid duplicate rows
 
 COMMON COLUMN MAPPINGS (if present in schema):
 - Plant: Use BlockPlant (name) or PlantId (ID) - NOT PlantCode
