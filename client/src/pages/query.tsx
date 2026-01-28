@@ -81,6 +81,7 @@ const MOCK_DATA = [
 export default function QueryPage() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
+  const [refineQuestion, setRefineQuestion] = useState(''); // Editable query in results section
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export default function QueryPage() {
     setFeedbackGiven(null);
     setShowData(false);
     setSubmittedQuestion(q.trim());
+    setRefineQuestion(''); // Reset refine input when new query is submitted
     setStreamingAnswer('');
     setStreamingStatus(null);
     userScrolledRef.current = false; // Reset auto-scroll state on new query
@@ -841,28 +843,62 @@ export default function QueryPage() {
         {result && (
           <div ref={resultsRef} className="space-y-4">
             <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
-              <CardHeader className="pb-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-green-500">✓</span>
+                  Results
+                </CardTitle>
                 {submittedQuestion && (
-                  <div className="space-y-2">
-                    <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-between" data-testid="text-submitted-question">
-                      <p className="text-base font-medium text-foreground">
-                        "{submittedQuestion}"
-                      </p>
-                      <button
-                        onClick={() => toggleFavorite(submittedQuestion)}
-                        className="ml-3 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
-                        title={isFavorite(submittedQuestion) ? "Remove from favorites" : "Add to favorites"}
-                        data-testid="button-toggle-favorite"
-                      >
-                        <Heart 
-                          className={`h-5 w-5 transition-colors ${
-                            isFavorite(submittedQuestion) 
-                              ? 'fill-red-500 text-red-500' 
-                              : 'text-muted-foreground hover:text-red-500'
-                          }`} 
+                  <div className="mt-3 space-y-2">
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const queryToRun = refineQuestion.trim() || submittedQuestion;
+                        if (queryToRun && !loading) {
+                          setQuestion(queryToRun);
+                          executeQuery(queryToRun);
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={refineQuestion || submittedQuestion}
+                          onChange={(e) => setRefineQuestion(e.target.value)}
+                          onFocus={() => {
+                            if (!refineQuestion) setRefineQuestion(submittedQuestion);
+                          }}
+                          className="w-full p-3 pr-10 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          placeholder="Refine your question..."
+                          data-testid="input-refine-question"
                         />
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleFavorite(refineQuestion || submittedQuestion)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                          title={isFavorite(refineQuestion || submittedQuestion) ? "Remove from favorites" : "Add to favorites"}
+                          data-testid="button-toggle-favorite"
+                        >
+                          <Heart 
+                            className={`h-5 w-5 transition-colors ${
+                              isFavorite(refineQuestion || submittedQuestion) 
+                                ? 'fill-red-500 text-red-500' 
+                                : 'text-muted-foreground hover:text-red-500'
+                            }`} 
+                          />
+                        </button>
+                      </div>
+                      <Button 
+                        type="submit" 
+                        disabled={loading}
+                        size="sm"
+                        className="shrink-0"
+                        data-testid="button-refine-submit"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      </Button>
+                    </form>
                     {queryWasTransformed && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-3" data-testid="text-query-transformed">
                         <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
