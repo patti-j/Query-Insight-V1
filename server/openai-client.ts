@@ -87,9 +87,15 @@ JOB COUNT QUERIES (SPECIAL RULES):
   * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Use DASHt_Planning with JobCommitment filter only (NO ScenarioType):
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released'
       (Replace 'Released' with 'Firm', 'Planned', or 'Estimate' based on question - NO ScenarioType filter)
-  * "Jobs by commitment" → Use DASHt_Planning grouped by JobCommitment WITHOUT ScenarioType filter:
-      SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] GROUP BY JobCommitment
-      (The breakdown may exceed 33 if jobs have different commitments across scenarios)
+  * "Jobs by commitment" → Use a subquery to pick ONE commitment per job (prioritize Production scenario):
+      SELECT JobCommitment, COUNT(*) AS Jobs FROM (
+        SELECT JobId, MAX(CASE WHEN ScenarioType = 'Production' THEN JobCommitment END) AS ProdCommitment, 
+               MAX(JobCommitment) AS AnyCommitment
+        FROM [publish].[DASHt_Planning] GROUP BY JobId
+      ) sub 
+      CROSS APPLY (SELECT COALESCE(ProdCommitment, AnyCommitment) AS JobCommitment) x
+      GROUP BY JobCommitment
+      (This ensures the breakdown sums to exactly 33 distinct jobs)
   * "Jobs in planning" / "how many jobs in planning" / "jobs in the plan" → Use Tier1 DASHt_Planning WITHOUT ScenarioType filter:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
       (NO ScenarioType filter - includes all scenarios by default)
