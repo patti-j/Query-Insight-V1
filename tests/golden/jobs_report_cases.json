@@ -40,5 +40,32 @@
     "sqlMustContain": ["publish", "Jobs"],
     "sqlMustNotContain": ["Cancelled"],
     "description": "All jobs without Cancelled filter"
+  },
+  {
+    "id": "jobs_in_planning",
+    "question": "How many jobs are in planning?",
+    "expected": 33,
+    "sqlMustContain": ["DASHt_Planning"],
+    "sqlMustNotContain": ["ScenarioType"],
+    "description": "Jobs in planning table (all scenarios)"
+  },
+  {
+    "id": "jobs_in_production_planning",
+    "question": "How many jobs are in production planning?",
+    "expected": 16,
+    "sqlMustContain": ["DASHt_Planning", "ScenarioType = 'Production'"],
+    "description": "Jobs in production scenario only"
+  },
+  {
+    "id": "scheduled_jobs_planning",
+    "question": "How many scheduled jobs are in planning?",
+    "sqlMustContain": ["DASHt_Planning", "JobScheduledStatus"],
+    "description": "Scheduled jobs from planning table"
+  },
+  {
+    "id": "late_jobs_planning",
+    "question": "Show late jobs in planning",
+    "sqlMustContain": ["DASHt_Planning"],
+    "description": "Late jobs query from planning table"
   }
 ]
