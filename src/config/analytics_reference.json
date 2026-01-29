@@ -532,9 +532,9 @@
       "description": "Total job count queries should use the Jobs master table (not DASHt_Planning)"
     },
     {
-      "triggers": ["jobs report", "commitment overview", "active jobs", "non-cancelled jobs", "jobs by commitment", "released jobs", "firm jobs", "planned jobs"],
-      "requiredTables": ["publish.Jobs"],
-      "description": "Jobs Report queries use the Jobs table with Cancelled=0 filter for active jobs"
+      "triggers": ["jobs report", "commitment overview", "active jobs", "jobs by commitment", "released jobs", "firm jobs", "planned jobs", "estimate jobs"],
+      "requiredTables": ["publish.DASHt_Planning"],
+      "description": "Jobs Report queries use DASHt_Planning table with JobCommitment column (33 total jobs)"
     }
   ]
 }

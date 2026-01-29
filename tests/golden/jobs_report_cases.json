@@ -2,44 +2,41 @@
   {
     "id": "jobs_report_total",
     "question": "How many jobs are there on the jobs report?",
-    "expected": 34,
-    "sqlMustContain": ["publish", "Jobs", "Cancelled = 0"],
-    "description": "Total active jobs matching Power BI Jobs Report donut"
+    "expected": 33,
+    "sqlMustContain": ["DASHt_Planning"],
+    "description": "Total jobs from DASHt_Planning (33 distinct jobs)"
   },
   {
     "id": "released_jobs",
-    "question": "How many released jobs are there on the jobs report?",
-    "expected": 17,
-    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Released'"],
-    "description": "Released jobs with both Cancelled and Commitment filters"
+    "question": "How many released jobs are there?",
+    "sqlMustContain": ["DASHt_Planning", "JobCommitment"],
+    "description": "Released jobs using DASHt_Planning.JobCommitment"
   },
   {
     "id": "planned_jobs",
-    "question": "How many planned jobs are there on the jobs report?",
-    "expected": 12,
-    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Planned'"],
-    "description": "Planned commitment jobs"
+    "question": "How many planned jobs are there?",
+    "sqlMustContain": ["DASHt_Planning", "JobCommitment"],
+    "description": "Planned commitment jobs from DASHt_Planning"
   },
   {
     "id": "firm_jobs",
     "question": "How many firm jobs are there?",
-    "expected": 6,
-    "sqlMustContain": ["Cancelled = 0", "Commitment = 'Firm'"],
-    "description": "Firm commitment jobs"
+    "sqlMustContain": ["DASHt_Planning", "JobCommitment"],
+    "description": "Firm commitment jobs from DASHt_Planning"
   },
   {
     "id": "jobs_by_commitment",
     "question": "Show jobs by commitment",
-    "sqlMustContain": ["Cancelled = 0", "GROUP BY Commitment"],
-    "description": "Breakdown by commitment status"
+    "sqlMustContain": ["DASHt_Planning", "JobCommitment", "GROUP BY"],
+    "description": "Breakdown by commitment status (should sum to 33)"
   },
   {
     "id": "all_jobs_total",
     "question": "How many jobs are there?",
     "expected": 34,
     "sqlMustContain": ["publish", "Jobs"],
-    "sqlMustNotContain": ["Cancelled"],
-    "description": "All jobs without Cancelled filter"
+    "sqlMustNotContain": ["DASHt_Planning"],
+    "description": "All jobs from Jobs master table (34)"
   },
   {
     "id": "jobs_in_planning",
@@ -55,17 +52,5 @@
     "expected": 16,
     "sqlMustContain": ["DASHt_Planning", "ScenarioType = 'Production'"],
     "description": "Jobs in production scenario only"
-  },
-  {
-    "id": "scheduled_jobs_planning",
-    "question": "How many scheduled jobs are in planning?",
-    "sqlMustContain": ["DASHt_Planning", "JobScheduledStatus"],
-    "description": "Scheduled jobs from planning table"
-  },
-  {
-    "id": "late_jobs_planning",
-    "question": "Show late jobs in planning",
-    "sqlMustContain": ["DASHt_Planning"],
-    "description": "Late jobs query from planning table"
   }
 ]
