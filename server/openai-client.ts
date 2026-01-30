@@ -80,28 +80,14 @@ MANDATORY GROUPING EXAMPLES:
 JOB COUNT QUERIES (SPECIAL RULES):
   * "How many jobs are there?" / "total jobs" / "all jobs" → Use Tier2 publish.Jobs table:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs]
-      (Do NOT filter - Jobs table has ALL jobs including cancelled)
-  * "Jobs report" / "commitment overview" / "active jobs" / "jobs by commitment" → Use DASHt_Planning WITHOUT ScenarioType filter:
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
-      (This gives 33 total jobs matching Power BI Jobs Report - do NOT add ScenarioType filter)
-  * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Use DASHt_Planning with JobCommitment filter only (NO ScenarioType):
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released'
-      (Replace 'Released' with 'Firm', 'Planned', or 'Estimate' based on question - NO ScenarioType filter)
-  * "Jobs by commitment" → Use a subquery to pick ONE commitment per job (prioritize Production scenario):
-      SELECT JobCommitment, COUNT(*) AS Jobs FROM (
-        SELECT JobId, MAX(CASE WHEN ScenarioType = 'Production' THEN JobCommitment END) AS ProdCommitment, 
-               MAX(JobCommitment) AS AnyCommitment
-        FROM [publish].[DASHt_Planning] GROUP BY JobId
-      ) sub 
-      CROSS APPLY (SELECT COALESCE(ProdCommitment, AnyCommitment) AS JobCommitment) x
-      GROUP BY JobCommitment
-      (This ensures the breakdown sums to exactly 33 distinct jobs)
-  * "Jobs in planning" / "how many jobs in planning" / "jobs in the plan" → Use Tier1 DASHt_Planning WITHOUT ScenarioType filter:
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning]
-      (NO ScenarioType filter - includes all scenarios by default)
-  * "Jobs in production planning" / "production scenario" / "baseline production" → Use Tier1 DASHt_Planning WITH ScenarioType filter:
+      (Jobs table has ALL jobs including cancelled - no ScenarioType column exists)
+  * "Jobs report" / "commitment overview" / "active jobs" / "jobs in planning" → Use DASHt_Planning WITH ScenarioType = 'Production':
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production'
-      (ONLY filter ScenarioType when user explicitly mentions "production")
+  * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Use DASHt_Planning with BOTH JobCommitment AND ScenarioType filters:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released' AND ScenarioType = 'Production'
+      (Replace 'Released' with 'Firm', 'Planned', or 'Estimate' based on question)
+  * "Jobs by commitment" → Group by commitment WITH ScenarioType = 'Production':
+      SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production' GROUP BY JobCommitment
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed
