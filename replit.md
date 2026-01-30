@@ -16,6 +16,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 
 ## Recent Changes (January 2026)
 
+- **Global Scenario and Plant Filters:** Added dropdown filters for Scenario (defaults to "Production") and Plant (defaults to "All Plants") in the query UI. These filters are passed to the SQL generation and applied to all queries. The `/api/filter-options` endpoint fetches available values from the database.
 - **Job Count Semantics (Power BI Aligned):** "How many jobs are there?" now uses Tier2 `publish.Jobs` table (returns 34). "Jobs in planning" uses `publish.DASHt_Planning` WITHOUT ScenarioType filter (returns 33). "Jobs in production planning" uses DASHt_Planning WITH ScenarioType='Production' (returns 16). Aggregate-only queries (COUNT, SUM, etc.) no longer have TOP clause injected.
 - **Tier2 Table Support:** SQL validator now allows specific Tier2 tables (Jobs, Resources, Activities, Materials, Customers, Items) in addition to DASHt_* tables.
 - **SSE Streaming with Environment Detection:** The app has full SSE streaming support (`/api/ask/stream`) with typing effects and stop button. Streaming auto-disables in Replit's webview (proxy doesn't support SSE properly) and uses non-streaming mode (`/api/ask`) instead. When deployed to Azure, streaming is enabled automatically.
