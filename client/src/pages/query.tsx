@@ -93,6 +93,12 @@ const MOCK_DATA = [
   { job_id: 'J005', job_name: 'Packaging', status: 'On Hold', due_date: '2023-11-30', quantity: 200, plant: 'Plant B' },
 ];
 
+// Filter options type
+interface FilterOptions {
+  scenarios: string[];
+  plants: string[];
+}
+
 export default function QueryPage() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
@@ -105,6 +111,11 @@ export default function QueryPage() {
   const [showSql, setShowSql] = useState(false);
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  
+  // Global filter state
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ scenarios: ['All Scenarios'], plants: ['All Plants'] });
+  const [selectedScenario, setSelectedScenario] = useState('Production'); // Default to Production
+  const [selectedPlant, setSelectedPlant] = useState('All Plants');
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [dateTimeColumns, setDateTimeColumns] = useState<Set<string>>(new Set());
@@ -161,6 +172,20 @@ export default function QueryPage() {
   
   // Favorite queries
   const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
+  
+  // Fetch filter options on mount
+  useEffect(() => {
+    fetch('/api/filter-options')
+      .then(res => res.json())
+      .then((data: FilterOptions) => {
+        setFilterOptions(data);
+        // Keep Production as default if available
+        if (data.scenarios.includes('Production')) {
+          setSelectedScenario('Production');
+        }
+      })
+      .catch(err => console.error('[filter-options] Failed to fetch:', err));
+  }, []);
 
   const handleThumbsDown = () => {
     setShowFeedbackComment(true);
@@ -733,6 +758,40 @@ export default function QueryPage() {
                       </span>
                     </div>
                   )}
+                </div>
+                
+                {/* Global Filters */}
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="scenario-filter" className="text-sm font-medium whitespace-nowrap">Scenario:</Label>
+                    <Select value={selectedScenario} onValueChange={setSelectedScenario}>
+                      <SelectTrigger id="scenario-filter" className="w-[140px] h-8 text-sm" data-testid="select-scenario">
+                        <SelectValue placeholder="Select scenario" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filterOptions.scenarios.map((scenario) => (
+                          <SelectItem key={scenario} value={scenario} data-testid={`option-scenario-${scenario}`}>
+                            {scenario}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="plant-filter" className="text-sm font-medium whitespace-nowrap">Plant:</Label>
+                    <Select value={selectedPlant} onValueChange={setSelectedPlant}>
+                      <SelectTrigger id="plant-filter" className="w-[120px] h-8 text-sm" data-testid="select-plant">
+                        <SelectValue placeholder="Select plant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filterOptions.plants.map((plant) => (
+                          <SelectItem key={plant} value={plant} data-testid={`option-plant-${plant}`}>
+                            {plant}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               
