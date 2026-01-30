@@ -38,6 +38,15 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // Get runtime config (simulated date for testing)
+  app.get("/api/config", (_req, res) => {
+    const simulatedToday = process.env.SIMULATED_TODAY || process.env.VITE_DEV_FIXED_TODAY || null;
+    res.json({ 
+      simulatedToday,
+      serverTime: new Date().toISOString()
+    });
+  });
+
   // Validator self-check endpoint (development only)
   app.get("/api/validator-check", (_req, res) => {
     const { passed, results } = runValidatorSelfCheck();

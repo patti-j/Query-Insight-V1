@@ -15,8 +15,9 @@ import { exportToCSV, exportToExcel } from '@/lib/export-utils';
 import { detectDateTimeColumns, formatCellValue } from '@/lib/date-formatter';
 import type { QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
-import { transformRelativeDates, hasRelativeDateLanguage, getEffectiveToday } from '@/lib/date-anchor';
+import { transformRelativeDates, hasRelativeDateLanguage } from '@/lib/date-anchor';
 import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
+import { useSimulatedToday, getSimulatedTodaySync, fetchSimulatedToday } from '@/hooks/useSimulatedToday';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -122,17 +123,27 @@ export default function QueryPage() {
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
   
+  // Fetch simulated today from server (runtime config)
+  const { data: simulatedToday } = useSimulatedToday();
+  
+  // Initialize simulated date cache on mount
+  useEffect(() => {
+    fetchSimulatedToday().then(date => {
+      console.log('[date-check] Simulated Today (from server):', date.toISOString().split('T')[0]);
+    });
+  }, []);
+  
   // Dev mode sanity check for date display
   useEffect(() => {
     if (!import.meta.env.PROD) {
-      const queryDate = getEffectiveToday();
-      console.log('[date-check] Simulated Today (effective today):', queryDate.toISOString().split('T')[0]);
+      const queryDate = simulatedToday || getSimulatedTodaySync();
+      console.log('[date-check] Simulated Today:', queryDate.toISOString().split('T')[0]);
       console.log('[date-check] VITE_DEV_FIXED_TODAY:', import.meta.env.VITE_DEV_FIXED_TODAY || '(not set)');
       if (publishDate) {
         console.log('[date-check] Data Last Updated (publishDate):', publishDate.toISOString().split('T')[0]);
       }
     }
-  }, [publishDate]);
+  }, [publishDate, simulatedToday]);
   
   // Favorite queries
   const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
@@ -198,8 +209,8 @@ export default function QueryPage() {
     setStreamingStatus(null);
     userScrolledRef.current = false; // Reset auto-scroll state on new query
 
-    // Get the anchor date (effective "today" for queries) from environment secret
-    const anchorDate = getEffectiveToday();
+    // Get the anchor date (effective "today" for queries) from server config or fallback
+    const anchorDate = simulatedToday || getSimulatedTodaySync();
     const anchorDateStr = anchorDate.toISOString().split('T')[0]; // YYYY-MM-DD format
 
     // Transform relative dates to concrete dates using anchor date
@@ -685,7 +696,7 @@ export default function QueryPage() {
                   <div className="flex items-center gap-2" data-testid="today-anchor-display">
                     <span className="font-medium">Simulated Today:</span>
                     <span className="text-foreground/70">
-                      {getEffectiveToday().toLocaleDateString('en-US', { 
+                      {(simulatedToday || getSimulatedTodaySync()).toLocaleDateString('en-US', { 
                         year: 'numeric', 
                         month: 'short', 
                         day: 'numeric' 
@@ -905,7 +916,7 @@ export default function QueryPage() {
                           Anchored
                         </Badge>
                         <span>
-                          Date-relative terms converted to {getEffectiveToday().toLocaleDateString('en-US', { 
+                          Date-relative terms converted to {(simulatedToday || getSimulatedTodaySync()).toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'short', 
                             day: 'numeric' 
