@@ -79,9 +79,13 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - Popular queries: `data/popular-queries.json`
 - Feedback: `data/feedback.json`
 
-**Anchor Date:**
-- `VITE_DEV_FIXED_TODAY = 2025-01-01` must be present during build time
-- Used as "today" for date-relative queries in development
+**Simulated Today (Anchor Date):**
+- Used as "today" for all date-relative queries (e.g., "next week", "last month")
+- **Replit dev:** Set `VITE_DEV_FIXED_TODAY=2025-01-01` in Secrets
+- **Azure production:** Set `SIMULATED_TODAY=2025-01-01` in App Settings, then restart
+- The client fetches this from `/api/config` endpoint at runtime (no rebuild needed for Azure)
+- Server checks `SIMULATED_TODAY` first, then falls back to `VITE_DEV_FIXED_TODAY`
+- If neither is set, defaults to actual current date
 
 ## Project Structure
 
