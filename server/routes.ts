@@ -47,6 +47,35 @@ export async function registerRoutes(
     });
   });
 
+  // Get filter options for scenario and plant dropdowns
+  app.get("/api/filter-options", async (_req, res) => {
+    try {
+      // Fetch distinct scenarios
+      const scenarioResult = await executeQuery(
+        "SELECT DISTINCT ScenarioType FROM [publish].[DASHt_Planning] WHERE ScenarioType IS NOT NULL ORDER BY ScenarioType"
+      );
+      const scenarios = scenarioResult.rows.map((r: any) => r.ScenarioType);
+
+      // Fetch distinct plants
+      const plantResult = await executeQuery(
+        "SELECT DISTINCT PlantName FROM [publish].[DASHt_Planning] WHERE PlantName IS NOT NULL ORDER BY PlantName"
+      );
+      const plants = plantResult.rows.map((r: any) => r.PlantName);
+
+      res.json({
+        scenarios: ["All Scenarios", ...scenarios],
+        plants: ["All Plants", ...plants]
+      });
+    } catch (error: any) {
+      log(`[filter-options] Error: ${error.message}`, "error");
+      // Return defaults on error
+      res.json({
+        scenarios: ["All Scenarios", "Production", "What-If"],
+        plants: ["All Plants"]
+      });
+    }
+  });
+
   // Validator self-check endpoint (development only)
   app.get("/api/validator-check", (_req, res) => {
     const { passed, results } = runValidatorSelfCheck();
