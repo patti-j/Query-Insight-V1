@@ -104,10 +104,28 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
       if (trimmed.match(/^\s*(SUM|COUNT|AVG|MAX|MIN|COALESCE|ISNULL|CASE)\s*\(/i)) {
         continue; // Skip aggregates - they create aliases, not column refs
       }
-      // Handle bracketed notation: [alias].[Column] or [Column]
+      // Handle 3-part bracketed notation: [schema].[table].[Column]
+      const threePartMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.\[(\w+)\]/i);
+      if (threePartMatch && threePartMatch[1] && !isKeyword(threePartMatch[1])) {
+        references.push({ column: threePartMatch[1], context: 'SELECT' });
+        continue;
+      }
+      // Handle 3-part mixed notation: [schema].[table].ColumnName (brackets for schema/table, none for column)
+      const threePartMixedMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.(\w+)(?:\s+AS\s+\w+)?$/i);
+      if (threePartMixedMatch && threePartMixedMatch[1] && !isKeyword(threePartMixedMatch[1])) {
+        references.push({ column: threePartMixedMatch[1], context: 'SELECT' });
+        continue;
+      }
+      // Handle 2-part bracketed notation: [alias].[Column] or [Column]
       const bracketMatch = trimmed.match(/(?:\[\w+\]\.)?\[(\w+)\]/i);
       if (bracketMatch && bracketMatch[1] && !isKeyword(bracketMatch[1])) {
         references.push({ column: bracketMatch[1], context: 'SELECT' });
+        continue;
+      }
+      // Handle 3-part dot notation: schema.table.column
+      const threePartDotMatch = trimmed.match(/\w+\.\w+\.(\w+)(?:\s+AS\s+\w+)?/i);
+      if (threePartDotMatch && threePartDotMatch[1] && !isKeyword(threePartDotMatch[1])) {
+        references.push({ column: threePartDotMatch[1], context: 'SELECT' });
         continue;
       }
       // Handle "table.column" or "alias.column" or just "column"
@@ -123,13 +141,38 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
   const whereMatch = cleanSql.match(whereRegex);
   if (whereMatch) {
     const whereClause = whereMatch[1];
+    // Handle 3-part bracketed names: [schema].[table].[column]
+    const threePartBracketRegex = /\[\w+\]\.\[\w+\]\.\[(\w+)\]\s*[=<>!]/g;
+    let threePartMatch;
+    while ((threePartMatch = threePartBracketRegex.exec(whereClause)) !== null) {
+      if (threePartMatch[1] && !isKeyword(threePartMatch[1])) {
+        references.push({ column: threePartMatch[1], context: 'WHERE' });
+      }
+    }
+    // Handle 3-part mixed notation: [schema].[table].column (brackets for schema/table, none for column)
+    const threePartMixedRegex = /\[\w+\]\.\[\w+\]\.(\w+)\s*[=<>!]/g;
+    let threePartMixedMatch;
+    while ((threePartMixedMatch = threePartMixedRegex.exec(whereClause)) !== null) {
+      if (threePartMixedMatch[1] && !isKeyword(threePartMixedMatch[1])) {
+        references.push({ column: threePartMixedMatch[1], context: 'WHERE' });
+      }
+    }
+    // Handle 3-part dot notation: schema.table.column
+    const threePartDotRegex = /\w+\.\w+\.(\w+)\s*[=<>!]/g;
+    let threePartDotMatch;
+    while ((threePartDotMatch = threePartDotRegex.exec(whereClause)) !== null) {
+      if (threePartDotMatch[1] && !isKeyword(threePartDotMatch[1])) {
+        references.push({ column: threePartDotMatch[1], context: 'WHERE' });
+      }
+    }
     // Match optional table prefix (table.) followed by column name, then comparison operator
-    // Use optional non-capturing group for table prefix to correctly capture column name
-    const columnRegex = /(?:(\w+)\.)?(\w+)\s*[=<>!]/g;
+    // Skip if already matched by 3-part patterns above
+    const columnRegex = /(?<!\.\w+)(?:(\w+)\.)?(\w+)\s*[=<>!]/g;
     let match;
     while ((match = columnRegex.exec(whereClause)) !== null) {
       const columnName = match[2]; // Column name is now in group 2
       if (columnName && !isKeyword(columnName)) {
+        // Skip if this looks like a table name (has another dot after)
         references.push({ column: columnName, context: 'WHERE' });
       }
     }
@@ -158,11 +201,35 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
     const columns = orderByClause.split(',');
     for (const col of columns) {
       const trimmed = col.trim();
-      // Handle bracketed notation: [alias].[Column]
+      // Handle 3-part bracketed notation: [schema].[table].[Column]
+      const threePartBracketMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.\[(\w+)\]/i);
+      if (threePartBracketMatch && threePartBracketMatch[1] && !isKeyword(threePartBracketMatch[1])) {
+        if (!selectAliases.has(threePartBracketMatch[1].toLowerCase())) {
+          references.push({ column: threePartBracketMatch[1], context: 'ORDER BY' });
+        }
+        continue;
+      }
+      // Handle 3-part mixed notation: [schema].[table].ColumnName
+      const threePartMixedMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.(\w+)(?:\s+(?:ASC|DESC))?$/i);
+      if (threePartMixedMatch && threePartMixedMatch[1] && !isKeyword(threePartMixedMatch[1])) {
+        if (!selectAliases.has(threePartMixedMatch[1].toLowerCase())) {
+          references.push({ column: threePartMixedMatch[1], context: 'ORDER BY' });
+        }
+        continue;
+      }
+      // Handle 2-part bracketed notation: [alias].[Column]
       const bracketMatch = trimmed.match(/(?:\[\w+\]\.)?\[(\w+)\]/i);
       if (bracketMatch && bracketMatch[1] && !isKeyword(bracketMatch[1])) {
         if (!selectAliases.has(bracketMatch[1].toLowerCase())) {
           references.push({ column: bracketMatch[1], context: 'ORDER BY' });
+        }
+        continue;
+      }
+      // Handle 3-part dot notation: schema.table.column
+      const threePartDotMatch = trimmed.match(/\w+\.\w+\.(\w+)(?:\s+(?:ASC|DESC))?$/i);
+      if (threePartDotMatch && threePartDotMatch[1] && !isKeyword(threePartDotMatch[1])) {
+        if (!selectAliases.has(threePartDotMatch[1].toLowerCase())) {
+          references.push({ column: threePartDotMatch[1], context: 'ORDER BY' });
         }
         continue;
       }
@@ -178,15 +245,40 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
   }
   
   // Extract columns from JOIN ON conditions
-  const joinRegex = /JOIN\s+[\w\[\]\.]+\s+(?:AS\s+)?[\w]+\s+ON\s+(.*?)(?:WHERE|JOIN|GROUP BY|ORDER BY|$)/gi;
+  const joinRegex = /JOIN\s+[\w\[\]\.]+\s+(?:AS\s+)?[\w]*\s*ON\s+(.*?)(?:WHERE|JOIN|GROUP BY|ORDER BY|$)/gi;
   let joinMatch;
   while ((joinMatch = joinRegex.exec(cleanSql)) !== null) {
     const onClause = joinMatch[1];
-    const columnRegex = /[\w]+\.?(\w+)\s*=/g;
+    // Handle 3-part bracketed names: [schema].[table].[column]
+    const threePartBracketRegex = /\[\w+\]\.\[\w+\]\.\[(\w+)\]/g;
+    let threePartMatch;
+    while ((threePartMatch = threePartBracketRegex.exec(onClause)) !== null) {
+      if (threePartMatch[1] && !isKeyword(threePartMatch[1])) {
+        references.push({ column: threePartMatch[1], context: 'JOIN ON' });
+      }
+    }
+    // Handle 3-part mixed notation: [schema].[table].column (brackets for schema/table, none for column)
+    const threePartMixedRegex = /\[\w+\]\.\[\w+\]\.(\w+)/g;
+    let threePartMixedMatch;
+    while ((threePartMixedMatch = threePartMixedRegex.exec(onClause)) !== null) {
+      if (threePartMixedMatch[1] && !isKeyword(threePartMixedMatch[1])) {
+        references.push({ column: threePartMixedMatch[1], context: 'JOIN ON' });
+      }
+    }
+    // Handle 3-part dot notation: schema.table.column
+    const threePartDotRegex = /\w+\.\w+\.(\w+)/g;
+    let threePartDotMatch;
+    while ((threePartDotMatch = threePartDotRegex.exec(onClause)) !== null) {
+      if (threePartDotMatch[1] && !isKeyword(threePartDotMatch[1])) {
+        references.push({ column: threePartDotMatch[1], context: 'JOIN ON' });
+      }
+    }
+    // Handle 2-part notation: table.column
+    const columnRegex = /(?<!\w\.)\b(\w+)\.(\w+)\b(?!\.\w)/g;
     let colMatch;
     while ((colMatch = columnRegex.exec(onClause)) !== null) {
-      if (colMatch[1] && !isKeyword(colMatch[1])) {
-        references.push({ column: colMatch[1], context: 'JOIN ON' });
+      if (colMatch[2] && !isKeyword(colMatch[2])) {
+        references.push({ column: colMatch[2], context: 'JOIN ON' });
       }
     }
   }
