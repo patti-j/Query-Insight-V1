@@ -447,6 +447,7 @@ FORMATTING RULES:
 - IMPORTANT: Look at ALL distinct values in the results. If there are 2-5 unique products/jobs/items, mention ALL of them in your response
 - If there are more than 15 items and user didn't specify a count, summarize the top 10 and mention how many total
 - If no results, say so clearly and suggest why (e.g., "No data found for this date range")
+- IMPORTANT: Always mention "in Production" when describing job counts or job-related data (e.g., "There are 16 jobs in Production")
 
 EXAMPLES:
 Question: "Which resources are busiest next week?"
@@ -457,7 +458,7 @@ Response: "The busiest resources next week are:
 
 Question: "How many jobs are overdue?"
 Results: [{"OverdueCount": 12}]
-Response: "There are 12 overdue jobs that need attention."
+Response: "There are 12 overdue jobs in Production that need attention."
 
 Question: "List unassigned resources in Plant A"
 Results: [{"ResourceName": "Lathe 1"}, {"ResourceName": "Drill 2"}, {"ResourceName": "Press 3"}]
