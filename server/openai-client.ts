@@ -300,13 +300,16 @@ BEST PRACTICES:
       filterParts.push(`ScenarioType = '${filters.scenario}'`);
     }
     if (filters.plant) {
-      filterParts.push(`PlantName = '${filters.plant}'`);
+      // Note: DASHt_Planning uses PlantId, DASHt_Resources uses PlantName
+      // The LLM should use the correct column based on the table
+      filterParts.push(`Plant filter: '${filters.plant}' (use PlantId for DASHt_Planning, PlantName for DASHt_Resources/Capacity tables)`);
     }
     filterContext = `
 MANDATORY GLOBAL FILTERS (User-selected, MUST be applied to ALL queries):
 The user has selected specific filters that MUST be included in the WHERE clause:
 ${filterParts.map(f => `- ${f}`).join('\n')}
 These filters OVERRIDE the default ScenarioType = 'Production' rule. Apply them exactly as specified.
+For plant filtering: Use PlantId column for DASHt_Planning table, PlantName column for DASHt_Resources and capacity tables.
 `;
   }
 

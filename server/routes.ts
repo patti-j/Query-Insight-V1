@@ -50,15 +50,15 @@ export async function registerRoutes(
   // Get filter options for scenario and plant dropdowns
   app.get("/api/filter-options", async (_req, res) => {
     try {
-      // Fetch distinct scenarios
+      // Fetch distinct scenarios from DASHt_Planning
       const scenarioResult = await executeQuery(
         "SELECT DISTINCT ScenarioType FROM [publish].[DASHt_Planning] WHERE ScenarioType IS NOT NULL ORDER BY ScenarioType"
       );
       const scenarios = (scenarioResult?.rows || []).map((r: any) => r.ScenarioType).filter(Boolean);
 
-      // Fetch distinct plants
+      // Fetch distinct plants from DASHt_Resources (uses PlantName)
       const plantResult = await executeQuery(
-        "SELECT DISTINCT PlantName FROM [publish].[DASHt_Planning] WHERE PlantName IS NOT NULL ORDER BY PlantName"
+        "SELECT DISTINCT PlantName FROM [publish].[DASHt_Resources] WHERE PlantName IS NOT NULL ORDER BY PlantName"
       );
       const plants = (plantResult?.rows || []).map((r: any) => r.PlantName).filter(Boolean);
 
