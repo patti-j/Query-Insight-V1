@@ -78,10 +78,7 @@ MANDATORY GROUPING EXAMPLES:
   * "List jobs by product" → SELECT JobName, JobProduct, ... GROUP BY JobName, JobProduct
 
 JOB COUNT QUERIES (SPECIAL RULES):
-  * "How many jobs are there?" / "total jobs" / "all jobs" → Use Tier2 publish.Jobs table:
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[Jobs]
-      (Jobs table has ALL jobs including cancelled - no ScenarioType column exists)
-  * "Jobs report" / "commitment overview" / "active jobs" / "jobs in planning" → Use DASHt_Planning WITH ScenarioType = 'Production':
+  * "How many jobs are there?" / "total jobs" / "all jobs" / "jobs report" / "commitment overview" / "active jobs" / "jobs in planning" → Use DASHt_Planning WITH ScenarioType = 'Production':
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production'
   * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Use DASHt_Planning with BOTH JobCommitment AND ScenarioType filters:
       SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released' AND ScenarioType = 'Production'
