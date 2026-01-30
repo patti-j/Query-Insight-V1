@@ -126,7 +126,7 @@ export default function QueryPage() {
   useEffect(() => {
     if (!import.meta.env.PROD) {
       const queryDate = getEffectiveToday();
-      console.log('[date-check] Query Date (effective today):', queryDate.toISOString().split('T')[0]);
+      console.log('[date-check] Simulated Today (effective today):', queryDate.toISOString().split('T')[0]);
       console.log('[date-check] VITE_DEV_FIXED_TODAY:', import.meta.env.VITE_DEV_FIXED_TODAY || '(not set)');
       if (publishDate) {
         console.log('[date-check] Data Last Updated (publishDate):', publishDate.toISOString().split('T')[0]);
@@ -680,10 +680,10 @@ export default function QueryPage() {
                   data-testid="input-question"
                 />
                 
-                {/* Display both Query Date (anchor) and Last Publish to Analytics (UTC) */}
+                {/* Display both Simulated Today (anchor) and Last Publish to Analytics (UTC) */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                   <div className="flex items-center gap-2" data-testid="today-anchor-display">
-                    <span className="font-medium">Query Date:</span>
+                    <span className="font-medium">Simulated Today:</span>
                     <span className="text-foreground/70">
                       {getEffectiveToday().toLocaleDateString('en-US', { 
                         year: 'numeric', 
