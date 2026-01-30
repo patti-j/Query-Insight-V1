@@ -39,6 +39,20 @@ function filterRowColumns(row: Record<string, any>): Record<string, any> {
   );
 }
 
+// Deduplicate rows based on their visible content (after filtering hidden columns)
+function deduplicateRows(rows: Record<string, any>[]): Record<string, any>[] {
+  const seen = new Set<string>();
+  return rows.filter(row => {
+    const filtered = filterRowColumns(row);
+    const key = JSON.stringify(filtered);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 // Format table name by stripping publish.DASHt_ prefix
 function formatTableName(fullTableName: string): string {
   // Remove 'publish.' prefix if present
@@ -961,7 +975,7 @@ export default function QueryPage() {
                         data-testid="button-toggle-data"
                       >
                         <Database className="h-4 w-4" />
-                        {showData ? 'Hide Data' : `Show Data (${result.rows.length} rows)`}
+                        {showData ? 'Hide Data' : `Show Data (${deduplicateRows(result.rows).length} rows)`}
                       </Button>
                       <Button
                         variant="outline"
@@ -989,7 +1003,7 @@ export default function QueryPage() {
                           <DropdownMenuItem
                             onClick={() => {
                               try {
-                                const exportData = result.rows.map(filterRowColumns);
+                                const exportData = deduplicateRows(result.rows).map(filterRowColumns);
                                 exportToCSV(exportData, `query-results-${Date.now()}.csv`);
                               } catch (err: any) {
                                 setError(`Export failed: ${err.message}`);
@@ -1002,7 +1016,7 @@ export default function QueryPage() {
                           <DropdownMenuItem
                             onClick={() => {
                               try {
-                                const exportData = result.rows.map(filterRowColumns);
+                                const exportData = deduplicateRows(result.rows).map(filterRowColumns);
                                 exportToExcel(exportData, `query-results-${Date.now()}.xlsx`);
                               } catch (err: any) {
                                 setError(`Export failed: ${err.message}`);
@@ -1038,56 +1052,62 @@ export default function QueryPage() {
                 )}
                 
                 {/* Chart visualization */}
-                {showChart && result.rows.length > 0 && (
-                  <div className="border border-border/50 rounded-xl p-4 bg-card/50">
-                    <ResultChart 
-                      rows={result.rows.map(filterRowColumns)} 
-                      columns={Object.keys(filterRowColumns(result.rows[0]))} 
-                    />
-                  </div>
-                )}
+                {showChart && result.rows.length > 0 && (() => {
+                  const uniqueRows = deduplicateRows(result.rows);
+                  return (
+                    <div className="border border-border/50 rounded-xl p-4 bg-card/50">
+                      <ResultChart 
+                        rows={uniqueRows.map(filterRowColumns)} 
+                        columns={Object.keys(filterRowColumns(uniqueRows[0]))} 
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Data Table - Hidden by default */}
-                {showData && result.rows.length > 0 && (
-                  <div>
-                    <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
-                      <div className="max-h-[420px] overflow-auto">
-                        <table className={`w-full text-sm table-auto ${Object.keys(filterRowColumns(result.rows[0])).length > 5 ? 'min-w-[900px]' : ''}`}>
-                          <thead className="bg-muted sticky top-0 z-10 shadow-sm">
-                            <tr>
-                              {Object.keys(filterRowColumns(result.rows[0])).map((key) => (
-                                <th key={key} className="px-4 py-3 text-left font-medium text-foreground/70">
-                                  {key}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {result.rows.map((row, idx) => {
-                              const filteredRow = filterRowColumns(row);
-                              return (
-                                <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-result-${idx}`}>
-                                  {Object.entries(filteredRow).map(([columnName, value]: [string, any], cellIdx) => (
-                                    <td key={cellIdx} className="px-4 py-3">
-                                      {value === null ? (
-                                        <span className="text-muted-foreground italic">null</span>
-                                      ) : (
-                                        formatCellValue(value, columnName, dateTimeColumns)
-                                      )}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                {showData && result.rows.length > 0 && (() => {
+                  const uniqueRows = deduplicateRows(result.rows);
+                  return (
+                    <div>
+                      <div className="w-full overflow-x-auto border border-border/50 rounded-xl">
+                        <div className="max-h-[420px] overflow-auto">
+                          <table className={`w-full text-sm table-auto ${Object.keys(filterRowColumns(uniqueRows[0])).length > 5 ? 'min-w-[900px]' : ''}`}>
+                            <thead className="bg-muted sticky top-0 z-10 shadow-sm">
+                              <tr>
+                                {Object.keys(filterRowColumns(uniqueRows[0])).map((key) => (
+                                  <th key={key} className="px-4 py-3 text-left font-medium text-foreground/70">
+                                    {key}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {uniqueRows.map((row, idx) => {
+                                const filteredRow = filterRowColumns(row);
+                                return (
+                                  <tr key={idx} className="border-t border-border/30 hover:bg-muted/30 transition-colors" data-testid={`row-result-${idx}`}>
+                                    {Object.entries(filteredRow).map(([columnName, value]: [string, any], cellIdx) => (
+                                      <td key={cellIdx} className="px-4 py-3">
+                                        {value === null ? (
+                                          <span className="text-muted-foreground italic">null</span>
+                                        ) : (
+                                          formatCellValue(value, columnName, dateTimeColumns)
+                                        )}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
+                      <p className="text-sm text-muted-foreground mt-3">
+                        Showing {uniqueRows.length} rows
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      Showing {result.rows.length} rows
-                    </p>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* No results message */}
                 {result.rows.length === 0 && (
