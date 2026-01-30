@@ -277,7 +277,11 @@ export default function QueryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: queryToSend,
-          publishDate: anchorDateStr
+          publishDate: anchorDateStr,
+          filters: {
+            scenario: selectedScenario !== 'All Scenarios' ? selectedScenario : null,
+            plant: selectedPlant !== 'All Plants' ? selectedPlant : null
+          }
         }),
       });
 
@@ -412,7 +416,15 @@ export default function QueryPage() {
     };
     
     // Build URL with query params (GET is more proxy-friendly for SSE)
-    const url = `/api/ask/stream?question=${encodeURIComponent(queryToSend)}&publishDate=${encodeURIComponent(anchorDateStr)}`;
+    const filterParams = new URLSearchParams();
+    if (selectedScenario && selectedScenario !== 'All Scenarios') {
+      filterParams.set('filterScenario', selectedScenario);
+    }
+    if (selectedPlant && selectedPlant !== 'All Plants') {
+      filterParams.set('filterPlant', selectedPlant);
+    }
+    const filterStr = filterParams.toString();
+    const url = `/api/ask/stream?question=${encodeURIComponent(queryToSend)}&publishDate=${encodeURIComponent(anchorDateStr)}${filterStr ? '&' + filterStr : ''}`;
     console.log('[streaming] Creating EventSource for:', url);
     
     const es = new EventSource(url);

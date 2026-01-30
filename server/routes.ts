@@ -54,16 +54,16 @@ export async function registerRoutes(
       const scenarioResult = await executeQuery(
         "SELECT DISTINCT ScenarioType FROM [publish].[DASHt_Planning] WHERE ScenarioType IS NOT NULL ORDER BY ScenarioType"
       );
-      const scenarios = scenarioResult.rows.map((r: any) => r.ScenarioType);
+      const scenarios = (scenarioResult?.rows || []).map((r: any) => r.ScenarioType).filter(Boolean);
 
       // Fetch distinct plants
       const plantResult = await executeQuery(
         "SELECT DISTINCT PlantName FROM [publish].[DASHt_Planning] WHERE PlantName IS NOT NULL ORDER BY PlantName"
       );
-      const plants = plantResult.rows.map((r: any) => r.PlantName);
+      const plants = (plantResult?.rows || []).map((r: any) => r.PlantName).filter(Boolean);
 
       res.json({
-        scenarios: ["All Scenarios", ...scenarios],
+        scenarios: ["All Scenarios", ...(scenarios.length ? scenarios : ["Production", "What-If"])],
         plants: ["All Plants", ...plants]
       });
     } catch (error: any) {
