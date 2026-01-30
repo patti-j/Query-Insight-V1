@@ -118,9 +118,15 @@ BUSINESS CONTEXT:
 - JobOverdue: Boolean (1 = overdue)
 `;
 
+interface Filters {
+  scenario?: string | null;
+  plant?: string | null;
+}
+
 interface GenerateOptions {
   allowedTables?: string[];
   publishDate?: string; // The effective "today" date for date-relative queries
+  filters?: Filters; // Global filters for scenario and plant
 }
 
 interface GenerateResult {
@@ -178,7 +184,7 @@ export async function generateSqlFromQuestion(question: string, options: Generat
     return { ...cached, confidence: 'high' };
   }
 
-  const { allowedTables = [], publishDate } = options;
+  const { allowedTables = [], publishDate, filters } = options;
 
   // Use matrix-driven table selection (3-4 tables default, max 6)
   const classification = classifyQuestionWithMatrix(question);
@@ -286,8 +292,26 @@ BEST PRACTICES:
     ? `\nTODAY'S DATE: ${publishDate}\nWhen the user asks about "today", "this week", "next week", "tomorrow", etc., use ${publishDate} as the reference date (not the actual current date).`
     : '';
 
+  // Build global filter constraints - these MUST be applied to all queries
+  let filterContext = '';
+  if (filters?.scenario || filters?.plant) {
+    const filterParts: string[] = [];
+    if (filters.scenario) {
+      filterParts.push(`ScenarioType = '${filters.scenario}'`);
+    }
+    if (filters.plant) {
+      filterParts.push(`PlantName = '${filters.plant}'`);
+    }
+    filterContext = `
+MANDATORY GLOBAL FILTERS (User-selected, MUST be applied to ALL queries):
+The user has selected specific filters that MUST be included in the WHERE clause:
+${filterParts.map(f => `- ${f}`).join('\n')}
+These filters OVERRIDE the default ScenarioType = 'Production' rule. Apply them exactly as specified.
+`;
+  }
+
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
-${todayContext}
+${todayContext}${filterContext}
 ${businessTermContext}${contextHintsText}
 AVAILABLE TABLES AND COLUMNS:
 ${modeSchema}

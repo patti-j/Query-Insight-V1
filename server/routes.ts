@@ -431,6 +431,9 @@ export async function registerRoutes(
     // Read params from query string (GET is more proxy-friendly for SSE)
     const publishDate = String(req.query.publishDate ?? '');
     const question = String(req.query.question ?? req.query.query ?? req.query.q ?? req.query.prompt ?? '');
+    const filterScenario = req.query.filterScenario ? String(req.query.filterScenario) : null;
+    const filterPlant = req.query.filterPlant ? String(req.query.filterPlant) : null;
+    const filters = { scenario: filterScenario, plant: filterPlant };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -529,12 +532,13 @@ export async function registerRoutes(
 
       // Generate SQL from natural language
       llmStartTime = Date.now();
-      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate });
+      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate, filters });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
       const confidence = sqlGenResult.confidence;
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL (streaming): ${generatedSql}`, 'ask-stream');
+      log(`Filters applied: scenario=${filters.scenario}, plant=${filters.plant}`, 'ask-stream');
 
       // Handle out-of-scope questions with low/no confidence
       if (confidence === 'none') {
@@ -709,6 +713,7 @@ export async function registerRoutes(
       req.body?.query ??
       req.body?.q ??
       req.body?.prompt;
+    const filters = req.body?.filters || { scenario: null, plant: null };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -742,13 +747,14 @@ export async function registerRoutes(
       // Generate SQL from natural language
       // Matrix classifier selects relevant tables dynamically
       llmStartTime = Date.now();
-      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate });
+      const sqlGenResult = await generateSqlFromQuestion(question, { publishDate, filters });
       generatedSql = sqlGenResult.sql;
       const selectedTables = sqlGenResult.selectedTables;
       const confidence = sqlGenResult.confidence;
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL: ${generatedSql}`, 'ask');
       log(`Matrix-selected tables: ${selectedTables.join(', ')} (confidence: ${confidence})`, 'ask');
+      log(`Filters applied: scenario=${filters.scenario}, plant=${filters.plant}`, 'ask');
 
       // Handle out-of-scope questions with low/no confidence
       if (confidence === 'none') {
