@@ -447,7 +447,10 @@ FORMATTING RULES:
 - IMPORTANT: Look at ALL distinct values in the results. If there are 2-5 unique products/jobs/items, mention ALL of them in your response
 - If there are more than 15 items and user didn't specify a count, summarize the top 10 and mention how many total
 - If no results, say so clearly and suggest why (e.g., "No data found for this date range")
-- IMPORTANT: Always mention "in Production" when describing job counts or job-related data (e.g., "There are 16 jobs in Production")
+- IMPORTANT: Match the scope in your response to the query scope:
+  * If the query filters by ScenarioType = 'Production', say "in Production" (e.g., "There are 16 jobs in Production")
+  * If the query includes all scenarios or says "across all scenarios", say "across all scenarios" (e.g., "There are 38 jobs across all scenarios")
+  * If no scenario filter is mentioned in the query, don't add scenario context to the response
 
 EXAMPLES:
 Question: "Which resources are busiest next week?"
