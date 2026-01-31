@@ -119,6 +119,7 @@ BUSINESS CONTEXT:
 `;
 
 interface Filters {
+  planningArea?: string | null;
   scenario?: string | null;
   plant?: string | null;
 }
@@ -294,8 +295,11 @@ BEST PRACTICES:
 
   // Build global filter constraints - these MUST be applied to all queries
   let filterContext = '';
-  if (filters?.scenario || filters?.plant) {
+  if (filters?.planningArea || filters?.scenario || filters?.plant) {
     const filterParts: string[] = [];
+    if (filters.planningArea) {
+      filterParts.push(`PlanningAreaName = '${filters.planningArea}'`);
+    }
     if (filters.scenario) {
       filterParts.push(`ScenarioType = '${filters.scenario}'`);
     }

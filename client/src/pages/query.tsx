@@ -95,6 +95,7 @@ const MOCK_DATA = [
 
 // Filter options type
 interface FilterOptions {
+  planningAreas: string[];
   scenarios: string[];
   plants: string[];
 }
@@ -113,7 +114,8 @@ export default function QueryPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   
   // Global filter state
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ scenarios: ['All Scenarios'], plants: ['All Plants'] });
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ planningAreas: ['All Planning Areas'], scenarios: ['All Scenarios'], plants: ['All Plants'] });
+  const [selectedPlanningArea, setSelectedPlanningArea] = useState('All Planning Areas');
   const [selectedScenario, setSelectedScenario] = useState('Production'); // Default to Production
   const [selectedPlant, setSelectedPlant] = useState('All Plants');
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
@@ -279,6 +281,7 @@ export default function QueryPage() {
           question: queryToSend,
           publishDate: anchorDateStr,
           filters: {
+            planningArea: selectedPlanningArea !== 'All Planning Areas' ? selectedPlanningArea : null,
             scenario: selectedScenario !== 'All Scenarios' ? selectedScenario : null,
             plant: selectedPlant !== 'All Plants' ? selectedPlant : null
           }
@@ -417,6 +420,9 @@ export default function QueryPage() {
     
     // Build URL with query params (GET is more proxy-friendly for SSE)
     const filterParams = new URLSearchParams();
+    if (selectedPlanningArea && selectedPlanningArea !== 'All Planning Areas') {
+      filterParams.set('filterPlanningArea', selectedPlanningArea);
+    }
     if (selectedScenario && selectedScenario !== 'All Scenarios') {
       filterParams.set('filterScenario', selectedScenario);
     }
@@ -774,6 +780,21 @@ export default function QueryPage() {
                 
                 {/* Global Filters */}
                 <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="planning-area-filter" className="text-sm font-medium whitespace-nowrap">Planning Area:</Label>
+                    <Select value={selectedPlanningArea} onValueChange={setSelectedPlanningArea}>
+                      <SelectTrigger id="planning-area-filter" className="w-[160px] h-8 text-sm" data-testid="select-planning-area">
+                        <SelectValue placeholder="Select planning area" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filterOptions.planningAreas.map((area) => (
+                          <SelectItem key={area} value={area} data-testid={`option-planning-area-${area}`}>
+                            {area}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="scenario-filter" className="text-sm font-medium whitespace-nowrap">Scenario:</Label>
                     <Select value={selectedScenario} onValueChange={setSelectedScenario}>

@@ -47,22 +47,29 @@ export async function registerRoutes(
     });
   });
 
-  // Get filter options for scenario and plant dropdowns
+  // Get filter options for planning area, scenario, and plant dropdowns
   app.get("/api/filter-options", async (_req, res) => {
     try {
+      // Fetch distinct planning areas from DASHt_Resources
+      const planningAreaResult = await executeQuery(
+        "SELECT DISTINCT PlanningAreaName FROM [publish].[DASHt_Resources] WHERE PlanningAreaName IS NOT NULL ORDER BY PlanningAreaName"
+      );
+      const planningAreas = (planningAreaResult?.recordset || []).map((r: any) => r.PlanningAreaName).filter(Boolean);
+
       // Fetch distinct scenarios from DASHt_Planning
       const scenarioResult = await executeQuery(
         "SELECT DISTINCT ScenarioType FROM [publish].[DASHt_Planning] WHERE ScenarioType IS NOT NULL ORDER BY ScenarioType"
       );
-      const scenarios = (scenarioResult?.rows || []).map((r: any) => r.ScenarioType).filter(Boolean);
+      const scenarios = (scenarioResult?.recordset || []).map((r: any) => r.ScenarioType).filter(Boolean);
 
       // Fetch distinct plants from DASHt_Resources (uses PlantName)
       const plantResult = await executeQuery(
         "SELECT DISTINCT PlantName FROM [publish].[DASHt_Resources] WHERE PlantName IS NOT NULL ORDER BY PlantName"
       );
-      const plants = (plantResult?.rows || []).map((r: any) => r.PlantName).filter(Boolean);
+      const plants = (plantResult?.recordset || []).map((r: any) => r.PlantName).filter(Boolean);
 
       res.json({
+        planningAreas: ["All Planning Areas", ...planningAreas],
         scenarios: ["All Scenarios", ...(scenarios.length ? scenarios : ["Production", "What-If"])],
         plants: ["All Plants", ...plants]
       });
@@ -70,6 +77,7 @@ export async function registerRoutes(
       log(`[filter-options] Error: ${error.message}`, "error");
       // Return defaults on error
       res.json({
+        planningAreas: ["All Planning Areas"],
         scenarios: ["All Scenarios", "Production", "What-If"],
         plants: ["All Plants"]
       });
@@ -431,9 +439,10 @@ export async function registerRoutes(
     // Read params from query string (GET is more proxy-friendly for SSE)
     const publishDate = String(req.query.publishDate ?? '');
     const question = String(req.query.question ?? req.query.query ?? req.query.q ?? req.query.prompt ?? '');
+    const filterPlanningArea = req.query.filterPlanningArea ? String(req.query.filterPlanningArea) : null;
     const filterScenario = req.query.filterScenario ? String(req.query.filterScenario) : null;
     const filterPlant = req.query.filterPlant ? String(req.query.filterPlant) : null;
-    const filters = { scenario: filterScenario, plant: filterPlant };
+    const filters = { planningArea: filterPlanningArea, scenario: filterScenario, plant: filterPlant };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -713,7 +722,7 @@ export async function registerRoutes(
       req.body?.query ??
       req.body?.q ??
       req.body?.prompt;
-    const filters = req.body?.filters || { scenario: null, plant: null };
+    const filters = req.body?.filters || { planningArea: null, scenario: null, plant: null };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
