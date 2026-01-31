@@ -739,47 +739,8 @@ export default function QueryPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
-                <Textarea
-                  placeholder="What would you like to know about your manufacturing data?"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="min-h-[100px] p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  data-testid="input-question"
-                />
-                
-                {/* Display both Simulated Today (anchor) and Last Publish to Analytics (UTC) */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
-                  <div className="flex items-center gap-2" data-testid="today-anchor-display">
-                    <span className="font-medium">Simulated Today:</span>
-                    <span className="text-foreground/70">
-                      {(simulatedToday || getSimulatedTodaySync()).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
-                    </span>
-                  </div>
-                  {publishDate && (
-                    <div className="flex items-center gap-2" data-testid="publish-date-display">
-                      <span className="font-medium">Last Publish to Analytics (UTC):</span>
-                      <span className="text-foreground/70">
-                        {publishDate.toLocaleString('en-US', { 
-                          year: 'numeric', 
-                          month: 'numeric', 
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                          timeZone: 'UTC'
-                        })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Global Filters */}
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/30">
+                {/* Global Filters - Above chat box */}
+                <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-border/30">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="planning-area-filter" className="text-sm font-medium whitespace-nowrap">Planning Area:</Label>
                     <Select value={selectedPlanningArea} onValueChange={setSelectedPlanningArea}>
@@ -825,6 +786,45 @@ export default function QueryPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <Textarea
+                  placeholder="What would you like to know about your manufacturing data?"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="min-h-[100px] p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  data-testid="input-question"
+                />
+                
+                {/* Display both Simulated Today (anchor) and Last Publish to Analytics (UTC) */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                  <div className="flex items-center gap-2" data-testid="today-anchor-display">
+                    <span className="font-medium">Simulated Today:</span>
+                    <span className="text-foreground/70">
+                      {(simulatedToday || getSimulatedTodaySync()).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                  </div>
+                  {publishDate && (
+                    <div className="flex items-center gap-2" data-testid="publish-date-display">
+                      <span className="font-medium">Last Publish to Analytics (UTC):</span>
+                      <span className="text-foreground/70">
+                        {publishDate.toLocaleString('en-US', { 
+                          year: 'numeric', 
+                          month: 'numeric', 
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                          timeZone: 'UTC'
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               
