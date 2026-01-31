@@ -16,6 +16,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 
 ## Recent Changes (January 2026)
 
+- **User Permissions Admin Page:** Added an admin-only page (`/admin/permissions`) to manage user access restrictions. Admins can restrict users by Planning Area, Scenario, Plant, and Table Access (Sales/Revenue). Permissions are stored in `data/user-permissions.json`. Admin endpoints are unprotected until integrated with parent Blazor app auth.
 - **Global Planning Area, Scenario and Plant Filters:** Added three dropdown filters in the query UI: Planning Area (defaults to "All Planning Areas"), Scenario (defaults to "Production"), and Plant (defaults to "All Plants"). These filters are passed to the SQL generation and applied to all queries. The `/api/filter-options` endpoint fetches available values from the database.
 - **Job Count Semantics (Power BI Aligned):** "How many jobs are there?" now uses Tier2 `publish.Jobs` table (returns 34). "Jobs in planning" uses `publish.DASHt_Planning` WITHOUT ScenarioType filter (returns 33). "Jobs in production planning" uses DASHt_Planning WITH ScenarioType='Production' (returns 16). Aggregate-only queries (COUNT, SUM, etc.) no longer have TOP clause injected.
 - **Tier2 Table Support:** SQL validator now allows specific Tier2 tables (Jobs, Resources, Activities, Materials, Customers, Items) in addition to DASHt_* tables.
@@ -79,6 +80,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - Query logs: `data/query-logs.json` (500 max entries)
 - Popular queries: `data/popular-queries.json`
 - Feedback: `data/feedback.json`
+- User permissions: `data/user-permissions.json`
 
 **Simulated Today (Anchor Date):**
 - Used as "today" for all date-relative queries (e.g., "next week", "last month")
@@ -130,6 +132,14 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - `GET /api/feedback/negative` - Retrieve all negative feedback with comments
 - `GET /api/failed-queries` - Get failed query analytics
 - `GET /matrix` - HTML visualization of query matrix
+- `GET /api/filter-options` - Get available planning areas, scenarios, and plants for dropdowns
+
+**Admin Endpoints (requires auth when integrated with Blazor):**
+- `GET /api/admin/users` - List all users with permissions
+- `GET /api/admin/permissions/:userId` - Get permissions for a specific user
+- `PUT /api/admin/permissions/:userId` - Update user permissions
+- `POST /api/admin/permissions` - Create a new user with permissions
+- `DELETE /api/admin/permissions/:userId` - Delete a user
 
 ## External Dependencies
 

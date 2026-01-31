@@ -27,6 +27,15 @@ import {
   getDiscoveryStatus, 
   runTableDiscovery 
 } from "./table-discovery";
+import {
+  initPermissions,
+  getAllUserPermissions,
+  getUserPermissions,
+  getUserPermissionsByUsername,
+  createOrUpdateUserPermissions,
+  deleteUserPermissions,
+} from "./permissions-storage";
+import { userPermissionsSchema, tableAccessOptions } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1041,6 +1050,108 @@ export async function registerRoutes(
         isMock: false,
       });
     }
+  });
+
+  // ===== ADMIN PERMISSIONS ENDPOINTS =====
+  // NOTE: These endpoints need authentication/authorization when integrated with parent Blazor app.
+  // Currently unprotected for development. In production, verify user identity and isAdmin flag.
+  
+  // Initialize permissions storage
+  initPermissions();
+
+  // Get all users with permissions (admin only)
+  app.get("/api/admin/users", (_req, res) => {
+    try {
+      const users = getAllUserPermissions();
+      res.json({ users });
+    } catch (error: any) {
+      log(`[admin] Error fetching users: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Get permissions for a specific user (admin only)
+  app.get("/api/admin/permissions/:userId", (req, res) => {
+    try {
+      const { userId } = req.params;
+      const permissions = getUserPermissions(userId);
+      if (!permissions) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ permissions });
+    } catch (error: any) {
+      log(`[admin] Error fetching user permissions: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to fetch user permissions" });
+    }
+  });
+
+  // Create or update user permissions (admin only)
+  app.put("/api/admin/permissions/:userId", (req, res) => {
+    try {
+      const { userId } = req.params;
+      const body = { ...req.body, userId };
+      
+      const parseResult = userPermissionsSchema.safeParse(body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid permissions data", 
+          details: parseResult.error.format() 
+        });
+      }
+
+      const permissions = createOrUpdateUserPermissions(parseResult.data);
+      res.json({ permissions });
+    } catch (error: any) {
+      log(`[admin] Error updating user permissions: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to update user permissions" });
+    }
+  });
+
+  // Create a new user with permissions (admin only)
+  app.post("/api/admin/permissions", (req, res) => {
+    try {
+      const parseResult = userPermissionsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid permissions data", 
+          details: parseResult.error.format() 
+        });
+      }
+
+      // Check if username already exists
+      const existing = getUserPermissionsByUsername(parseResult.data.username);
+      if (existing) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+
+      const permissions = createOrUpdateUserPermissions(parseResult.data);
+      res.json({ permissions });
+    } catch (error: any) {
+      log(`[admin] Error creating user: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
+  // Delete user permissions (admin only)
+  app.delete("/api/admin/permissions/:userId", (req, res) => {
+    try {
+      const { userId } = req.params;
+      const deleted = deleteUserPermissions(userId);
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      log(`[admin] Error deleting user: ${error.message}`, "error");
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Get permission options (table access types)
+  app.get("/api/admin/permission-options", (_req, res) => {
+    res.json({
+      tableAccessOptions: [...tableAccessOptions]
+    });
   });
 
   // Run validator self-check on startup in development mode

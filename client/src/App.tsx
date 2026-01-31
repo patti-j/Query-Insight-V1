@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import QueryPage from "@/pages/query";
 import Dashboard from "@/pages/dashboard";
+import AdminPermissions from "@/pages/admin-permissions";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -13,6 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={QueryPage} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin/permissions" component={AdminPermissions} />
       <Route component={NotFound} />
     </Switch>
   );
