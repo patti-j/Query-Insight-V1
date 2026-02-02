@@ -93,10 +93,17 @@ const MOCK_DATA = [
   { job_id: 'J005', job_name: 'Packaging', status: 'On Hold', due_date: '2023-11-30', quantity: 200, plant: 'Plant B' },
 ];
 
+// Scenario option type with ID, name, and type
+interface ScenarioOption {
+  id: string;
+  name: string;
+  type: string;
+}
+
 // Filter options type
 interface FilterOptions {
   planningAreas: string[];
-  scenarios: string[];
+  scenarios: ScenarioOption[];
   plants: string[];
 }
 
@@ -114,9 +121,9 @@ export default function QueryPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   
   // Global filter state
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ planningAreas: ['All Planning Areas'], scenarios: ['All Scenarios'], plants: ['All Plants'] });
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ planningAreas: ['All Planning Areas'], scenarios: [], plants: ['All Plants'] });
   const [selectedPlanningArea, setSelectedPlanningArea] = useState('All Planning Areas');
-  const [selectedScenario, setSelectedScenario] = useState('Production'); // Default to Production
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>(''); // Empty = All Scenarios, otherwise NewScenarioId
   const [selectedPlant, setSelectedPlant] = useState('All Plants');
   const [showFeedbackComment, setShowFeedbackComment] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
@@ -181,9 +188,10 @@ export default function QueryPage() {
       .then(res => res.json())
       .then((data: FilterOptions) => {
         setFilterOptions(data);
-        // Keep Production as default if available
-        if (data.scenarios.includes('Production')) {
-          setSelectedScenario('Production');
+        // Set first Production scenario as default if available
+        const productionScenario = data.scenarios.find(s => s.type === 'Production');
+        if (productionScenario) {
+          setSelectedScenarioId(productionScenario.id);
         }
       })
       .catch(err => console.error('[filter-options] Failed to fetch:', err));
@@ -282,7 +290,7 @@ export default function QueryPage() {
           publishDate: anchorDateStr,
           filters: {
             planningArea: selectedPlanningArea !== 'All Planning Areas' ? selectedPlanningArea : null,
-            scenario: selectedScenario !== 'All Scenarios' ? selectedScenario : null,
+            scenarioId: selectedScenarioId || null, // NewScenarioId for filtering
             plant: selectedPlant !== 'All Plants' ? selectedPlant : null
           }
         }),
@@ -423,8 +431,8 @@ export default function QueryPage() {
     if (selectedPlanningArea && selectedPlanningArea !== 'All Planning Areas') {
       filterParams.set('filterPlanningArea', selectedPlanningArea);
     }
-    if (selectedScenario && selectedScenario !== 'All Scenarios') {
-      filterParams.set('filterScenario', selectedScenario);
+    if (selectedScenarioId) {
+      filterParams.set('filterScenarioId', selectedScenarioId);
     }
     if (selectedPlant && selectedPlant !== 'All Plants') {
       filterParams.set('filterPlant', selectedPlant);
@@ -758,14 +766,17 @@ export default function QueryPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="scenario-filter" className="text-sm font-medium whitespace-nowrap">Scenario:</Label>
-                    <Select value={selectedScenario} onValueChange={setSelectedScenario}>
-                      <SelectTrigger id="scenario-filter" className="w-[140px] h-8 text-sm" data-testid="select-scenario">
-                        <SelectValue placeholder="Select scenario" />
+                    <Select value={selectedScenarioId || "__all__"} onValueChange={(v) => setSelectedScenarioId(v === "__all__" ? "" : v)}>
+                      <SelectTrigger id="scenario-filter" className="w-[280px] h-8 text-sm" data-testid="select-scenario">
+                        <SelectValue placeholder="All Scenarios" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__all__" data-testid="option-scenario-all">
+                          All Scenarios
+                        </SelectItem>
                         {filterOptions.scenarios.map((scenario) => (
-                          <SelectItem key={scenario} value={scenario} data-testid={`option-scenario-${scenario}`}>
-                            {scenario}
+                          <SelectItem key={scenario.id} value={scenario.id} data-testid={`option-scenario-${scenario.id}`}>
+                            {scenario.id} - {scenario.name} ({scenario.type})
                           </SelectItem>
                         ))}
                       </SelectContent>

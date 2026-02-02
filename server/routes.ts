@@ -65,11 +65,19 @@ export async function registerRoutes(
       );
       const planningAreas = (planningAreaResult?.recordset || []).map((r: any) => r.PlanningAreaName).filter(Boolean);
 
-      // Fetch distinct scenarios from DASHt_Planning
+      // Fetch distinct scenarios with NewScenarioId, ScenarioName, and ScenarioType
+      // NewScenarioId is the unique identifier (e.g., "BI01-8")
       const scenarioResult = await executeQuery(
-        "SELECT DISTINCT ScenarioType FROM [publish].[DASHt_Planning] WHERE ScenarioType IS NOT NULL ORDER BY ScenarioType"
+        `SELECT DISTINCT NewScenarioId, ScenarioName, ScenarioType 
+         FROM [publish].[DASHt_Planning] 
+         WHERE NewScenarioId IS NOT NULL 
+         ORDER BY ScenarioType, ScenarioName`
       );
-      const scenarios = (scenarioResult?.recordset || []).map((r: any) => r.ScenarioType).filter(Boolean);
+      const scenarios = (scenarioResult?.recordset || []).map((r: any) => ({
+        id: r.NewScenarioId,
+        name: r.ScenarioName,
+        type: r.ScenarioType
+      })).filter((s: any) => s.id);
 
       // Fetch distinct plants from DASHt_Resources (uses PlantName)
       const plantResult = await executeQuery(
@@ -79,7 +87,7 @@ export async function registerRoutes(
 
       res.json({
         planningAreas: ["All Planning Areas", ...planningAreas],
-        scenarios: ["All Scenarios", ...(scenarios.length ? scenarios : ["Production", "What-If"])],
+        scenarios: scenarios, // Array of {id, name, type} objects
         plants: ["All Plants", ...plants]
       });
     } catch (error: any) {
@@ -87,7 +95,7 @@ export async function registerRoutes(
       // Return defaults on error
       res.json({
         planningAreas: ["All Planning Areas"],
-        scenarios: ["All Scenarios", "Production", "What-If"],
+        scenarios: [],
         plants: ["All Plants"]
       });
     }
