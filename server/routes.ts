@@ -680,11 +680,18 @@ export async function registerRoutes(
       // Stream the natural language response
       sendEvent('status', { stage: 'generating_answer', message: 'Generating answer...' });
 
+      // Collect all applied filters for the response
+      const allAppliedFilters = [
+        ...(permResult.appliedFilters || []),
+        ...(globalFilterResult.appliedFilters || [])
+      ];
+
       const stream = streamNaturalLanguageResponse(
         question, 
         result.recordset, 
         result.recordset.length,
-        actualTotalCount
+        actualTotalCount,
+        allAppliedFilters
       );
 
       let fullAnswer = '';

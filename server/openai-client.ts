@@ -508,26 +508,39 @@ export async function* streamNaturalLanguageResponse(
   question: string, 
   results: any[], 
   rowCount: number,
-  actualTotalCount?: number
+  actualTotalCount?: number,
+  appliedFilters?: string[]
 ): AsyncGenerator<string, void, unknown> {
   if (!apiKey) {
     yield `Found ${rowCount} result(s).`;
     return;
   }
 
+  // Build filter context for the response
+  const filterContext = appliedFilters && appliedFilters.length > 0
+    ? `\n\nApplied filters: ${appliedFilters.join(', ')}`
+    : '';
+
   // If no results, generate a context-aware empty message (non-streaming for simplicity)
   if (rowCount === 0) {
     try {
+      const filterNote = appliedFilters && appliedFilters.length > 0
+        ? `\nThe following global filters were applied: ${appliedFilters.join(', ')}. IMPORTANT: Mention these filters in your response so the user understands why no results were found. For example: "No late jobs were found for Plant A" or "With your current filter (Plant: A), there are no matching records."`
+        : '';
+      
       const emptyResponse = await openai.responses.create({
         model: 'gpt-4.1-mini',
-        instructions: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."`,
-        input: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.`,
+        instructions: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. If filters were applied, ALWAYS mention them so the user understands the scope of the search. Don't apologize or be overly wordy. Example: "There are no late jobs in Plant A."`,
+        input: `Question: "${question}"${filterNote}\n\nNo records were found. Explain this clearly to the user, mentioning any applied filters.`,
         temperature: 0.3,
-        max_output_tokens: 100,
+        max_output_tokens: 150,
       });
       yield emptyResponse.output_text?.trim() || "No matching data was found for your query.";
     } catch {
-      yield "No matching data was found for your query. Try adjusting the date range or criteria.";
+      const filterMsg = appliedFilters && appliedFilters.length > 0
+        ? ` with your current filters (${appliedFilters.join(', ')})`
+        : '';
+      yield `No matching data was found${filterMsg}. Try adjusting your filters or search criteria.`;
     }
     return;
   }
