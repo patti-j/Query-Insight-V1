@@ -20,6 +20,7 @@ import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
 import { usePinnedDashboard, PinnedQueryFilters, PinnedQueryResult } from '@/hooks/usePinnedDashboard';
 import { useSimulatedToday, getSimulatedTodaySync, fetchSimulatedToday } from '@/hooks/useSimulatedToday';
 import { useToast } from '@/hooks/use-toast';
+import { useDevUser } from '@/hooks/useDevUser';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -186,6 +187,9 @@ export default function QueryPage() {
   
   // Pinned dashboard
   const { addPinnedItem, isPinned } = usePinnedDashboard();
+  
+  // Development user selector for testing permissions
+  const { devUser, users: devUsers, setDevUser, clearDevUser } = useDevUser();
   const { toast } = useToast();
   
   // Fetch filter options on mount
@@ -288,9 +292,13 @@ export default function QueryPage() {
 
   const executeNonStreamingQuery = async (queryToSend: string, anchorDateStr: string) => {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (devUser?.username) {
+        headers['x-username'] = devUser.username;
+      }
       const response = await fetch('/api/ask', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ 
           question: queryToSend,
           publishDate: anchorDateStr,
@@ -442,6 +450,9 @@ export default function QueryPage() {
     }
     if (selectedPlant && selectedPlant !== 'All Plants') {
       filterParams.set('filterPlant', selectedPlant);
+    }
+    if (devUser?.username) {
+      filterParams.set('username', devUser.username);
     }
     const filterStr = filterParams.toString();
     const url = `/api/ask/stream?question=${encodeURIComponent(queryToSend)}&publishDate=${encodeURIComponent(anchorDateStr)}${filterStr ? '&' + filterStr : ''}`;
@@ -636,6 +647,36 @@ export default function QueryPage() {
               <img src="/logo.svg" alt="AI Analytics" className="h-10" />
             </div>
             <div className="flex items-center gap-2">
+              {!import.meta.env.PROD && devUsers.length > 0 && (
+                <Select
+                  value={devUser?.username || ''}
+                  onValueChange={(value) => {
+                    if (value === '__clear__') {
+                      clearDevUser();
+                    } else {
+                      const user = devUsers.find(u => u.username === value);
+                      if (user) setDevUser(user);
+                    }
+                  }}
+                >
+                  <SelectTrigger 
+                    className="w-[140px] h-8 text-xs bg-slate-800/50 border-slate-600 text-slate-300"
+                    data-testid="select-dev-user"
+                  >
+                    <SelectValue placeholder="Test as user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__clear__" className="text-muted-foreground">
+                      (No user - full access)
+                    </SelectItem>
+                    {devUsers.map(u => (
+                      <SelectItem key={u.userId} value={u.username}>
+                        {u.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Link href="/dashboard">
                 <Button
                   variant="ghost"

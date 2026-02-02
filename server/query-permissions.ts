@@ -236,8 +236,8 @@ export function enforcePermissions(
 }
 
 export function getPermissionsForRequest(req: any): PermissionContext {
-  const userId = req.headers['x-user-id'] as string | undefined;
-  const username = req.headers['x-username'] as string | undefined;
+  const userId = req.headers['x-user-id'] as string | undefined || req.query?.userId as string | undefined;
+  const username = req.headers['x-username'] as string | undefined || req.query?.username as string | undefined;
   
   return { userId, username };
 }
