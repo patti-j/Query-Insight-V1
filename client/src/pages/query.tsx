@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -17,7 +17,9 @@ import type { QuickQuestion } from '@/config/quickQuestions';
 import { usePublishDate } from '@/hooks/usePublishDate';
 import { transformRelativeDates, hasRelativeDateLanguage } from '@/lib/date-anchor';
 import { useFavoriteQueries } from '@/hooks/useFavoriteQueries';
+import { usePinnedDashboard, PinnedQueryFilters, PinnedQueryResult } from '@/hooks/usePinnedDashboard';
 import { useSimulatedToday, getSimulatedTodaySync, fetchSimulatedToday } from '@/hooks/useSimulatedToday';
+import { useToast } from '@/hooks/use-toast';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -181,6 +183,10 @@ export default function QueryPage() {
   
   // Favorite queries
   const { favorites, isFavorite, toggleFavorite, removeFavorite } = useFavoriteQueries();
+  
+  // Pinned dashboard
+  const { addPinnedItem, isPinned } = usePinnedDashboard();
+  const { toast } = useToast();
   
   // Fetch filter options on mount
   useEffect(() => {
@@ -1131,6 +1137,44 @@ export default function QueryPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      
+                      {/* Pin to Dashboard button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                          const currentFilters: PinnedQueryFilters = {
+                            planningArea: selectedPlanningArea !== 'All Planning Areas' ? selectedPlanningArea : null,
+                            scenarioId: selectedScenarioId || null,
+                            plant: selectedPlant !== 'All Plants' ? selectedPlant : null
+                          };
+                          const pinnedResult: PinnedQueryResult = {
+                            rows: result.rows,
+                            rowCount: result.rowCount,
+                            sql: result.sql,
+                            answer: result.answer
+                          };
+                          const pinResult = addPinnedItem(
+                            submittedQuestion,
+                            currentFilters,
+                            showChart ? 'chart' : 'table',
+                            undefined,
+                            pinnedResult
+                          );
+                          if (pinResult === 'success') {
+                            toast({ title: 'Pinned!', description: 'Query added to your dashboard' });
+                          } else if (pinResult === 'max_reached') {
+                            toast({ title: 'Dashboard full', description: 'You can pin up to 20 queries. Remove some to add new ones.', variant: 'destructive' });
+                          } else {
+                            toast({ title: 'Already pinned', description: 'This query is already on your dashboard', variant: 'destructive' });
+                          }
+                        }}
+                        data-testid="button-pin-to-dashboard"
+                      >
+                        <Pin className="h-4 w-4" />
+                        Pin to Dashboard
+                      </Button>
                     </>
                   )}
                   {result.sql && (

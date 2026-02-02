@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   Activity, 
   AlertCircle, 
@@ -15,8 +17,18 @@ import {
   Database,
   Zap,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Pin,
+  Play,
+  Trash2,
+  ExternalLink,
+  LayoutDashboard,
+  BarChart3,
+  Table,
+  Loader2
 } from "lucide-react";
+import { usePinnedDashboard, PinnedItem, PinnedQueryResult } from "@/hooks/usePinnedDashboard";
+import { useToast } from "@/hooks/use-toast";
 
 interface AnalyticsData {
   summary: {
@@ -46,7 +58,144 @@ interface FeedbackStats {
   negative: number;
 }
 
+function PinnedQueryCard({ 
+  item, 
+  onRemove, 
+  onRerun, 
+  isRerunning 
+}: { 
+  item: PinnedItem; 
+  onRemove: () => void; 
+  onRerun: () => void;
+  isRerunning: boolean;
+}) {
+  const [, navigate] = useLocation();
+  const lastRunDate = item.lastRunAt ? new Date(item.lastRunAt) : null;
+  
+  return (
+    <Card className="flex flex-col h-full" data-testid={`pinned-card-${item.id}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-medium line-clamp-2">{item.question}</CardTitle>
+          <div className="flex items-center gap-1 shrink-0">
+            {item.visualizationType === 'chart' ? (
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Table className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {item.filters.planningArea && (
+            <Badge variant="secondary" className="text-xs">{item.filters.planningArea}</Badge>
+          )}
+          {item.filters.scenarioId && (
+            <Badge variant="secondary" className="text-xs">{item.filters.scenarioId}</Badge>
+          )}
+          {item.filters.plant && (
+            <Badge variant="secondary" className="text-xs">{item.filters.plant}</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col">
+        {item.lastResult ? (
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-2 line-clamp-3">
+              {item.lastResult.answer}
+            </p>
+            <div className="text-xs text-muted-foreground">
+              {item.lastResult.rowCount} rows
+            </div>
+            {item.lastResult.rows.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-auto text-xs border rounded">
+                <table className="w-full">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      {Object.keys(item.lastResult.rows[0]).slice(0, 3).map((key) => (
+                        <th key={key} className="px-2 py-1 text-left font-medium truncate max-w-[80px]">
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {item.lastResult.rows.slice(0, 3).map((row, idx) => (
+                      <tr key={idx} className="border-t">
+                        {Object.values(row).slice(0, 3).map((val: any, i) => (
+                          <td key={i} className="px-2 py-1 truncate max-w-[80px]">
+                            {String(val ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+            No results cached. Run to see data.
+          </div>
+        )}
+        
+        <div className="mt-3 pt-3 border-t flex items-center justify-between">
+          <div className="text-xs text-muted-foreground">
+            {lastRunDate ? (
+              <>Last run: {lastRunDate.toLocaleDateString()}</>
+            ) : (
+              <>Never run</>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => navigate(`/?q=${encodeURIComponent(item.question)}`)}
+              title="Open in Query"
+              data-testid={`button-view-${item.id}`}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onRerun}
+              disabled={isRerunning}
+              title="Rerun query"
+              data-testid={`button-rerun-${item.id}`}
+            >
+              {isRerunning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={onRemove}
+              title="Remove from dashboard"
+              data-testid={`button-remove-${item.id}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState("my-dashboard");
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
+  const { pinnedItems, removePinnedItem, updatePinnedItemResult } = usePinnedDashboard();
+  const { toast } = useToast();
+  
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ['/api/analytics'],
     refetchInterval: 10000, // Refresh every 10 seconds
@@ -56,6 +205,42 @@ export default function Dashboard() {
     queryKey: ['/api/feedback/stats'],
     refetchInterval: 10000,
   });
+
+  const handleRerunQuery = async (item: PinnedItem) => {
+    setRerunningId(item.id);
+    try {
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: item.question,
+          publishDate: new Date().toISOString().split('T')[0],
+          filters: {
+            planningArea: item.filters.planningArea,
+            scenarioId: item.filters.scenarioId,
+            plant: item.filters.plant
+          }
+        })
+      });
+      
+      if (!response.ok) throw new Error('Query failed');
+      
+      const data = await response.json();
+      const result: PinnedQueryResult = {
+        rows: data.rows || [],
+        rowCount: data.rowCount || 0,
+        sql: data.sql || '',
+        answer: data.answer || ''
+      };
+      
+      updatePinnedItemResult(item.id, result);
+      toast({ title: 'Updated!', description: 'Query results refreshed' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to run query', variant: 'destructive' });
+    } finally {
+      setRerunningId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -101,14 +286,61 @@ export default function Dashboard() {
               </button>
             </Link>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">Query Analytics Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Monitor query performance and errors</p>
+              <h1 className="text-2xl font-bold">Dashboard</h1>
+              <p className="text-sm text-muted-foreground">Your pinned queries and analytics</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+          <TabsList>
+            <TabsTrigger value="my-dashboard" className="gap-2" data-testid="tab-my-dashboard">
+              <LayoutDashboard className="h-4 w-4" />
+              My Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2" data-testid="tab-analytics">
+              <Activity className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="my-dashboard" className="mt-6">
+            {pinnedItems.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Pin className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No pinned queries yet</h3>
+                  <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+                    Pin your favorite queries from the Query page to see them here for quick access.
+                  </p>
+                  <Link href="/">
+                    <Button variant="outline" data-testid="button-go-to-query">
+                      Go to Query Page
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {pinnedItems.map((item) => (
+                  <PinnedQueryCard
+                    key={item.id}
+                    item={item}
+                    onRemove={() => {
+                      removePinnedItem(item.id);
+                      toast({ title: 'Removed', description: 'Query removed from dashboard' });
+                    }}
+                    onRerun={() => handleRerunQuery(item)}
+                    isRerunning={rerunningId === item.id}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-6">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -397,6 +629,8 @@ export default function Dashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+        </Tabs>
           </TabsContent>
         </Tabs>
       </div>
