@@ -293,32 +293,12 @@ BEST PRACTICES:
     ? `\nTODAY'S DATE: ${publishDate}\nWhen the user asks about "today", "this week", "next week", "tomorrow", etc., use ${publishDate} as the reference date (not the actual current date).`
     : '';
 
-  // Build global filter constraints - these MUST be applied to all queries
-  let filterContext = '';
-  if (filters?.planningArea || filters?.scenario || filters?.plant) {
-    const filterParts: string[] = [];
-    if (filters.planningArea) {
-      filterParts.push(`PlanningAreaName = '${filters.planningArea}'`);
-    }
-    if (filters.scenario) {
-      filterParts.push(`ScenarioType = '${filters.scenario}'`);
-    }
-    if (filters.plant) {
-      // Note: DASHt_Planning uses BlockPlant, DASHt_Resources uses PlantName
-      // The LLM should use the correct column based on the table
-      filterParts.push(`Plant filter: '${filters.plant}' (use BlockPlant for DASHt_Planning, PlantName for DASHt_Resources/DASHt_CapacityPlanning/DASHt_DispatchList tables)`);
-    }
-    filterContext = `
-MANDATORY GLOBAL FILTERS (User-selected, MUST be applied to ALL queries):
-The user has selected specific filters that MUST be included in the WHERE clause:
-${filterParts.map(f => `- ${f}`).join('\n')}
-These filters OVERRIDE the default ScenarioType = 'Production' rule. Apply them exactly as specified.
-For plant filtering: Use BlockPlant column for DASHt_Planning table, PlantName column for DASHt_Resources and capacity tables.
-`;
-  }
+  // NOTE: Global filters (planning area, scenario, plant) are applied SERVER-SIDE after SQL generation.
+  // Do NOT tell the LLM to apply these filters - it causes duplicate/conflicting WHERE clauses.
+  // The LLM should generate clean SQL without user-selected filters; we inject them in query-permissions.ts
 
   const systemPrompt = `${CORE_SYSTEM_PROMPT}
-${todayContext}${filterContext}
+${todayContext}
 ${businessTermContext}${contextHintsText}
 AVAILABLE TABLES AND COLUMNS:
 ${modeSchema}
