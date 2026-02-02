@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin, HelpCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -21,6 +21,8 @@ import { usePinnedDashboard, PinnedQueryFilters, PinnedQueryResult } from '@/hoo
 import { useSimulatedToday, getSimulatedTodaySync, fetchSimulatedToday } from '@/hooks/useSimulatedToday';
 import { useToast } from '@/hooks/use-toast';
 import { useDevUser } from '@/hooks/useDevUser';
+import { useTour, type TourStep } from '@/hooks/useTour';
+import { TourOverlay } from '@/components/TourOverlay';
 
 const APP_VERSION = '1.2.0'; // Date formatting + mode-specific schema optimization
 
@@ -110,6 +112,34 @@ interface FilterOptions {
   plants: string[];
 }
 
+// Tour steps for onboarding new users
+const TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="quick-questions"]',
+    title: 'Quick Questions',
+    content: 'Start with these common questions to get insights from your manufacturing data instantly. Just click any card to run the query.',
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour="global-filters"]',
+    title: 'Global Filters',
+    content: 'Filter your queries by Planning Area, Scenario, and Plant. These filters apply to all your questions automatically.',
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour="ask-input"]',
+    title: 'Ask Your Own Questions',
+    content: 'Type any question about your manufacturing data in plain English. The AI will translate it into a database query for you.',
+    placement: 'top',
+  },
+  {
+    target: '[data-tour="dashboard-link"]',
+    title: 'Your Dashboard',
+    content: 'Pin your favorite queries to your personal dashboard for quick access. You can view and manage them anytime.',
+    placement: 'bottom',
+  },
+];
+
 export default function QueryPage() {
   const [question, setQuestion] = useState('');
   const [submittedQuestion, setSubmittedQuestion] = useState('');
@@ -156,6 +186,19 @@ export default function QueryPage() {
   const streamingAnswerRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  
+  // Tour hook for new user onboarding
+  const tour = useTour(TOUR_STEPS);
+  
+  // Auto-start tour for first-time users (after a short delay to ensure page is loaded)
+  useEffect(() => {
+    if (!tour.hasCompletedTour) {
+      const timer = setTimeout(() => {
+        tour.startTour();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [tour.hasCompletedTour]);
   
   // Fetch publish date for date anchoring
   const { data: publishDate } = usePublishDate();
@@ -677,7 +720,7 @@ export default function QueryPage() {
                   </SelectContent>
                 </Select>
               )}
-              <Link href="/dashboard">
+              <Link href="/dashboard" data-tour="dashboard-link">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -689,6 +732,16 @@ export default function QueryPage() {
                   Dashboard
                 </Button>
               </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={() => { tour.resetTour(); tour.startTour(); }}
+                data-testid="button-tour-help"
+                title="Start getting started tour"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Button>
               <div className="[&_button]:border-slate-600 [&_button]:text-slate-300 [&_button]:hover:bg-slate-800 [&_button]:hover:text-white">
                 <ThemeToggle />
               </div>
@@ -707,7 +760,7 @@ export default function QueryPage() {
         </div>
 
         {/* Quick Questions */}
-        <div className="space-y-4">
+        <div className="space-y-4" data-tour="quick-questions">
           <h2 className="text-lg font-semibold text-foreground/80">
             Quick questions
           </h2>
@@ -795,7 +848,7 @@ export default function QueryPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-3">
                 {/* Global Filters - Above chat box */}
-                <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-border/30">
+                <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-border/30" data-tour="global-filters">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="planning-area-filter" className="text-sm font-medium whitespace-nowrap">Planning Area:</Label>
                     <Select value={selectedPlanningArea} onValueChange={setSelectedPlanningArea}>
@@ -853,6 +906,7 @@ export default function QueryPage() {
                   onKeyDown={handleKeyDown}
                   className="min-h-[100px] p-3 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 text-base font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
                   data-testid="input-question"
+                  data-tour="ask-input"
                 />
                 
                 {/* Display both Simulated Today (anchor) and Last Publish to Analytics (UTC) */}
@@ -1449,6 +1503,17 @@ export default function QueryPage() {
           </p>
         </footer>
       </div>
+
+      {/* Getting Started Tour */}
+      <TourOverlay
+        isActive={tour.isActive}
+        step={tour.currentStepData}
+        currentStep={tour.currentStep}
+        totalSteps={tour.totalSteps}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onSkip={tour.skipTour}
+      />
     </div>
   );
 }
