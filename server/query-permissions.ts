@@ -241,3 +241,55 @@ export function getPermissionsForRequest(req: any): PermissionContext {
   
   return { userId, username };
 }
+
+export interface GlobalFilters {
+  planningArea?: string | null;
+  scenario?: string | null;
+  scenarioId?: string | null;
+  plant?: string | null;
+}
+
+export function applyGlobalFilters(
+  sql: string,
+  filters: GlobalFilters
+): { modifiedSql: string; appliedFilters: string[] } {
+  const tables = extractTableNames(sql);
+  const conditions: string[] = [];
+  const appliedFilters: string[] = [];
+
+  if (filters.planningArea && filters.planningArea !== 'All Planning Areas') {
+    if (hasColumnInTables(PLANNING_AREA_COLUMN, tables)) {
+      const value = filters.planningArea.replace(/'/g, "''");
+      conditions.push(`${PLANNING_AREA_COLUMN} = '${value}'`);
+      appliedFilters.push(`Planning Area: ${filters.planningArea}`);
+    }
+  }
+
+  if (filters.scenarioId) {
+    if (hasColumnInTables(SCENARIO_COLUMN, tables)) {
+      const value = filters.scenarioId.replace(/'/g, "''");
+      conditions.push(`${SCENARIO_COLUMN} = '${value}'`);
+      appliedFilters.push(`Scenario ID: ${filters.scenarioId}`);
+    }
+  }
+
+  if (filters.plant && filters.plant !== 'All Plants') {
+    if (hasColumnInTables(PLANT_COLUMN, tables)) {
+      const value = filters.plant.replace(/'/g, "''");
+      conditions.push(`${PLANT_COLUMN} = '${value}'`);
+      appliedFilters.push(`Plant: ${filters.plant}`);
+    }
+  }
+
+  if (conditions.length === 0) {
+    return { modifiedSql: sql, appliedFilters: [] };
+  }
+
+  const filterClause = conditions.join(' AND ');
+  const modifiedSql = injectWhereClause(sql, filterClause);
+  
+  log(`[global-filters] Applied: ${appliedFilters.join('; ')}`, 'permissions');
+  log(`[global-filters] Modified SQL: ${modifiedSql}`, 'permissions');
+  
+  return { modifiedSql, appliedFilters };
+}

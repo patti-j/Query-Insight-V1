@@ -304,7 +304,7 @@ export default function QueryPage() {
           publishDate: anchorDateStr,
           filters: {
             planningArea: selectedPlanningArea !== 'All Planning Areas' ? selectedPlanningArea : null,
-            scenarioId: selectedScenarioId || null, // NewScenarioId for filtering
+            scenarioId: selectedScenarioId || null,
             plant: selectedPlant !== 'All Plants' ? selectedPlant : null
           }
         }),

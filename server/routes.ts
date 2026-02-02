@@ -36,7 +36,7 @@ import {
   deleteUserPermissions,
 } from "./permissions-storage";
 import { userPermissionsSchema, tableAccessOptions } from "@shared/schema";
-import { enforcePermissions, getPermissionsForRequest } from "./query-permissions";
+import { enforcePermissions, getPermissionsForRequest, applyGlobalFilters } from "./query-permissions";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -458,9 +458,9 @@ export async function registerRoutes(
     const publishDate = String(req.query.publishDate ?? '');
     const question = String(req.query.question ?? req.query.query ?? req.query.q ?? req.query.prompt ?? '');
     const filterPlanningArea = req.query.filterPlanningArea ? String(req.query.filterPlanningArea) : null;
-    const filterScenario = req.query.filterScenario ? String(req.query.filterScenario) : null;
+    const filterScenarioId = req.query.filterScenarioId ? String(req.query.filterScenarioId) : null;
     const filterPlant = req.query.filterPlant ? String(req.query.filterPlant) : null;
-    const filters = { planningArea: filterPlanningArea, scenario: filterScenario, plant: filterPlant };
+    const filters = { planningArea: filterPlanningArea, scenarioId: filterScenarioId, plant: filterPlant };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -565,7 +565,7 @@ export async function registerRoutes(
       const confidence = sqlGenResult.confidence;
       llmMs = Date.now() - llmStartTime;
       log(`Generated SQL (streaming): ${generatedSql}`, 'ask-stream');
-      log(`Filters applied: scenario=${filters.scenario}, plant=${filters.plant}`, 'ask-stream');
+      log(`Filters applied: scenarioId=${filters.scenarioId}, plant=${filters.plant}`, 'ask-stream');
 
       // Handle out-of-scope questions with low/no confidence
       if (confidence === 'none') {
@@ -621,9 +621,20 @@ export async function registerRoutes(
         return;
       }
       
-      const enforcedSql = permResult.modifiedSql || finalSql;
+      let enforcedSql = permResult.modifiedSql || finalSql;
       if (permResult.appliedFilters && permResult.appliedFilters.length > 0) {
         log(`Permission filters applied: ${permResult.appliedFilters.join('; ')}`, 'ask-stream');
+      }
+      
+      // Apply user-selected global filters (from dropdown selectors)
+      const globalFilterResult = applyGlobalFilters(enforcedSql, {
+        planningArea: filters.planningArea,
+        scenarioId: filters.scenarioId,
+        plant: filters.plant,
+      });
+      enforcedSql = globalFilterResult.modifiedSql;
+      if (globalFilterResult.appliedFilters.length > 0) {
+        log(`Global filters applied: ${globalFilterResult.appliedFilters.join('; ')}`, 'ask-stream');
       }
 
       // Send SQL to client
@@ -755,7 +766,7 @@ export async function registerRoutes(
       req.body?.query ??
       req.body?.q ??
       req.body?.prompt;
-    const filters = req.body?.filters || { planningArea: null, scenario: null, plant: null };
+    const filters = req.body?.filters || { planningArea: null, scenarioId: null, plant: null };
 
     // Validate question parameter
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
@@ -891,9 +902,20 @@ export async function registerRoutes(
         });
       }
       
-      const enforcedSql = permResult.modifiedSql || finalSql;
+      let enforcedSql = permResult.modifiedSql || finalSql;
       if (permResult.appliedFilters && permResult.appliedFilters.length > 0) {
         log(`Permission filters applied: ${permResult.appliedFilters.join('; ')}`, 'ask');
+      }
+      
+      // Apply user-selected global filters (from dropdown selectors)
+      const globalFilterResult = applyGlobalFilters(enforcedSql, {
+        planningArea: filters.planningArea,
+        scenarioId: filters.scenarioId,
+        plant: filters.plant,
+      });
+      enforcedSql = globalFilterResult.modifiedSql;
+      if (globalFilterResult.appliedFilters.length > 0) {
+        log(`Global filters applied: ${globalFilterResult.appliedFilters.join('; ')}`, 'ask');
       }
       
       log(`Executing SQL: ${enforcedSql}`, 'ask');
