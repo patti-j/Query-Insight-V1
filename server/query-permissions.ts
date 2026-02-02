@@ -155,27 +155,32 @@ function buildFilterClause(
 function injectWhereClause(sql: string, filterClause: string): string {
   if (!filterClause) return sql;
 
-  const upperSql = sql.toUpperCase();
-  const whereIndex = upperSql.indexOf(' WHERE ');
-  const groupByIndex = upperSql.indexOf(' GROUP BY ');
-  const orderByIndex = upperSql.indexOf(' ORDER BY ');
-  const havingIndex = upperSql.indexOf(' HAVING ');
+  // Use regex to handle multi-line SQL with various whitespace
+  const whereMatch = sql.match(/\bWHERE\b/i);
+  const groupByMatch = sql.match(/\bGROUP\s+BY\b/i);
+  const orderByMatch = sql.match(/\bORDER\s+BY\b/i);
+  const havingMatch = sql.match(/\bHAVING\b/i);
 
-  if (whereIndex !== -1) {
-    const insertPosition = whereIndex + 7;
-    return sql.slice(0, insertPosition) + `(${filterClause}) AND ` + sql.slice(insertPosition);
+  // If WHERE exists, add to it
+  if (whereMatch && whereMatch.index !== undefined) {
+    const insertPosition = whereMatch.index + whereMatch[0].length;
+    return sql.slice(0, insertPosition) + ` (${filterClause}) AND` + sql.slice(insertPosition);
   }
 
+  // Find the earliest clause after FROM where we need to insert WHERE
   let insertBefore = sql.length;
-  if (groupByIndex !== -1) insertBefore = Math.min(insertBefore, groupByIndex);
-  if (orderByIndex !== -1) insertBefore = Math.min(insertBefore, orderByIndex);
-  if (havingIndex !== -1) insertBefore = Math.min(insertBefore, havingIndex);
+  if (groupByMatch && groupByMatch.index !== undefined) {
+    insertBefore = Math.min(insertBefore, groupByMatch.index);
+  }
+  if (orderByMatch && orderByMatch.index !== undefined) {
+    insertBefore = Math.min(insertBefore, orderByMatch.index);
+  }
+  if (havingMatch && havingMatch.index !== undefined) {
+    insertBefore = Math.min(insertBefore, havingMatch.index);
+  }
 
-  const insertPosition = sql.length === insertBefore 
-    ? sql.length 
-    : sql.toLowerCase().indexOf(sql.substring(insertBefore).toLowerCase());
-  
-  return sql.slice(0, insertBefore) + ` WHERE ${filterClause}` + sql.slice(insertBefore);
+  // Insert WHERE clause before GROUP BY/ORDER BY/HAVING or at the end
+  return sql.slice(0, insertBefore).trimEnd() + ` WHERE ${filterClause} ` + sql.slice(insertBefore);
 }
 
 export function checkTableAccess(
