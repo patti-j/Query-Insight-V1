@@ -727,8 +727,8 @@ export async function registerRoutes(
 
       if (clientDisconnected) return;
 
-      // Cache successful SQL
-      cacheSuccessfulSql(question, enforcedSql, selectedTables);
+      // Cache successful SQL (cache base SQL before filters, so filters can be reapplied on cache hits)
+      cacheSuccessfulSql(question, finalSql, selectedTables);
 
       // Get suggestions asynchronously
       const suggestions = await generateSuggestions(question);
@@ -1057,8 +1057,8 @@ export async function registerRoutes(
         );
       }
 
-      // Cache successful SQL for consistent results on repeat queries
-      cacheSuccessfulSql(question, enforcedSql, selectedTables);
+      // Cache successful SQL (cache base SQL before filters, so filters can be reapplied on cache hits)
+      cacheSuccessfulSql(question, finalSql, selectedTables);
 
       res.json({
         answer: naturalAnswer,
