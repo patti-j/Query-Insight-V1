@@ -70,9 +70,12 @@ export default function AdminPermissions() {
     try {
       const response = await fetch('/api/filter-options');
       const data = await response.json();
+      const scenarioIds = (data.scenarios || []).map((s: any) => 
+        typeof s === 'string' ? s : s.id
+      );
       setFilterOptions({
         planningAreas: (data.planningAreas || []).filter((x: string) => x !== 'All Planning Areas'),
-        scenarios: (data.scenarios || []).filter((x: string) => x !== 'All Scenarios'),
+        scenarios: scenarioIds,
         plants: (data.plants || []).filter((x: string) => x !== 'All Plants'),
       });
     } catch (error) {
