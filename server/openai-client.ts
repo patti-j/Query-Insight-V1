@@ -307,7 +307,7 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
 
   const llmStartTime = Date.now();
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.2',
     messages: [
       {
         role: 'system',
