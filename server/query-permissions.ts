@@ -23,7 +23,22 @@ const SALES_REVENUE_TABLES = [
 
 const PLANNING_AREA_COLUMN = 'PlanningAreaName';
 const SCENARIO_COLUMN = 'NewScenarioId';
-const PLANT_COLUMN = 'PlantName';
+
+interface TableColumnMapping {
+  planningArea?: string;
+  scenario?: string;
+  plant?: string;
+}
+
+const TABLE_COLUMN_MAPPINGS: Record<string, TableColumnMapping> = {
+  'DASHt_Planning': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId', plant: 'BlockPlant' },
+  'DASHt_SalesOrders': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId' },
+  'DASHt_SalesOrderLines': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId' },
+  'DASHt_CapacityPlanning': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId', plant: 'PlantName' },
+  'DASHt_DispatchList': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId', plant: 'PlantName' },
+  'DASHt_Inventories': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId' },
+  'DASHt_ScheduleConformance': { planningArea: 'PlanningAreaName', plant: 'PlantName' },
+};
 
 function extractTableNames(sql: string): string[] {
   const tablePattern = /(?:FROM|JOIN)\s+\[?publish\]?\.\[?(\w+)\]?/gi;
@@ -35,9 +50,19 @@ function extractTableNames(sql: string): string[] {
   return Array.from(new Set(tables));
 }
 
+function getPlantColumnForTables(tables: string[]): string | null {
+  for (const table of tables) {
+    const mapping = TABLE_COLUMN_MAPPINGS[table];
+    if (mapping?.plant) {
+      return mapping.plant;
+    }
+  }
+  return null;
+}
+
 function hasColumnInTables(columnName: string, tables: string[]): boolean {
   const columnsPerTable: Record<string, string[]> = {
-    'DASHt_Planning': ['PlanningAreaName', 'NewScenarioId', 'PlantName', 'ScenarioType'],
+    'DASHt_Planning': ['PlanningAreaName', 'NewScenarioId', 'BlockPlant', 'ScenarioType'],
     'DASHt_SalesOrders': ['PlanningAreaName', 'NewScenarioId', 'ScenarioType'],
     'DASHt_SalesOrderLines': ['PlanningAreaName', 'NewScenarioId'],
     'DASHt_CapacityPlanning': ['PlanningAreaName', 'NewScenarioId', 'PlantName'],
@@ -106,7 +131,8 @@ function buildFilterClause(
   }
 
   if (permissions.allowedPlants && permissions.allowedPlants.length > 0) {
-    if (hasColumnInTables(PLANT_COLUMN, tables)) {
+    const plantColumn = getPlantColumnForTables(tables);
+    if (plantColumn) {
       const values = permissions.allowedPlants.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
       const mainTable = tables.find(t => 
         ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_DispatchList', 'DASHt_ScheduleConformance'].includes(t)
@@ -114,7 +140,7 @@ function buildFilterClause(
       if (mainTable) {
         const alias = getTableAlias(sql, mainTable);
         const prefix = alias || `[publish].[${mainTable}]`;
-        conditions.push(`${prefix}.${PLANT_COLUMN} IN (${values})`);
+        conditions.push(`${prefix}.${plantColumn} IN (${values})`);
         appliedFilters.push(`Plant: ${permissions.allowedPlants.join(', ')}`);
       }
     }
@@ -274,9 +300,10 @@ export function applyGlobalFilters(
   }
 
   if (filters.plant && filters.plant !== 'All Plants') {
-    if (hasColumnInTables(PLANT_COLUMN, tables)) {
+    const plantColumn = getPlantColumnForTables(tables);
+    if (plantColumn) {
       const value = filters.plant.replace(/'/g, "''");
-      conditions.push(`${PLANT_COLUMN} = '${value}'`);
+      conditions.push(`${plantColumn} = '${value}'`);
       appliedFilters.push(`Plant: ${filters.plant}`);
     }
   }
