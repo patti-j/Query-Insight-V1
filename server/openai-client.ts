@@ -93,7 +93,7 @@ NO GROUPING NEEDED (operation-level queries):
 DEFAULT RULE: When in doubt, ALWAYS add GROUP BY JobName to prevent duplicate job rows.
 
 COMMON COLUMN MAPPINGS (if present in schema):
-- Plant: PREFER BlockPlant (user-friendly name) over PlantId - PlantId is internal
+- Plant: ALWAYS use BlockPlant for DASHt_Planning (NOT PlantId which is internal), PlantName for other tables
 - Department: PREFER BlockDepartment (user-friendly name) over DepartmentId
 - Resource: PREFER BlockResource (user-friendly name) over ResourceId
 - Job: Use JobName (readable ID) - NOT JobId or JobNumber
@@ -103,7 +103,7 @@ COMMON COLUMN MAPPINGS (if present in schema):
 
 USER-FRIENDLY OUTPUT RULE (IMPORTANT):
 - In DASHt_* tables, ALWAYS use the Name/Block columns for display, not internal IDs:
-  - BlockPlant instead of PlantId
+  - BlockPlant (for DASHt_Planning) or PlantName (for other tables) instead of PlantId
   - BlockDepartment instead of DepartmentId
   - BlockResource instead of ResourceId
   - JobName instead of JobId
@@ -304,16 +304,16 @@ BEST PRACTICES:
       filterParts.push(`ScenarioType = '${filters.scenario}'`);
     }
     if (filters.plant) {
-      // Note: DASHt_Planning uses PlantId, DASHt_Resources uses PlantName
+      // Note: DASHt_Planning uses BlockPlant, DASHt_Resources uses PlantName
       // The LLM should use the correct column based on the table
-      filterParts.push(`Plant filter: '${filters.plant}' (use PlantId for DASHt_Planning, PlantName for DASHt_Resources/Capacity tables)`);
+      filterParts.push(`Plant filter: '${filters.plant}' (use BlockPlant for DASHt_Planning, PlantName for DASHt_Resources/DASHt_CapacityPlanning/DASHt_DispatchList tables)`);
     }
     filterContext = `
 MANDATORY GLOBAL FILTERS (User-selected, MUST be applied to ALL queries):
 The user has selected specific filters that MUST be included in the WHERE clause:
 ${filterParts.map(f => `- ${f}`).join('\n')}
 These filters OVERRIDE the default ScenarioType = 'Production' rule. Apply them exactly as specified.
-For plant filtering: Use PlantId column for DASHt_Planning table, PlantName column for DASHt_Resources and capacity tables.
+For plant filtering: Use BlockPlant column for DASHt_Planning table, PlantName column for DASHt_Resources and capacity tables.
 `;
   }
 
