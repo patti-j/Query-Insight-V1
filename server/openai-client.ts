@@ -157,7 +157,7 @@ export async function generateSuggestions(question: string): Promise<string[]> {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1',
+      model: 'gpt-5.2',
       messages: [
         { role: 'system', content: SUGGESTION_PROMPT },
         { role: 'user', content: question }
@@ -307,7 +307,7 @@ Generate only the SQL query, no explanation. Do not include markdown formatting 
 
   const llmStartTime = Date.now();
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: 'gpt-5.2',
     messages: [
       {
         role: 'system',
@@ -376,7 +376,7 @@ export async function classifyQuestion(question: string): Promise<'data_query' |
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5.2-mini',
       messages: [
         { role: 'system', content: QUESTION_CLASSIFIER_PROMPT },
         { role: 'user', content: question }
@@ -427,7 +427,7 @@ export async function answerGeneralQuestion(question: string): Promise<string> {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5.2-mini',
       messages: [
         { role: 'system', content: GENERAL_ANSWER_PROMPT },
         { role: 'user', content: question }
@@ -509,7 +509,7 @@ export async function* streamNaturalLanguageResponse(
         : '';
       
       const emptyResponse = await openai.responses.create({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-5.2-mini',
         instructions: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. If filters were applied, ALWAYS mention them so the user understands the scope of the search. Don't apologize or be overly wordy. Example: "There are no late jobs in Plant A."`,
         input: `Question: "${question}"${filterNote}\n\nNo records were found. Explain this clearly to the user, mentioning any applied filters.`,
         temperature: 0.3,
@@ -554,7 +554,7 @@ Provide a natural language summary of these results.`;
     
     // Use OpenAI Responses API with streaming
     const stream = await openai.responses.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5.2-mini',
       instructions: NATURAL_LANGUAGE_RESPONSE_PROMPT,
       input: userInput,
       temperature: 0.3,
@@ -618,7 +618,7 @@ export async function generateNaturalLanguageResponse(
   if (rowCount === 0) {
     try {
       const emptyResponse = await openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-5.2-mini',
         messages: [
           { role: 'system', content: `You explain when no data is found. Be concise (1-2 sentences). State what was searched for based on the question, and confirm no matching records exist. Don't apologize or be overly wordy. Example: "There are no jobs scheduled for production during the week of January 1, 2025."` },
           { role: 'user', content: `Question: "${question}"\n\nNo records were found. Explain this clearly to the user.` }
@@ -646,7 +646,7 @@ export async function generateNaturalLanguageResponse(
       : '';
       
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5.2-mini',
       messages: [
         { role: 'system', content: NATURAL_LANGUAGE_RESPONSE_PROMPT },
         { 
