@@ -557,10 +557,15 @@ export async function* streamNaturalLanguageResponse(
       ? `\nIMPORTANT: Results are limited to first ${rowCount} rows. The actual total is ${actualTotalCount}. Mention this in your response, e.g. "Here are the first 100 of ${actualTotalCount} total..."`
       : '';
     
+    // Build filter context for non-empty results
+    const filterNote = appliedFilters && appliedFilters.length > 0
+      ? `\n\nApplied filters: ${appliedFilters.join(', ')}. Mention the filter scope in your response (e.g., "In Plant A, there are..." or "For the selected scenario...").`
+      : '\n\nNo filters were applied - this represents ALL data across all plants, planning areas, and scenarios. If results only show one plant/area, clarify that while searching across all, only that subset had matching data.';
+
     // Build input for Responses API (converted from Chat Completions messages)
     const userInput = `Question: "${question}"
 Results (${rowCount} returned${wasLimited ? `, ${actualTotalCount} total in database` : ''}${hasMore ? ', showing first 20 for summary' : ''}):
-${JSON.stringify(limitedResults, null, 2)}${limitNote}
+${JSON.stringify(limitedResults, null, 2)}${limitNote}${filterNote}
 
 Provide a natural language summary of these results.`;
 
