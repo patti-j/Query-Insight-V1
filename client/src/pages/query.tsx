@@ -739,6 +739,7 @@ export default function QueryPage() {
                 onClick={() => { tour.resetTour(); tour.startTour(); }}
                 data-testid="button-tour-help"
                 title="Start getting started tour"
+                aria-label="Start getting started tour"
               >
                 <HelpCircle className="h-4 w-4" />
               </Button>
