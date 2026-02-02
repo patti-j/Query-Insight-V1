@@ -36,6 +36,7 @@ import {
   deleteUserPermissions,
 } from "./permissions-storage";
 import { userPermissionsSchema, tableAccessOptions } from "@shared/schema";
+import { enforcePermissions, getPermissionsForRequest } from "./query-permissions";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -610,28 +611,43 @@ export async function registerRoutes(
       // Check for disconnect before continuing
       if (clientDisconnected) return;
 
+      // Apply user permission enforcement (filter by planning area, scenario, plant)
+      const permContext = getPermissionsForRequest(req);
+      const permResult = enforcePermissions(finalSql, permContext);
+      
+      if (!permResult.allowed) {
+        log(`Permission denied: ${permResult.blockedReason}`, 'ask-stream');
+        sendEvent('error', { error: permResult.blockedReason || 'Access denied', isPermissionDenied: true });
+        return;
+      }
+      
+      const enforcedSql = permResult.modifiedSql || finalSql;
+      if (permResult.appliedFilters && permResult.appliedFilters.length > 0) {
+        log(`Permission filters applied: ${permResult.appliedFilters.join('; ')}`, 'ask-stream');
+      }
+
       // Send SQL to client
-      sendEvent('sql', { sql: finalSql });
+      sendEvent('sql', { sql: enforcedSql });
       sendEvent('status', { stage: 'executing_sql', message: 'Running query...' });
 
       // Execute the query
       const sqlStartTime = Date.now();
-      const result = await executeQuery(finalSql);
+      const result = await executeQuery(enforcedSql);
       const sqlMs = Date.now() - sqlStartTime;
 
       if (clientDisconnected) return;
 
       // Log successful execution
-      logSuccess(logContext, finalSql, result.recordset.length, llmMs, sqlMs);
+      logSuccess(logContext, enforcedSql, result.recordset.length, llmMs, sqlMs);
       trackQueryForFAQ(question, result.recordset.length);
 
       // Get actual total count if results were limited to 100
       let actualTotalCount: number | undefined;
       if (result.recordset.length === 100) {
         try {
-          const fromIndex = finalSql.toUpperCase().indexOf(' FROM ');
+          const fromIndex = enforcedSql.toUpperCase().indexOf(' FROM ');
           if (fromIndex > -1) {
-            let countSql = 'SELECT COUNT(*) AS TotalCount' + finalSql.substring(fromIndex);
+            let countSql = 'SELECT COUNT(*) AS TotalCount' + enforcedSql.substring(fromIndex);
             countSql = countSql.replace(/ORDER\s+BY\s+[^;]+/i, '');
             const countResult = await executeQuery(countSql);
             actualTotalCount = countResult.recordset[0]?.TotalCount;
@@ -694,7 +710,7 @@ export async function registerRoutes(
       if (clientDisconnected) return;
 
       // Cache successful SQL
-      cacheSuccessfulSql(question, finalSql, selectedTables);
+      cacheSuccessfulSql(question, enforcedSql, selectedTables);
 
       // Get suggestions asynchronously
       const suggestions = await generateSuggestions(question);
@@ -702,7 +718,7 @@ export async function registerRoutes(
       // Send completion event
       sendEvent('complete', {
         answer: fullAnswer,
-        sql: finalSql,
+        sql: enforcedSql,
         rowCount: result.recordset.length,
         actualTotalCount,
         suggestions: suggestions.length > 0 ? suggestions : undefined,
@@ -863,17 +879,34 @@ export async function registerRoutes(
         }
       }
       
-      log(`Executing SQL: ${finalSql}`, 'ask');
+      // Apply user permission enforcement (filter by planning area, scenario, plant)
+      const permContext = getPermissionsForRequest(req);
+      const permResult = enforcePermissions(finalSql, permContext);
+      
+      if (!permResult.allowed) {
+        log(`Permission denied: ${permResult.blockedReason}`, 'ask');
+        return res.status(403).json({
+          error: permResult.blockedReason || 'Access denied',
+          isPermissionDenied: true,
+        });
+      }
+      
+      const enforcedSql = permResult.modifiedSql || finalSql;
+      if (permResult.appliedFilters && permResult.appliedFilters.length > 0) {
+        log(`Permission filters applied: ${permResult.appliedFilters.join('; ')}`, 'ask');
+      }
+      
+      log(`Executing SQL: ${enforcedSql}`, 'ask');
 
       // Execute the query
       const sqlStartTime = Date.now();
-      const result = await executeQuery(finalSql);
+      const result = await executeQuery(enforcedSql);
       const sqlMs = Date.now() - sqlStartTime;
 
-      // Log successful execution (use finalSql which is the validated/modified SQL)
+      // Log successful execution (use enforcedSql which is the validated/permission-filtered SQL)
       logSuccess(
         logContext,
-        finalSql,
+        enforcedSql,
         result.recordset.length,
         llmMs,
         sqlMs
@@ -891,9 +924,9 @@ export async function registerRoutes(
         try {
           // Build a count query from the original SQL
           // Extract the FROM clause and everything after it
-          const fromIndex = finalSql.toUpperCase().indexOf(' FROM ');
+          const fromIndex = enforcedSql.toUpperCase().indexOf(' FROM ');
           if (fromIndex > -1) {
-            let countSql = 'SELECT COUNT(*) AS TotalCount' + finalSql.substring(fromIndex);
+            let countSql = 'SELECT COUNT(*) AS TotalCount' + enforcedSql.substring(fromIndex);
             // Remove ORDER BY clause for count query
             countSql = countSql.replace(/ORDER\s+BY\s+[^;]+/i, '');
             const countResult = await executeQuery(countSql);
@@ -910,7 +943,7 @@ export async function registerRoutes(
       let invalidFilterMessage: string | undefined;
       
       if (result.recordset.length === 0) {
-        const tableMatch = finalSql.match(/FROM\s+(\[?publish\]?\.\[?\w+\]?)/i);
+        const tableMatch = enforcedSql.match(/FROM\s+(\[?publish\]?\.\[?\w+\]?)/i);
         const tableName = tableMatch ? tableMatch[1].replace(/\[/g, '').replace(/\]/g, '') : null;
         
         // Check for common filter patterns that might have invalid values
@@ -923,7 +956,7 @@ export async function registerRoutes(
         ];
         
         for (const pattern of filterPatterns) {
-          const match = finalSql.match(pattern.regex);
+          const match = enforcedSql.match(pattern.regex);
           if (match && tableName) {
             const userValue = match[1];
             try {
@@ -951,7 +984,7 @@ export async function registerRoutes(
           // Find which date column is used in the query
           let detectedDateColumn: string | null = null;
           for (const col of dateColumns) {
-            if (finalSql.toLowerCase().includes(col.toLowerCase())) {
+            if (enforcedSql.toLowerCase().includes(col.toLowerCase())) {
               detectedDateColumn = col;
               break;
             }
@@ -996,11 +1029,11 @@ export async function registerRoutes(
       }
 
       // Cache successful SQL for consistent results on repeat queries
-      cacheSuccessfulSql(question, finalSql, selectedTables);
+      cacheSuccessfulSql(question, enforcedSql, selectedTables);
 
       res.json({
         answer: naturalAnswer,
-        sql: finalSql,
+        sql: enforcedSql,
         rows: result.recordset,
         rowCount: result.recordset.length,
         actualTotalCount,
