@@ -102,6 +102,19 @@ JOB COUNT QUERIES (SPECIAL RULES):
   * "Jobs by commitment" / "commitment overview" / "released vs firm vs planned" → Group by commitment:
       SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template' GROUP BY JobCommitment
 
+OTIF (ON-TIME IN-FULL) QUERIES:
+  * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → Calculate OTIF using scheduled jobs that are NOT late:
+      WITH Jobs AS (
+        SELECT DISTINCT JobId, JobQty, JobScheduled, JobLate
+        FROM [publish].[DASHt_Planning]
+        WHERE JobScheduledStatus <> 'Template'
+      )
+      SELECT COALESCE(SUM(JobQty), 0) AS OTIF_JobQty
+      FROM Jobs
+      WHERE JobScheduled = 1 AND JobLate = 0
+  * OTIF means: Jobs that are SCHEDULED (JobScheduled=1) AND NOT LATE (JobLate=0) - sum their JobQty
+  * Always use DISTINCT on JobId first (CTE) to avoid counting operations multiple times
+
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed, use COUNT(*) for counting
   * "Show operation details" → no grouping needed
@@ -372,6 +385,8 @@ Classify the user's question into one of these categories:
   * Questions with time frames (e.g., "next week", "today", "this month")
   * Questions starting with "Show me", "List", "What are the", "How many", "Which"
   * Any question that implies looking at actual production/planning data
+  * KPI requests like "OTIF", "on-time", "predicted OTIF", "JobQty" - these are DATA queries!
+  * "What is the OTIF?" or "What is predicted OTIF JobQty?" = DATA QUERY (not a definition)
   
 - "general" - ONLY questions about concepts, definitions, or system help that don't reference any actual data. Examples:
   * "What is utilization?" (asking for a definition)
@@ -379,7 +394,8 @@ Classify the user's question into one of these categories:
   * "What does on-hold mean?" (asking for a term definition)
   * "Explain capacity planning" (asking for a concept explanation)
 
-IMPORTANT: If the question could be answered with data from the database, classify as "data_query".
+IMPORTANT: If the question mentions specific metrics like OTIF, JobQty, lateness, overdue, etc., it's a data_query.
+If the question could be answered with data from the database, classify as "data_query".
 Only use "general" for pure definitions, concepts, or system help questions.
 
 Return ONLY the category string, nothing else.
