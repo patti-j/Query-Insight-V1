@@ -106,14 +106,18 @@ OTIF (ON-TIME IN-FULL) QUERIES:
   * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → MUST USE publish.Jobs table (NOT DASHt_Planning):
       SELECT COALESCE(SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN Qty ELSE NULL END), 0) AS OTIF_JobQty
       FROM [publish].[Jobs]
+      WHERE ScenarioType = 'Production'
   * EXCEPTION: OTIF queries use publish.Jobs (Tier2 table) to match Power BI results
   * OTIF means: Jobs that are SCHEDULED (Scheduled=1) AND NOT LATE (Late=0) - sum their Qty
+  * ALWAYS filter by ScenarioType = 'Production' unless user explicitly asks for what-if scenarios
 
 PREDICTED ON-TIME COMPLETION QUERIES:
   * "Predicted On-Time Completion" / "on-time completion %" / "on-time percentage" / "OTC" → MUST USE publish.Jobs table:
       SELECT COALESCE(100.0 * SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN Scheduled = 1 THEN 1 ELSE 0 END), 0), 0) AS Predicted_OnTime_Completion_Pct
       FROM [publish].[Jobs]
+      WHERE ScenarioType = 'Production'
   * Returns percentage of scheduled jobs that are on-time (not late)
+  * ALWAYS filter by ScenarioType = 'Production' unless user explicitly asks for what-if scenarios
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed, use COUNT(*) for counting
