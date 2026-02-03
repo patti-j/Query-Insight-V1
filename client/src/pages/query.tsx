@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin, HelpCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin, HelpCircle, Copy, Check } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -165,6 +165,7 @@ export default function QueryPage() {
   const [generalAnswer, setGeneralAnswer] = useState<string | null>(null);
   const [showChart, setShowChart] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
   const [streamingAnswer, setStreamingAnswer] = useState('');
   const [streamingStatus, setStreamingStatus] = useState<string | null>(null);
   
@@ -1289,9 +1290,24 @@ export default function QueryPage() {
                 
                 {/* SQL Query - Collapsible */}
                 {showSql && (
-                  <pre className="bg-muted/50 p-4 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
-                    {result.sql}
-                  </pre>
+                  <div className="relative">
+                    <pre className="bg-muted/50 p-4 pr-12 rounded-xl text-sm overflow-x-auto border border-border/30" data-testid="text-sql">
+                      {result.sql}
+                    </pre>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 h-8 w-8 p-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(result.sql);
+                        setSqlCopied(true);
+                        setTimeout(() => setSqlCopied(false), 2000);
+                      }}
+                      data-testid="button-copy-sql"
+                    >
+                      {sqlCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 )}
                 
                 {/* Chart visualization */}
