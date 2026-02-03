@@ -36,6 +36,14 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - **Invalid Filter Validation:** The system provides helpful messages and valid alternatives when a query returns 0 results due to non-existent filter values.
 - **Simulated Today:** An anchor date can be configured (e.g., `VITE_DEV_FIXED_TODAY` or `SIMULATED_TODAY`) for all date-relative queries.
 
+## Maintenance Scripts
+
+- **Query Matrix Generator:** The `/matrix` page (`docs/query-matrix.html`) is auto-generated from `src/config/analytics_reference.json`. To regenerate after updating table mappings:
+  ```bash
+  npx tsx script/generate-matrix-html.ts
+  ```
+  This ensures the documentation stays in sync with the actual table selection logic.
+
 ## External Dependencies
 
 - **Azure SQL Database:** The primary data source, configured via `DATABASE_URL` or discrete environment variables. Tables follow the `publish.DASHt_*` naming convention.
