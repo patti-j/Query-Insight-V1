@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin, HelpCircle, Copy, Check } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Database, XCircle, Download, ThumbsUp, ThumbsDown, BarChart3, Heart, Trash2, Lightbulb, MessageSquare, ArrowUp, Pin, HelpCircle, Copy, Check, TableProperties } from 'lucide-react';
 import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ResultChart } from '@/components/result-chart';
@@ -728,6 +728,18 @@ export default function QueryPage() {
                   Dashboard
                 </Button>
               </Link>
+              <a href="/matrix" target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-slate-300 hover:text-white hover:bg-slate-800"
+                  data-testid="button-matrix"
+                  title="View query matrix reference"
+                >
+                  <TableProperties className="h-4 w-4" />
+                  Matrix
+                </Button>
+              </a>
               <Button
                 variant="ghost"
                 size="sm"
