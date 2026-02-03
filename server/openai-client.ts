@@ -109,6 +109,12 @@ OTIF (ON-TIME IN-FULL) QUERIES:
   * EXCEPTION: OTIF queries use publish.Jobs (Tier2 table) to match Power BI results
   * OTIF means: Jobs that are SCHEDULED (Scheduled=1) AND NOT LATE (Late=0) - sum their Qty
 
+PREDICTED ON-TIME COMPLETION QUERIES:
+  * "Predicted On-Time Completion" / "on-time completion %" / "on-time percentage" / "OTC" → MUST USE publish.Jobs table:
+      SELECT COALESCE(100.0 * SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN Scheduled = 1 THEN 1 ELSE 0 END), 0), 0) AS Predicted_OnTime_Completion_Pct
+      FROM [publish].[Jobs]
+  * Returns percentage of scheduled jobs that are on-time (not late)
+
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed, use COUNT(*) for counting
   * "Show operation details" → no grouping needed
