@@ -1186,7 +1186,7 @@ export default function QueryPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => setShowChart(!showChart)}
-                        className={`gap-2 ${showChart ? 'bg-primary/10 border-primary/50' : ''}`}
+                        className={`gap-2 ${showChart ? 'bg-green-500/20 border-green-500/50' : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 hover:bg-green-500/20'}`}
                         data-testid="button-toggle-chart"
                       >
                         <BarChart3 className="h-4 w-4" />
