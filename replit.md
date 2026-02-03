@@ -32,7 +32,7 @@ Cleanup approach: Clean up incrementally as features are built, not in large bat
 - **User Permissions Admin Page:** An admin-only page (`/admin/permissions`) allows managing user access restrictions based on Planning Area, Scenario, Plant, and Table Access, stored in `data/user-permissions.json`.
 - **Global Filters:** Three dropdown filters (Planning Area, Scenario, Plant) are available in the UI, applied to all queries.
 - **SSE Streaming:** Full SSE streaming support (`/api/ask/stream`) with typing effects and a stop button is available, auto-enabled in Azure deployments.
-- **ScenarioType Filtering:** `DASHt_Planning` and `DASHt_SalesOrders` queries default to `ScenarioType = 'Production'` unless a "what-if" scenario is explicitly requested.
+- **ScenarioType Filtering:** `DASHt_Planning` and `DASHt_SalesOrders` queries use the user's selected scenario from the dropdown filter.
 - **Invalid Filter Validation:** The system provides helpful messages and valid alternatives when a query returns 0 results due to non-existent filter values.
 - **Simulated Today:** An anchor date can be configured (e.g., `VITE_DEV_FIXED_TODAY` or `SIMULATED_TODAY`) for all date-relative queries.
 

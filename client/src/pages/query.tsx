@@ -242,12 +242,7 @@ export default function QueryPage() {
       .then(res => res.json())
       .then((data: FilterOptions) => {
         setFilterOptions(data);
-        // Set first Production scenario as default if available
-        const productionScenario = data.scenarios.find(s => s.type === 'Production');
-        if (productionScenario) {
-          setSelectedScenarioId(productionScenario.id);
-        }
-      })
+              })
       .catch(err => console.error('[filter-options] Failed to fetch:', err));
   }, []);
 
