@@ -38,6 +38,7 @@ const TABLE_COLUMN_MAPPINGS: Record<string, TableColumnMapping> = {
   'DASHt_DispatchList': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId', plant: 'PlantName' },
   'DASHt_Inventories': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId' },
   'DASHt_ScheduleConformance': { planningArea: 'PlanningAreaName', plant: 'PlantName' },
+  'Jobs': { planningArea: 'PlanningAreaName', scenario: 'NewScenarioId', plant: 'Plant' },
 };
 
 function extractTableNames(sql: string): string[] {
@@ -69,6 +70,7 @@ function hasColumnInTables(columnName: string, tables: string[]): boolean {
     'DASHt_DispatchList': ['PlanningAreaName', 'NewScenarioId', 'PlantName'],
     'DASHt_Inventories': ['PlanningAreaName', 'NewScenarioId'],
     'DASHt_ScheduleConformance': ['PlanningAreaName', 'PlantName'],
+    'Jobs': ['PlanningAreaName', 'NewScenarioId', 'Plant', 'ScenarioType'],
   };
 
   for (const table of tables) {
@@ -104,7 +106,7 @@ function buildFilterClause(
     if (hasColumnInTables(PLANNING_AREA_COLUMN, tables)) {
       const values = permissions.allowedPlanningAreas.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
       const mainTable = tables.find(t => 
-        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_SalesOrders', 'DASHt_DispatchList', 'DASHt_Inventories', 'DASHt_ScheduleConformance'].includes(t)
+        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_SalesOrders', 'DASHt_DispatchList', 'DASHt_Inventories', 'DASHt_ScheduleConformance', 'Jobs'].includes(t)
       );
       if (mainTable) {
         const alias = getTableAlias(sql, mainTable);
@@ -119,7 +121,7 @@ function buildFilterClause(
     if (hasColumnInTables(SCENARIO_COLUMN, tables)) {
       const values = permissions.allowedScenarios.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
       const mainTable = tables.find(t => 
-        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_SalesOrders', 'DASHt_SalesOrderLines', 'DASHt_DispatchList', 'DASHt_Inventories'].includes(t)
+        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_SalesOrders', 'DASHt_SalesOrderLines', 'DASHt_DispatchList', 'DASHt_Inventories', 'Jobs'].includes(t)
       );
       if (mainTable) {
         const alias = getTableAlias(sql, mainTable);
@@ -135,7 +137,7 @@ function buildFilterClause(
     if (plantColumn) {
       const values = permissions.allowedPlants.map(v => `'${v.replace(/'/g, "''")}'`).join(', ');
       const mainTable = tables.find(t => 
-        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_DispatchList', 'DASHt_ScheduleConformance'].includes(t)
+        ['DASHt_Planning', 'DASHt_CapacityPlanning', 'DASHt_DispatchList', 'DASHt_ScheduleConformance', 'Jobs'].includes(t)
       );
       if (mainTable) {
         const alias = getTableAlias(sql, mainTable);

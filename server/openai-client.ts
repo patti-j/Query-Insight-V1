@@ -107,28 +107,27 @@ PUBLISH.JOBS TABLE - USE FOR JOB-LEVEL METRICS (EXCEPTION TO TIER1 RULE):
   * publish.Jobs columns: Late, Scheduled, Qty, ScenarioType, JobId, etc.
   * DASHt_Planning columns: JobLate, JobScheduled, JobQty (different names!)
   * "How many jobs are scheduled?" / "scheduled jobs" / "late jobs count":
-      SELECT COUNT(*) AS JobCount FROM [publish].[Jobs] WHERE Scheduled = 1 AND ScenarioType = 'Production'
+      SELECT COUNT(*) AS JobCount FROM [publish].[Jobs] WHERE Scheduled = 1
   * "How many jobs are late?" / "late jobs":
-      SELECT COUNT(*) AS LateJobCount FROM [publish].[Jobs] WHERE Late = 1 AND ScenarioType = 'Production'
+      SELECT COUNT(*) AS LateJobCount FROM [publish].[Jobs] WHERE Late = 1
   * "How many jobs are scheduled and late?":
-      SELECT COUNT(*) AS ScheduledLateJobs FROM [publish].[Jobs] WHERE Scheduled = 1 AND Late = 1 AND ScenarioType = 'Production'
+      SELECT COUNT(*) AS ScheduledLateJobs FROM [publish].[Jobs] WHERE Scheduled = 1 AND Late = 1
+  * DO NOT add ScenarioType filter - user filters are applied server-side based on UI selectors
 
 OTIF (ON-TIME IN-FULL) QUERIES:
   * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → MUST USE publish.Jobs table (NOT DASHt_Planning):
       SELECT COALESCE(SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN Qty ELSE NULL END), 0) AS OTIF_JobQty
       FROM [publish].[Jobs]
-      WHERE ScenarioType = 'Production'
   * EXCEPTION: OTIF queries use publish.Jobs (Tier2 table) to match Power BI results
   * OTIF means: Jobs that are SCHEDULED (Scheduled=1) AND NOT LATE (Late=0) - sum their Qty
-  * ALWAYS filter by ScenarioType = 'Production' unless user explicitly asks for what-if scenarios
+  * DO NOT add ScenarioType filter - user filters are applied server-side based on UI selectors
 
 PREDICTED ON-TIME COMPLETION QUERIES:
   * "Predicted On-Time Completion" / "on-time completion %" / "on-time percentage" / "OTC" → MUST USE publish.Jobs table:
       SELECT COALESCE(100.0 * SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN Scheduled = 1 THEN 1 ELSE 0 END), 0), 0) AS Predicted_OnTime_Completion_Pct
       FROM [publish].[Jobs]
-      WHERE ScenarioType = 'Production'
   * Returns percentage of scheduled jobs that are on-time (not late)
-  * ALWAYS filter by ScenarioType = 'Production' unless user explicitly asks for what-if scenarios
+  * DO NOT add ScenarioType filter - user filters are applied server-side based on UI selectors
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed, use COUNT(*) for counting
