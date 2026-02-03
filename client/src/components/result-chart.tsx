@@ -81,6 +81,10 @@ export function ResultChart({ rows, columns }: ResultChartProps) {
     );
   }
 
+  if (rows.length <= 1) {
+    return null;
+  }
+
   const formatValue = (value: number) => {
     if (Math.abs(value) >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
