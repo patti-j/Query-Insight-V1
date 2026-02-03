@@ -77,20 +77,29 @@ MANDATORY GROUPING EXAMPLES:
   * "Show job dates" → SELECT JobName, MIN(date), MAX(date), ... GROUP BY JobName
   * "List jobs by product" → SELECT JobName, JobProduct, ... GROUP BY JobName, JobProduct
 
+JOB vs OPERATION COUNTING (CRITICAL):
+DASHt_Planning is operation-grain (one row per operation, multiple operations per job). Use the right counting method:
+  * Job-level questions ("how many jobs", "job count", "jobs by commitment") → COUNT(DISTINCT JobId) or COUNT(DISTINCT JobName)
+  * Operation-level questions ("how many operations", "how many steps") → COUNT(*) or COUNT(OPId)
+
+TEMPLATE FILTERING (ALWAYS APPLY):
+  * ALWAYS exclude templates from job/operation counts: WHERE JobScheduledStatus <> 'Template'
+  * Templates are job templates used for planning, not actual scheduled jobs
+
 JOB COUNT QUERIES (SPECIAL RULES):
-  * "How many jobs are there?" / "total jobs" / "all jobs" / "jobs report" / "commitment overview" / "active jobs" / "jobs in planning" → Use DASHt_Planning WITH ScenarioType = 'Production':
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production'
-  * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Use DASHt_Planning with BOTH JobCommitment AND ScenarioType filters:
-      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released' AND ScenarioType = 'Production'
+  * "How many jobs are there?" / "total jobs" / "all jobs" / "jobs report" / "commitment overview" / "active jobs" / "jobs in planning" → Use DASHt_Planning:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template'
+  * "Released jobs" / "firm jobs" / "planned jobs" / "estimate jobs" → Filter by JobCommitment:
+      SELECT COUNT(DISTINCT JobId) AS JobCount FROM [publish].[DASHt_Planning] WHERE JobCommitment = 'Released' AND JobScheduledStatus <> 'Template'
       (Replace 'Released' with 'Firm', 'Planned', or 'Estimate' based on question)
-  * "Jobs by commitment" → Group by commitment WITH ScenarioType = 'Production':
-      SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE ScenarioType = 'Production' GROUP BY JobCommitment
+  * "Jobs by commitment" / "commitment overview" / "released vs firm vs planned" → Group by commitment:
+      SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template' GROUP BY JobCommitment
 
 NO GROUPING NEEDED (operation-level queries):
-  * "Show operations" → no grouping needed
+  * "Show operations" → no grouping needed, use COUNT(*) for counting
   * "Show operation details" → no grouping needed
 
-DEFAULT RULE: When in doubt, ALWAYS add GROUP BY JobName to prevent duplicate job rows.
+DEFAULT RULE: When in doubt, ALWAYS add GROUP BY JobName to prevent duplicate job rows, and ALWAYS filter out templates.
 
 COMMON COLUMN MAPPINGS (if present in schema):
 - Plant: ALWAYS use BlockPlant for DASHt_Planning (NOT PlantId which is internal), PlantName for other tables
