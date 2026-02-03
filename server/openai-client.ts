@@ -102,6 +102,17 @@ JOB COUNT QUERIES (SPECIAL RULES):
   * "Jobs by commitment" / "commitment overview" / "released vs firm vs planned" → Group by commitment:
       SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template' GROUP BY JobCommitment
 
+PUBLISH.JOBS TABLE - USE FOR JOB-LEVEL METRICS (EXCEPTION TO TIER1 RULE):
+  * For job counts involving Late/Scheduled status, use [publish].[Jobs] NOT DASHt_Planning
+  * publish.Jobs columns: Late, Scheduled, Qty, ScenarioType, JobId, etc.
+  * DASHt_Planning columns: JobLate, JobScheduled, JobQty (different names!)
+  * "How many jobs are scheduled?" / "scheduled jobs" / "late jobs count":
+      SELECT COUNT(*) AS JobCount FROM [publish].[Jobs] WHERE Scheduled = 1 AND ScenarioType = 'Production'
+  * "How many jobs are late?" / "late jobs":
+      SELECT COUNT(*) AS LateJobCount FROM [publish].[Jobs] WHERE Late = 1 AND ScenarioType = 'Production'
+  * "How many jobs are scheduled and late?":
+      SELECT COUNT(*) AS ScheduledLateJobs FROM [publish].[Jobs] WHERE Scheduled = 1 AND Late = 1 AND ScenarioType = 'Production'
+
 OTIF (ON-TIME IN-FULL) QUERIES:
   * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → MUST USE publish.Jobs table (NOT DASHt_Planning):
       SELECT COALESCE(SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN Qty ELSE NULL END), 0) AS OTIF_JobQty
