@@ -179,13 +179,38 @@ function extractColumnReferences(sql: string): Array<{ column: string; context: 
   }
   
   // Extract columns from GROUP BY
-  const groupByRegex = /GROUP BY\s+(.*?)(?:ORDER BY|$)/i;
+  const groupByRegex = /GROUP BY\s+(.*?)(?:ORDER BY|HAVING|$)/i;
   const groupByMatch = cleanSql.match(groupByRegex);
   if (groupByMatch) {
     const groupByClause = groupByMatch[1];
     const columns = groupByClause.split(',');
     for (const col of columns) {
       const trimmed = col.trim();
+      // Handle 3-part bracketed notation: [schema].[table].[Column]
+      const threePartBracketMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.\[(\w+)\]/i);
+      if (threePartBracketMatch && threePartBracketMatch[1] && !isKeyword(threePartBracketMatch[1])) {
+        references.push({ column: threePartBracketMatch[1], context: 'GROUP BY' });
+        continue;
+      }
+      // Handle 3-part mixed notation: [schema].[table].ColumnName
+      const threePartMixedMatch = trimmed.match(/\[\w+\]\.\[\w+\]\.(\w+)/i);
+      if (threePartMixedMatch && threePartMixedMatch[1] && !isKeyword(threePartMixedMatch[1])) {
+        references.push({ column: threePartMixedMatch[1], context: 'GROUP BY' });
+        continue;
+      }
+      // Handle 2-part bracketed notation: [alias].[Column]
+      const bracketMatch = trimmed.match(/(?:\[\w+\]\.)?\[(\w+)\]/i);
+      if (bracketMatch && bracketMatch[1] && !isKeyword(bracketMatch[1])) {
+        references.push({ column: bracketMatch[1], context: 'GROUP BY' });
+        continue;
+      }
+      // Handle 3-part dot notation: schema.table.column
+      const threePartDotMatch = trimmed.match(/\w+\.\w+\.(\w+)/i);
+      if (threePartDotMatch && threePartDotMatch[1] && !isKeyword(threePartDotMatch[1])) {
+        references.push({ column: threePartDotMatch[1], context: 'GROUP BY' });
+        continue;
+      }
+      // Handle 2-part dot notation: table.column or just column
       const match = trimmed.match(/(?:[\w]+\.)?(\w+)/i);
       if (match && match[1] && !isKeyword(match[1])) {
         references.push({ column: match[1], context: 'GROUP BY' });
