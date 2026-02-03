@@ -81,6 +81,13 @@ JOB vs OPERATION COUNTING (CRITICAL):
 DASHt_Planning is operation-grain (one row per operation, multiple operations per job). Use the right counting method:
   * Job-level questions ("how many jobs", "job count", "jobs by commitment") → COUNT(DISTINCT JobId) or COUNT(DISTINCT JobName)
   * Operation-level questions ("how many operations", "how many steps") → COUNT(*) or COUNT(OPId)
+  * CONDITIONAL JOB COUNTS (late jobs, overdue jobs, etc.) → Use COUNT(DISTINCT CASE WHEN...):
+      WRONG: SUM(CASE WHEN JobLate = 1 THEN 1 ELSE 0 END) -- counts operations, not jobs!
+      RIGHT: COUNT(DISTINCT CASE WHEN JobLate = 1 THEN JobId END) AS LateJobs
+    Example for multiple conditions:
+      SELECT COUNT(DISTINCT CASE WHEN JobLate = 1 THEN JobId END) AS LateJobs,
+             COUNT(DISTINCT CASE WHEN JobOverdue = 1 THEN JobId END) AS OverdueJobs
+      FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template'
 
 TEMPLATE FILTERING (ALWAYS APPLY):
   * ALWAYS exclude templates from job/operation counts: WHERE JobScheduledStatus <> 'Template'
