@@ -103,17 +103,11 @@ JOB COUNT QUERIES (SPECIAL RULES):
       SELECT JobCommitment, COUNT(DISTINCT JobId) AS Jobs FROM [publish].[DASHt_Planning] WHERE JobScheduledStatus <> 'Template' GROUP BY JobCommitment
 
 OTIF (ON-TIME IN-FULL) QUERIES:
-  * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → Calculate OTIF using scheduled jobs that are NOT late:
-      WITH Jobs AS (
-        SELECT DISTINCT JobId, JobQty, JobScheduled, JobLate
-        FROM [publish].[DASHt_Planning]
-        WHERE JobScheduledStatus <> 'Template'
-      )
-      SELECT COALESCE(SUM(JobQty), 0) AS OTIF_JobQty
-      FROM Jobs
-      WHERE JobScheduled = 1 AND JobLate = 0
-  * OTIF means: Jobs that are SCHEDULED (JobScheduled=1) AND NOT LATE (JobLate=0) - sum their JobQty
-  * Always use DISTINCT on JobId first (CTE) to avoid counting operations multiple times
+  * "OTIF" / "Predicted OTIF" / "OTIF JobQty" / "on-time in-full" → MUST USE publish.Jobs table (NOT DASHt_Planning):
+      SELECT COALESCE(SUM(CASE WHEN Scheduled = 1 AND Late = 0 THEN Qty ELSE NULL END), 0) AS OTIF_JobQty
+      FROM [publish].[Jobs]
+  * EXCEPTION: OTIF queries use publish.Jobs (Tier2 table) to match Power BI results
+  * OTIF means: Jobs that are SCHEDULED (Scheduled=1) AND NOT LATE (Late=0) - sum their Qty
 
 NO GROUPING NEEDED (operation-level queries):
   * "Show operations" → no grouping needed, use COUNT(*) for counting
